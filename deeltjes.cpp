@@ -8,7 +8,7 @@ int main()
 	RenderSchermPerspectief scherm("Perspectief Demo");
 
 
-	scherm.maakVlakVerdelingsShader("deeltjes", "shaders/deeltjes.vert", "shaders/deeltjes.frag", "shaders/deeltjes.tess");
+	scherm.maakVlakVerdelingsShader("deeltjes", "shaders/deeltjes.vert", "shaders/deeltjes.frag", "shaders/deeltjes.tess", "shaders/deeltjes.tctl");
 //	scherm.maakShader("deeltjes", "shaders/deeltjes.vert", "shaders/deeltjes.frag");
 
 	const GLfloat tessVal = 16.0;
@@ -36,6 +36,6 @@ int main()
 		//scherm.renderQuad();
 		scherm.rondRenderAf();
 		glErrorToConsole("rondRenderAf: ");
-		rot += 0.01f;
+		rot += 0.001f;
 	}
 }
