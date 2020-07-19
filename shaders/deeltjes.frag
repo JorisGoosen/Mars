@@ -2,7 +2,7 @@
 
 out vec4 kleur;
 
-in GS_FS_VERTEX
+in TS_FS_VERTEX
 {
 	in vec3 normal;
 	in vec3 kleur;

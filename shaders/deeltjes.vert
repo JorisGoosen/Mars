@@ -3,15 +3,17 @@
 layout(location = 0) in vec3 vPos;
 
 
-out VS_GS_VERTEX
+out vec3 normal;
+
+
+out VS_TS_VERTEX
 {
 	out vec3 normal;
-} vs_out;
+	out vec3 pos;
+} ts_in;
 
 void main()
 {
-	vs_out.normal = vPos;//normalize(vec4(vPos, 0) * modelView).xyz;
-
-	//gl_Position = projectie * modelView * vec4(vPos, 1.0);
-	gl_Position = vec4(vPos, 1.0);
+	ts_in.normal	= normalize(vPos);
+	ts_in.pos 		= vPos;
 }
