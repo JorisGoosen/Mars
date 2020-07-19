@@ -30,8 +30,11 @@ void main()
 {
     // Interpolate the attributes of the output vertex using the barycentric coordinates
     fs_in.normal = normalize(interpolate3D(ts_in[0].normal, ts_in[1].normal, ts_in[2].normal));
-    fs_in.kleur	 = (fs_in.normal + vec3(1.0)) * 0.5;
     
+	vec3 tussen  = (fs_in.normal + vec3(1.0)) * 0.5;
+	fs_in.kleur	 = interpolate3D(tussen, vec3(1.0) - tussen, vec3(0.0));
+
+
 	gl_Position = 
 		projectie * 
 		modelView *

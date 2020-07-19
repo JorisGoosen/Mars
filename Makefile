@@ -1,6 +1,6 @@
 GEREEDSCHAP = ../Gereedschap
-CXXFLAGS 	= -fPIC -O3 -W -Wall -Wextra -std=c++2a `pkg-config --cflags glfw3 gl glew` -I$(GEREEDSCHAP)
-LIBFLAGS 	= `pkg-config --libs glfw3 glew gl` -L$(GEREEDSCHAP) -lgereedschap
+CXXFLAGS 	= -fPIC -g -W -Wall -Wextra -std=c++2a `pkg-config --cflags glfw3 gl glew libpng` -I$(GEREEDSCHAP)
+LIBFLAGS 	= `pkg-config --libs glfw3 glew gl libpng` -L$(GEREEDSCHAP) -lgereedschap
 
 all: deeltjes
 
