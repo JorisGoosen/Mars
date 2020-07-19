@@ -14,23 +14,39 @@ out TC_TS_VERTEX
 	out vec3 pos;
 } ts_in[];
 
+uniform mat4 modelView;
+
 
 /*	patch out float gl_TessLevelOuter[4];
 	patch out float gl_TessLevelInner[2];*/
+
+
+int tessLevelFunc(vec3 p)
+{
+	const float afstand = 6.0;
+	int tess = int( max(2.0, min(256.0, ((afstand - length(modelView * vec4(p, 1)) ) / afstand) * 64.0)));
+
+	return tess;
+}
 
 void main()
 {
 	ts_in[gl_InvocationID].normal 	= tc_in[gl_InvocationID].normal;
 	ts_in[gl_InvocationID].pos 		= tc_in[gl_InvocationID].pos;
 
-	int outer = 16;
+	if(gl_InvocationID == 0)
+	{
+		vec3 central = normalize(tc_in[0].pos + tc_in[1].pos + tc_in[2].pos);
 
-	if(tc_in[gl_InvocationID].normal.x > 0)
-		outer = 128;
 
-	gl_TessLevelInner[0] = outer;
-	
-	gl_TessLevelOuter[0] = outer;
-	gl_TessLevelOuter[1] = outer;
-	gl_TessLevelOuter[2] = outer;
+		gl_TessLevelInner[0] = tessLevelFunc(central);
+
+		int tess0 = tessLevelFunc(tc_in[0].pos);
+		int tess1 = tessLevelFunc(tc_in[1].pos);
+		int tess2 = tessLevelFunc(tc_in[2].pos);
+		
+		gl_TessLevelOuter[0] = max(tess0, tess1);
+		gl_TessLevelOuter[1] = max(tess1, tess2);
+		gl_TessLevelOuter[2] = max(tess2, tess0);
+	}
 } 

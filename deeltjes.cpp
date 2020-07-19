@@ -19,7 +19,8 @@ int main()
 	glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, defaultInnerTess);
 	glClearColor(0,0,0,0);
 
-	scherm.laadTextuurUitPng("MOLA_cylin_grijs.png", "Mars");
+	//scherm.laadTextuurUitPng("MOLA_cylin_grijs.png", "Mars");
+	scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars");
 
 	std::cout << "Hmmm" << std::endl;
 	Icosahedron ico;
@@ -36,6 +37,6 @@ int main()
 		//scherm.renderQuad();
 		scherm.rondRenderAf();
 		glErrorToConsole("rondRenderAf: ");
-		rot += 0.001f;
+		rot += 0.007f;
 	}
 }
