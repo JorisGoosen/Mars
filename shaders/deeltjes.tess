@@ -1,5 +1,4 @@
 #version 410 core
-#define PI 3.1415926538
 
 layout(triangles, equal_spacing, ccw) in;
 
@@ -23,6 +22,7 @@ in VS_TS_VERTEX
 {
 	in vec3 normal;
 	in vec3 pos;
+	in vec2 tex;
 } ts_in[];
 
 
@@ -41,17 +41,11 @@ void main()
     // Interpolate the attributes of the output vertex using the barycentric coordinates
     fs_in.normal = normalize(interpolate3D(ts_in[0].normal, ts_in[1].normal, ts_in[2].normal));
     
-	fs_in.kleur	 = vec3(0.9, 0.5, 0.1);
+	fs_in.kleur	 = vec3(0.9, 0.4, 0.01);
+	fs_in.tex	 = interpolate2D(ts_in[0].tex, ts_in[1].tex, ts_in[2].tex);
 
-
-	vec2	angleVec	= normalize(fs_in.normal.xz);
-
-	float 	latitude 	= (fs_in.normal.y + 1.0) * 0.5,
-			longitude	= atan(angleVec.x, angleVec.y) / PI;
-
-	fs_in.tex 	 = vec2(longitude, latitude);
-
-	float hoogte = 1.0 + (0.1 * texture(marsHoogte, fs_in.tex).r);
+	
+	float hoogte = 1.0 + (0.05 * texture(marsHoogte, fs_in.tex).r);
 
 	gl_Position = 
 		projectie * 
