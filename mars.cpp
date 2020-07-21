@@ -9,27 +9,29 @@ int main()
 
 
 	scherm.maakVlakVerdelingsShader("deeltjes", "shaders/deeltjes.vert", "shaders/deeltjes.frag", "shaders/deeltjes.tess", "shaders/deeltjes.tctl");
-//	scherm.maakShader("deeltjes", "shaders/deeltjes.vert", "shaders/deeltjes.frag");
 
-	const GLfloat tessVal = 16.0;
-	const GLfloat defaultOuterTess[] = {tessVal, tessVal, tessVal, tessVal};
-	const GLfloat defaultInnerTess[] = {tessVal, tessVal};
-	
-	glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, defaultOuterTess);
-	glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, defaultInnerTess);
 	glClearColor(0,0,0,0);
 
-	//scherm.laadTextuurUitPng("MOLA_cylin_grijs.png", "Mars");
 	scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars");
 
-	std::cout << "Hmmm" << std::endl;
 	Icosahedron ico;
 
-	float rot = 0.0f;
+	float rot = 0.0f, rot2=0.0f;
+
 	while(!scherm.stopGewenst())
 	{
 		scherm.RecalculateProjection();
-		scherm.setModelView(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.5f)), rot, glm::vec3(0.0f, 1.0f, 0.0f)));
+		scherm.setModelView(
+			glm::rotate(
+				glm::rotate(
+					glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.45f)), 
+					rot, 
+					glm::vec3(0.0f, 0.0f, 1.0f)
+				), 
+				rot2, 
+				glm::vec3(0.0f, 1.0f, 0.0f)
+			)
+		);
 		scherm.bereidRenderVoor();
 
 		ico.tekenJezelfPatchy();
@@ -37,6 +39,8 @@ int main()
 		//scherm.renderQuad();
 		scherm.rondRenderAf();
 		glErrorToConsole("rondRenderAf: ");
-		rot += 0.007f;
+		
+		rot += 0.006f;
+		rot2 += 0.0012f;
 	}
 }

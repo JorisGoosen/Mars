@@ -36,6 +36,8 @@ out TS_FS_VERTEX
 uniform sampler2D marsHoogte;
 
 
+
+
 void main()
 {
     // Interpolate the attributes of the output vertex using the barycentric coordinates
