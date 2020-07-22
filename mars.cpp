@@ -5,7 +5,7 @@
 
 int main()
 {
-	RenderSchermPerspectief scherm("Perspectief Demo");
+	RenderSchermPerspectief scherm("Perspectief Demo", 1280, 720, 4);
 
 
 	scherm.maakVlakVerdelingsShader("deeltjes", "shaders/deeltjes.vert", "shaders/deeltjes.frag", "shaders/deeltjes.tess", "shaders/deeltjes.tctl");
@@ -16,7 +16,9 @@ int main()
 
 	Icosahedron ico;
 
-	float rot = 0.0f, rot2=0.0f;
+	float rot = 0.0f, rot2=1.5f;
+
+	float zoom = 0.1, groente = 0.0f;
 
 	while(!scherm.stopGewenst())
 	{
@@ -24,7 +26,7 @@ int main()
 		scherm.setModelView(
 			glm::rotate(
 				glm::rotate(
-					glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.45f)), 
+					glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.45f + (0.375 * sin(zoom)))), 
 					rot, 
 					glm::vec3(0.0f, 0.0f, 1.0f)
 				), 
@@ -34,13 +36,21 @@ int main()
 		);
 		scherm.bereidRenderVoor();
 
+		
+		glUniform1f(glGetUniformLocation(scherm.geefEnigeProgrammaHandvat(), "groente"), groente);
+
 		ico.tekenJezelfPatchy();
 		glErrorToConsole("Woppaloppa Mainloop ");
 		//scherm.renderQuad();
 		scherm.rondRenderAf();
 		glErrorToConsole("rondRenderAf: ");
 		
-		rot += 0.006f;
+		rot += 0.00001f;
 		rot2 += 0.0012f;
+	//	zoom += 0.01f;
+		groente += 0.001f;
+
+		groente = glm::min(groente, 0.95f);
 	}
+
 }

@@ -35,9 +35,15 @@ out TS_FS_VERTEX
 
 uniform sampler2D marsHoogte;
 
+
+#define MARS_RADIUS_M 3396190.0
+#define MOLA_DIEPTE -8061.0
+#define MOLA_HOOGTE 20737
+
 float hoogteDaar(vec2 tex)
 {
-	return 1.0 + (0.05 * texture(marsHoogte, tex).r);
+	float texVal = texture(marsHoogte, tex).r;
+	return (MARS_RADIUS_M + (texVal * (MOLA_HOOGTE - MOLA_DIEPTE))) / MARS_RADIUS_M;
 }/*
 
 mat4 rotationMatrix(vec3 axis, float angle)
@@ -62,10 +68,12 @@ vec3 normaalGradient(vec2 tex, float breedte)
 }
 
 */
+
+
 void main()
 {
     // Interpolate the attributes of the output vertex using the barycentric coordinates
-    fs_in.normal = normalize(interpolate3D(ts_in[0].normal, ts_in[1].normal, ts_in[2].normal));
+    fs_in.normal = (modelView * vec4(normalize(interpolate3D(ts_in[0].normal, ts_in[1].normal, ts_in[2].normal)), 0)).xyz;
    // fs_in.normal = normaalGradient(fs_in.tex, 0.01);
 
 	fs_in.kleur	 = vec3(0.9, 0.4, 0.01);
