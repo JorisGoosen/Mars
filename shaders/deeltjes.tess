@@ -47,7 +47,7 @@ void main()
 	fs_in.kleur	 = vec3(0.9, 0.4, 0.01);
 	fs_in.tex	 = interpolate2D(ts_in[0].tex, ts_in[1].tex, ts_in[2].tex);
 
-	fs_in.hexIndex = gl_TessCoord.xyz;// * 128;
+	fs_in.hexIndex = interpolate3D(vec3(1,0,0), vec3(0,1,0), vec3(0,0,1));
 
 	
 	float hoogte = 1.0 + (0.05 * texture(marsHoogte, fs_in.tex).r);
