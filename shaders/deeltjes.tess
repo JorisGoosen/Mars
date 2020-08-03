@@ -31,10 +31,13 @@ out TS_FS_VERTEX
 	out vec3 normal;
 	out vec3 kleur;
 	out vec2 tex;
+	out vec3 hexIndex;
 } fs_in;
 
 uniform sampler2D marsHoogte;
 
+/*	patch in float gl_TessLevelOuter[4];
+	patch in float gl_TessLevelInner[2];*/
 
 void main()
 {
@@ -43,6 +46,8 @@ void main()
     
 	fs_in.kleur	 = vec3(0.9, 0.4, 0.01);
 	fs_in.tex	 = interpolate2D(ts_in[0].tex, ts_in[1].tex, ts_in[2].tex);
+
+	fs_in.hexIndex = gl_TessCoord.xyz;// * 128;
 
 	
 	float hoogte = 1.0 + (0.05 * texture(marsHoogte, fs_in.tex).r);

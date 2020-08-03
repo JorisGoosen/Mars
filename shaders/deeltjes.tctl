@@ -26,6 +26,7 @@ uniform mat4 modelView;
 
 int tessLevelFunc(vec3 p)
 {
+	//return 1;
 	const float afstand = 6.0, maxVal = 128.0;
 	int tess = int( max(2.0, min(maxVal, ((afstand - length(modelView * vec4(p, 1)) ) / afstand) * maxVal)));
 
