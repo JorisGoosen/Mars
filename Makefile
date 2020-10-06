@@ -1,10 +1,9 @@
-GEREEDSCHAP = ../Gereedschap
-CXXFLAGS 	= -fPIC -g -W -Wall -Wextra -std=c++2a `pkg-config --cflags glfw3 gl glew libpng` -I$(GEREEDSCHAP)
+CXXFLAGS 	= -fPIC -g -W -Wall -Wextra -Werror=return-type -std=c++2a `pkg-config --cflags glfw3 gl glew libpng` -IGereedschap
 LIBFLAGS 	= `pkg-config --libs glfw3 glew gl libpng` -LGereedschap -lgereedschap
 
-all: gereedschap mars
+all: mars
 
-mars: mars.cpp
+mars: mars.cpp gereedschap
 	g++ $(CXXFLAGS) -o $(patsubst demos/%,bin/%,$@) $@.cpp $(LIBFLAGS)
 
 %.o: %.cpp geometrie/%.cpp
@@ -14,4 +13,5 @@ gereedschap:
 	$(MAKE) -C Gereedschap
 
 clean:
-	rm mars || $(MAKE) clean -C Gereedschap
+	rm mars || echo "mars wasn't there"
+	$(MAKE) clean -C Gereedschap

@@ -18,13 +18,13 @@ int main()
 	scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars");
 
 	std::cout << "Hmmm" << std::endl;
-	Geodesisch geo;
+	Geodesisch geo(6);
 
 	float rot = 0.0f;
 	while(!scherm.stopGewenst())
 	{
 		scherm.RecalculateProjection();
-		scherm.setModelView(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.5f)), rot, glm::vec3(0.0f, 1.0f, 0.0f)));
+		scherm.setModelView(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.5f)), rot, glm::vec3(0.0f, 1.0f, 0.0f)));
 		scherm.bereidRenderVoor();
 
 		geo.tekenJezelf();
