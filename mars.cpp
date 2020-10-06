@@ -1,11 +1,11 @@
 //This file simply opens an OpenGL window where a quad will be rendered and some simple shaders to display this fact, press escape to exit.
 #include <RenderSchermPerspectief.h>
-#include <geometrie/icosahedron.h>
+#include <geometrie/geodesisch.h>
 #include <iostream>
 
 int main()
 {
-	RenderSchermPerspectief scherm("Perspectief Demo");
+	RenderSchermPerspectief scherm("Geodesie");
 
 
 //	scherm.maakVlakVerdelingsShader("deeltjes", "shaders/deeltjes.vert", "shaders/deeltjes.frag", "shaders/deeltjes.tess", "shaders/deeltjes.tctl");
@@ -18,7 +18,7 @@ int main()
 	scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars");
 
 	std::cout << "Hmmm" << std::endl;
-	Icosahedron ico;
+	Geodesisch geo;
 
 	float rot = 0.0f;
 	while(!scherm.stopGewenst())
@@ -27,7 +27,7 @@ int main()
 		scherm.setModelView(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.5f)), rot, glm::vec3(0.0f, 1.0f, 0.0f)));
 		scherm.bereidRenderVoor();
 
-		ico.tekenJezelf();
+		geo.tekenJezelf();
 		glErrorToConsole("Woppaloppa Mainloop ");
 		//scherm.renderQuad();
 		scherm.rondRenderAf();
