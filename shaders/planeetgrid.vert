@@ -1,6 +1,8 @@
 #version 440
 
-layout(location = 0) in vec3 vPos;
+layout(location = 0) in vec3	pos;
+layout(location = 1) in uvec4 	burenA; // #, 0, 1, 2
+layout(location = 2) in uvec4 	burenB; // 3, 4, 5, willekeurig   
 
 
 uniform mat4 modelView;
@@ -10,6 +12,7 @@ out NaarFrag
 {
 	out vec3 normal;
 	out vec2 tex;
+	out vec4 kleur;
 } tc_in;
 
 vec2 longitudeLatitude(vec2 normalXZ)
@@ -24,7 +27,8 @@ vec2 longitudeLatitude(vec2 normalXZ)
 
 void main()
 {
-	tc_in.normal	= normalize(vPos);
+	tc_in.normal	= normalize(pos);
 	tc_in.tex		= longitudeLatitude(tc_in.normal.xz);
-	gl_Position		= projectie * modelView * vec4(vPos, 1);	
+	tc_in.kleur		= burenB.w > 50 ? vec4(1,0,0,1) : vec4(0,0,1,1);
+	gl_Position		= projectie * modelView * vec4(pos, 1);	
 }
