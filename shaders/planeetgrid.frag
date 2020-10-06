@@ -13,9 +13,6 @@ uniform sampler2D marsHoogte;
 
 void main()
 {
-	
-	//kleur = texture(marsHoogte, fs_in.tex);
-
-	kleur = vec4(1, 0, 0, 1);
+	kleur = texture(marsHoogte, fs_in.tex);
 }
 	
