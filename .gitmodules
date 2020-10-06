@@ -1,0 +1,4 @@
+[submodule "Gereedschap"]
+	path = Gereedschap
+	url = https://github.com/JorisGoosen/Gereedschap
+	branch = master
