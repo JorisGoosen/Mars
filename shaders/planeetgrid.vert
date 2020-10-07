@@ -29,6 +29,7 @@ void main()
 {
 	tc_in.normal	= normalize(pos);
 	tc_in.tex		= longitudeLatitude(tc_in.normal.xz);
-	tc_in.kleur		= burenB.w > 50 ? vec4(1,0,0,1) : vec4(0,0,1,1);
+	tc_in.kleur		= burenB.w == 0 ? vec4(1,0,0,1) : burenB.w == 1 ? vec4(0,1,0,1) : vec4(0,0,1,1);
+	//tc_in.kleur		= burenA.x > 5 ? vec4(1,0,0,1) : vec4(0,0,1,1);
 	gl_Position		= projectie * modelView * vec4(pos, 1);	
 }
