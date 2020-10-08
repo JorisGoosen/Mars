@@ -18,7 +18,7 @@ int main()
 	scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars");
 
 	std::cout << "Hmmm" << std::endl;
-	Geodesisch geo(5);
+	Geodesisch geo(6);
 
 	float rot = 0.0f;
 	while(!scherm.stopGewenst())

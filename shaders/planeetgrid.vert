@@ -3,6 +3,9 @@
 layout(location = 0) in vec3	pos;
 layout(location = 1) in uvec4 	burenA; // #, 0, 1, 2
 layout(location = 2) in uvec4 	burenB; // 3, 4, 5, willekeurig   
+layout(location = 3) in vec4 	ping;
+layout(location = 4) in vec4 	pong;
+
 
 
 uniform mat4 modelView;
@@ -29,7 +32,6 @@ void main()
 {
 	tc_in.normal	= normalize(pos);
 	tc_in.tex		= longitudeLatitude(tc_in.normal.xz);
-	tc_in.kleur		= burenB.w == 0 ? vec4(1,0,0,1) : burenB.w == 1 ? vec4(0,1,0,1) : vec4(0,0,1,1);
-	//tc_in.kleur		= burenA.x > 5 ? vec4(1,0,0,1) : vec4(0,0,1,1);
+	tc_in.kleur		= ping;
 	gl_Position		= projectie * modelView * vec4(pos, 1);	
 }
