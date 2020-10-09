@@ -29,6 +29,6 @@ void main()
 
 	tc_in.normal	= normalize(pos);
 	tc_in.tex		= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
-	tc_in.kleur		= vec4(1);//ping;
+	tc_in.kleur		= ping;
 	gl_Position		= projectie * modelView * vec4(pos, 1);	
 }

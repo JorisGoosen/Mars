@@ -13,7 +13,7 @@ int main()
 
 	scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars");
 
-	planeet geo(6);
+	planeet geo(7);
 
 	float rot = 0.0f;
 	while(!scherm.stopGewenst())
