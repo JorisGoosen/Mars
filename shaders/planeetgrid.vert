@@ -11,10 +11,15 @@ layout(location = 5) in vec4 	pong;
 uniform mat4 modelView;
 uniform mat4 projectie;
 
+// Om het probleem met het texture aan de achterkant van de planeet (een lelijke naad) op te lossen gebruik ik het idee wat beschreven wordt in:
+// Cylindrical and Toroidal Parameterizations Without Vertex Seams door Marco Tarini (2012)
+// Het basale idee ervan is de (fractionele) x/s texcoord tweemaal varying door te geven aan frag, zodat je de een kan pakken als de ander overduidelijk raar aan het doen is
+// En overduidelijk is in dit geval als de afgeleide van de varying texcoord (via fwidth) kleiner is voor de een dan voor de ander. wat natuurlijk een prachtige oplossing is, bedankt Marco!
+
 out NaarFrag
 {
 	out vec3 normal;
-	out vec2 tex;
+	out vec3 tex;
 	out vec4 kleur;
 } tc_in;
 
@@ -23,7 +28,7 @@ void main()
 	const vec3 mults = vec3(33, 61, 12);
 
 	tc_in.normal	= normalize(pos);
-	tc_in.tex		= tex;
-	tc_in.kleur		= vec4(sin(tex.x * 3.142 * mults.x), sin(tex.y * 3.142 * mults.y), sin((tex.x + tex.y) * 3.142 * mults.z), 1) ;
+	tc_in.tex		= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
+	tc_in.kleur		= vec4(1);//ping;
 	gl_Position		= projectie * modelView * vec4(pos, 1);	
 }
