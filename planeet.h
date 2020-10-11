@@ -3,6 +3,22 @@
 #include <map>
 #include <set>
 #include <iostream>
+#include <vrwrkrOpslagDing.h>
+
+#define GS_ZAND		0
+#define GS_GROND	1	//Ook wel humus of rijke grond
+#define GS_ROTS		2
+#define GS_KLEI		3
+#define GS_IJS		4
+#define GS_LOESS	5
+
+struct vakje
+{
+	int		grondSoort		= GS_ZAND;
+	float 	grondHoogte		= 1.0;
+	float	waterHoogte		= 0.0;
+	float	leven			= 0.0;
+};
 
 class planeet : public geodesisch
 {
@@ -19,6 +35,8 @@ protected:
 private:
 	std::vector<glm::uint32> 			_eigenschappen;
 	buurt								_buren;
-	GLuint								_pingPongOpslag[2];
+	std::vector<vakje>					_vakjes		[2];
+	vrwrkrOpslagDing<vakje>			*	_pingPong	[2];
+									
 										
 };

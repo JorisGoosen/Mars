@@ -19,9 +19,10 @@ void main()
 
 	const vec4 marsKleur = vec4(1, 0.5, 0.5, 1);
 	
-	float marsHoogte = texture(marsHoogte, naadloosTex).x;
+	//float marsHoogte = texture(marsHoogte, naadloosTex).x;
 
-	if(marsHoogte < 0.2)	kleur = fs_in.kleur;
-	else					kleur = marsKleur * marsHoogte;
+	//if(marsHoogte > 0.3)	
+	kleur = fs_in.kleur;
+	//else					kleur = marsKleur * marsHoogte;
 }
 	

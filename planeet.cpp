@@ -83,23 +83,39 @@ void planeet::burenAlsEigenschapWijzers()
 
 void planeet::maakPingPongOpslagen()
 {
-	std::vector<float> pingPong;
-	pingPong.reserve(_buren.size() * 4); //Per element 1 vec4 voor nu. misschien later meer
+	_vakjes[0].resize(_buren.size());
 
 
 	std::random_device rd;  //Wordt gebruikt om het zaadje te planten
     std::mt19937 gen(rd()); //Standaard mersenne_twister_engine gezaaid met rd()
     
-	//std::uniform_real_distribution<> dis(0.0, 1.0);
-	std::normal_distribution<> dis(0.5, 0.6);
+	std::uniform_real_distribution<> dis(0.0, 1.0);
 
-	for(size_t b=0; b< _buren.size(); b++)
-		for(size_t i=0; i<4; i++)
-			pingPong.push_back(1.0 - dis(gen));
+	for(size_t b=0; b<_buren.size(); b++)
+	{
+		float 	grondRand 	= dis(gen);
+		int 	grondSoort	= 0;
+
+		vec2	lenBrdGr	= _tex->ggvPunt2(b);
+		bool	poolIjs		= lenBrdGr.y < _poolA || lenBrdGr.y > _poolB;
+
+		if		(poolIjs)				grondSoort = GS_IJS;
+		else if (grondRand < 0.5)		grondSoort = GS_ZAND;
+		//else if	(grondRand < 0.0)		grondSoort = GS_GROND;
+		else if	(grondRand < 0.85)		grondSoort = GS_ROTS;
+		else if	(grondRand < 0.9)		grondSoort = GS_KLEI;
+		//else if	(grondRand < 0.2)		grondSoort = GS_IJS;
+		else							grondSoort = GS_LOESS;
+
+		_vakjes[0][b].grondSoort = grondSoort;
+	}
+
+	_vakjes[1] = _vakjes[0];
 
 	//We gebruiken twee keer dezelfde data, want het wordt gekopieerd en de een wordt straks toch overschreven door de ander maar zo is iig de goeie grootte.
-	_pingPongOpslag[0] = _reeks->reeksOpslagErbij(4, pingPong, 4);
-	_pingPongOpslag[1] = _reeks->reeksOpslagErbij(4, pingPong, 5);
+	_pingPong[0] = new vrwrkrOpslagDing<vakje>(_vakjes[0], 0);
+	_pingPong[1] = new vrwrkrOpslagDing<vakje>(_vakjes[1], 1);
+
 
 	//We kunnen _pingPongOpslag straks wel allebei gebruiken om een SSB aan te binden en een compute shader tegenaan te gooien.
 	//Voor nu maar gewoon zo houden denk ik.

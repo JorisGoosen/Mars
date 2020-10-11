@@ -1,11 +1,33 @@
 #version 440
 
-layout(location = 0) in vec3	pos;
-layout(location = 1) in vec2	tex;
-layout(location = 2) in uvec4 	burenA; // #, 0, 1, 2
-layout(location = 3) in uvec4 	burenB; // 3, 4, 5, willekeurig   
-layout(location = 4) in vec4 	ping;
-layout(location = 5) in vec4 	pong;
+#define GS_ZAND		0
+#define GS_GROND	1	//Ook wel humus of rijke grond
+#define GS_ROTS		2
+#define GS_KLEI		3
+#define GS_IJS		4
+#define GS_LOESS	5
+
+#define KLEUR_ZAND	vec4(0.99, 	0.52, 	0.37, 	1.0)
+#define KLEUR_GROND	vec4(0.16, 	0.13, 	0.1, 	1.0)
+#define KLEUR_ROTS	vec4(0.2, 	0.2, 	0.2, 	1.0)
+#define KLEUR_KLEI	vec4(0.416,	0.38, 	0.344, 	1.0)
+#define KLEUR_IJS	vec4(0.8, 	0.8, 	0.8, 	1.0)
+#define KLEUR_LOESS	vec4(0.78, 	0.75, 	0.74, 	1.0)
+
+struct vakje
+{
+	int		grondSoort;
+	float 	grondHoogte;
+	float	waterHoogte;
+	float	leven;
+};
+
+layout(location = 0) 		in 		vec3	pos;
+layout(location = 1) 		in 		vec2	tex;
+layout(location = 2) 		in 		uvec4 	burenA; // #, 0, 1, 2
+layout(location = 3) 		in 		uvec4 	burenB; // 3, 4, 5, willekeurig   
+layout(std430, binding = 0) buffer 			ping 	{ vakje vakjes0[]; };
+layout(std430, binding = 1) buffer 			pong 	{ vakje vakjes1[]; };
 
 
 uniform mat4 modelView;
@@ -25,10 +47,21 @@ out NaarFrag
 
 void main()
 {
-	const vec3 mults = vec3(33, 61, 12);
+	
+	vec4 grondKleur;
+
+	switch(vakjes0[gl_VertexID].grondSoort)
+	{
+	case GS_ZAND:		grondKleur	= KLEUR_ZAND;	break;
+	case GS_GROND:		grondKleur	= KLEUR_GROND;	break;
+	case GS_ROTS:		grondKleur	= KLEUR_ROTS;	break;
+	case GS_KLEI:		grondKleur	= KLEUR_KLEI;	break;
+	case GS_IJS:		grondKleur	= KLEUR_IJS;	break;
+	case GS_LOESS:		grondKleur	= KLEUR_LOESS;	break;
+	};
 
 	tc_in.normal	= normalize(pos);
 	tc_in.tex		= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
-	tc_in.kleur		= ping;
+	tc_in.kleur		= grondKleur;
 	gl_Position		= projectie * modelView * vec4(pos, 1);	
 }
