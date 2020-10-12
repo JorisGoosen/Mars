@@ -48,6 +48,8 @@ out NaarFrag
 	out float waterHoogte;
 } tc_in;
 
+uniform sampler2D marsHoogte;
+
 void main()
 {
 	
@@ -65,7 +67,7 @@ void main()
 
 	tc_in.normal		= normalize(pos);
 	tc_in.tex			= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
-	tc_in.kleur			= grondKleur;
+	tc_in.kleur			= vec4(vakjes0[gl_VertexID].grondHoogte); //grondKleur;
 	tc_in.waterHoogte	= vakjes0[gl_VertexID].waterHoogte;
-	gl_Position			= projectie * modelView * vec4(pos * vakjes0[gl_VertexID].grondHoogte, 1);	
+	gl_Position			= projectie * modelView * vec4(pos * (vakjes0[gl_VertexID].grondHoogte * 0.1 + 1.0), 1);	
 }

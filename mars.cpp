@@ -17,9 +17,20 @@ int main()
 	glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
 	monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
-	planeet geo(7, [&](glm::vec2 plek){ return MOLA(plek).x * 0.06 + 1.0; });
+	planeet geo(7, [&](glm::vec2 plek){ return MOLA(plek).x; });
 
 	float rot = 0.0f;
+
+	bool roteerMaar = true;
+
+	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
+	{
+		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+			roteerMaar = !roteerMaar;
+	};
+
+	scherm.setCustomKeyhandler(toetsenbord);
+
 	while(!scherm.stopGewenst())
 	{
 		scherm.RecalculateProjection();
@@ -33,7 +44,9 @@ int main()
 
 		scherm.rondRenderAf();
 		glErrorToConsole("rondRenderAf: ");
-		rot += 0.007f;
+		
+		if(roteerMaar)
+			rot += 0.007f;
 
 		
 		scherm.doeRekenVerwerker("planeetBerekening", glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
