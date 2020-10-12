@@ -62,6 +62,6 @@ void main()
 
 	tc_in.normal	= normalize(pos);
 	tc_in.tex		= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
-	tc_in.kleur		= grondKleur;
+	tc_in.kleur		= mix(grondKleur, vec4(0, 0, 1, 1), vakjes0[gl_VertexID].waterHoogte);
 	gl_Position		= projectie * modelView * vec4(pos, 1);	
 }

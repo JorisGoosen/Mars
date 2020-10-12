@@ -120,3 +120,17 @@ void planeet::maakPingPongOpslagen()
 	//We kunnen _pingPongOpslag straks wel allebei gebruiken om een SSB aan te binden en een compute shader tegenaan te gooien.
 	//Voor nu maar gewoon zo houden denk ik.
 }
+
+void planeet::volgendeRonde()
+{
+	_pingIsDit	= 1 - _pingIsDit;
+
+	bindVrwrkrOpslagen();
+}
+
+void planeet::bindVrwrkrOpslagen()
+{
+	_pingPong[    _pingIsDit]->zetKnooppunt(0);
+	_pingPong[1 - _pingIsDit]->zetKnooppunt(1);
+}
+

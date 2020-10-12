@@ -27,6 +27,10 @@ public:
 	
 	planeet(size_t onderverdelingen = 6);
 
+	size_t 	aantalVakjes() const { return _vakjes[0].size(); }
+	void	volgendeRonde();
+	void	bindVrwrkrOpslagen();
+
 protected:
 	void maakLijstBuren();
 	void burenAlsEigenschapWijzers();
@@ -37,6 +41,7 @@ private:
 	buurt								_buren;
 	std::vector<vakje>					_vakjes		[2];
 	vrwrkrOpslagDing<vakje>			*	_pingPong	[2];
+	size_t								_pingIsDit	= 0;
 									
 										
 };

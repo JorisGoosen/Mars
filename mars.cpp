@@ -7,20 +7,25 @@ int main()
 {
 	weergaveSchermPerspectief scherm("Planeet");
 
-	scherm.maakShader("planeetgrid", "shaders/planeetgrid.vert", "shaders/planeetgrid.frag");
+	scherm.maakShader(		"planeetWeergave", 		"shaders/planeetgrid.vert", "shaders/planeetgrid.frag");
+	scherm.maakRekenShader(	"planeetBerekening", 	"shaders/planeetgrid.comp");
 
 	glClearColor(0,0,0,0);
 
 	scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars");
 
-	planeet geo(7);
+	planeet geo(5);
 
 	float rot = 0.0f;
 	while(!scherm.stopGewenst())
 	{
+		
+
 		scherm.RecalculateProjection();
 		scherm.setModelView(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.5f)), rot, glm::vec3(0.0f, 1.0f, 0.0f)));
-		scherm.bereidRenderVoor();
+		scherm.bereidRenderVoor("planeetWeergave");
+
+		geo.volgendeRonde();
 
 		geo.tekenJezelf();
 		glErrorToConsole("geo.tekenJezelf(): ");
@@ -28,5 +33,8 @@ int main()
 		scherm.rondRenderAf();
 		glErrorToConsole("rondRenderAf: ");
 		rot += 0.007f;
+
+		
+		scherm.doeRekenVerwerker("planeetBerekening", glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
 	}
 }

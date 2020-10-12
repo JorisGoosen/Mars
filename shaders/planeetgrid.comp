@@ -1,0 +1,32 @@
+#version 440
+
+layout(local_size_x = 16) in;
+
+#define GS_ZAND		0
+#define GS_GROND	1	//Ook wel humus of rijke grond
+#define GS_ROTS		2
+#define GS_KLEI		3
+#define GS_IJS		4
+#define GS_LOESS	5
+
+struct vakje
+{
+	int		grondSoort;
+	float 	grondHoogte;
+	float	waterHoogte;
+	float	leven;
+};
+
+layout(std430, binding = 0) buffer 			ping 	{ vakje vakjes0[]; };
+layout(std430, binding = 1) buffer 			pong 	{ vakje vakjes1[]; };
+
+
+
+void main()
+{
+	uint id = gl_GlobalInvocationID.x;
+
+	if(vakjes0[id].grondSoort == GS_IJS)
+		vakjes1[id].waterHoogte = min(1, vakjes0[id].waterHoogte + 0.01);
+
+}
