@@ -16,16 +16,18 @@
 
 struct vakje
 {
-	int		grondSoort;
-	float 	grondHoogte;
-	float	waterHoogte;
-	float	leven;
+	int		grondSoort	;
+	float 	grondHoogte	;
+	float	waterHoogte	;
+	float	leven		;
+	int		iets		;
+	int		burenAantal	;
+	int		buren[6]	;
 };
+
 
 layout(location = 0) 		in 		vec3	pos;
 layout(location = 1) 		in 		vec2	tex;
-layout(location = 2) 		in 		uvec4 	burenA; // #, 0, 1, 2
-layout(location = 3) 		in 		uvec4 	burenB; // 3, 4, 5, willekeurig   
 layout(std430, binding = 0) buffer 			ping 	{ vakje vakjes0[]; };
 layout(std430, binding = 1) buffer 			pong 	{ vakje vakjes1[]; };
 
@@ -63,5 +65,5 @@ void main()
 	tc_in.normal	= normalize(pos);
 	tc_in.tex		= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
 	tc_in.kleur		= mix(grondKleur, vec4(0, 0, 1, 1), vakjes0[gl_VertexID].waterHoogte);
-	gl_Position		= projectie * modelView * vec4(pos, 1);	
+	gl_Position		= projectie * modelView * vec4(pos * vakjes0[gl_VertexID].grondHoogte, 1);	
 }

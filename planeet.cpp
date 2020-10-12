@@ -5,13 +5,16 @@
 
 using namespace glm;
 
-planeet::planeet(size_t onderverdelingen) : geodesisch(onderverdelingen)
+planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar) : geodesisch(onderverdelingen), _hoogteMonsteraar(hoogteMonsteraar)
 {
 	//geodesisch zorgt ervoor dat we een boel punten krijgen, gesorteerd op nabijheid en met bijbehorende breedte- en lentegraden.
 
 	//Daarna maken we een lijst van al deze driehoeken
 	//Via deze lijst kunnen we per punt de buren bepalen, waarbij er 12 5 buren (de originele) hebben en de rest 6,
 	maakLijstBuren();
+
+	//We gaan alle nodige info in _vakjes[0] wegschrijven, om het pingpongen te laten beginnen.
+	_vakjes[0].resize(_buren.size()); 
 	
 	//Ook moet ieder punt een lijstje meekrijgen met de buren waar ie bij hoort (dit is ook erg handig voor het tekenen van genoemde polygoon)
 	//Alsin, dat ze naast een coordinaat nog 5 of 6 indices als vertex attribuut heeft
@@ -23,8 +26,6 @@ planeet::planeet(size_t onderverdelingen) : geodesisch(onderverdelingen)
 	//Nu nog twee buffers toevoegen waarin ik kan gaan rekenen en als punteigenschapwijzers kan gebruiken.
 	maakPingPongOpslagen();
 
-	//Misschien is het ook een goed idee om naderhand eens alle punten te maken en te herordenen gebaseerd longitude en latitude zodat er evt beter gecached kan worden op de gpu
-	
 	//Dan een geometrische shader maken die een polygoon tekent per punt
 
 }
@@ -52,42 +53,35 @@ void planeet::maakLijstBuren()
 
 void planeet::burenAlsEigenschapWijzers()
 {
-	_eigenschappen.reserve(_buren.size() * 8); //De grootte is eigenlijk _buren.size() * 6 - 12 maar ik denk dat het beter is voor de gpu om ze allebei een vec4 te geven, anders accepteert ie misschien wel, maar...
+	//_eigenschappen.reserve(_buren.size() * 8); //De grootte is eigenlijk _buren.size() * 6 - 12 maar ik denk dat het beter is voor de gpu om ze allebei een vec4 te geven, anders accepteert ie misschien wel, maar...
 	
 	std::random_device willekeur;
+	std::mt19937 gen(willekeur()); 
+	std::normal_distribution<> wlkGrond(1.0, 0.05);
 
-	for(const auto & buurt : _buren)
+	for(size_t i=0; i<_buren.size(); i++)
 	{
-		_eigenschappen.push_back(buurt.size());
+		const auto & buurt = _buren[i];
+
+		_vakjes[0][i].burenAantal = buurt.size();
 
 		assert(buurt.size() == 5 || buurt.size() == 6);
 
-		for(const auto & buur : buurt)
-			_eigenschappen.push_back(buur);
+		size_t buur = 0;
+		for(const uint32 & buurId : buurt)
+			_vakjes[0][i].buren[buur++] = buurId;
 
-		if(buurt.size() == 5)
-			_eigenschappen.push_back(0);
+		_vakjes[0][i].iets 			= gen()%2048;
+		_vakjes[0][i].grondHoogte 	= _hoogteMonsteraar(_tex->ggvPunt2(i));
 
-		//0 = aantal, 1...6	buren, dat laat 7 over voor:
-		_eigenschappen.push_back(willekeur()%3);
-
-		assert(_eigenschappen.size() % 8 == 0);
-	
-	}
-
-	_reeks->reeksOpslagErbij(4, _eigenschappen, { stapWijzer(2, 8, 0), stapWijzer(3, 8, 4) } );
-
-	
+	}	
 }
 
 
 void planeet::maakPingPongOpslagen()
 {
-	_vakjes[0].resize(_buren.size());
-
-
 	std::random_device rd;  //Wordt gebruikt om het zaadje te planten
-    std::mt19937 gen(rd()); //Standaard mersenne_twister_engine gezaaid met rd()
+    std::mt19937 gen(rd()); 
     
 	std::uniform_real_distribution<> dis(0.0, 1.0);
 
@@ -133,4 +127,3 @@ void planeet::bindVrwrkrOpslagen()
 	_pingPong[    _pingIsDit]->zetKnooppunt(0);
 	_pingPong[1 - _pingIsDit]->zetKnooppunt(1);
 }
-

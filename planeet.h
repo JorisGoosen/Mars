@@ -18,6 +18,9 @@ struct vakje
 	float 	grondHoogte		= 1.0;
 	float	waterHoogte		= 0.0;
 	float	leven			= 0.0;
+	int		iets			= 0;
+	int		burenAantal		= 0;
+	int		buren[6]		= { -1, -1, -1, -1, -1, -1 };
 };
 
 class planeet : public geodesisch
@@ -25,12 +28,12 @@ class planeet : public geodesisch
 public:
 	typedef std::vector<std::set<glm::uint32>> buurt;
 	
-	planeet(size_t onderverdelingen = 6);
+	planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar);
 
 	size_t 	aantalVakjes() const { return _vakjes[0].size(); }
 	void	volgendeRonde();
 	void	bindVrwrkrOpslagen();
-
+	
 protected:
 	void maakLijstBuren();
 	void burenAlsEigenschapWijzers();
@@ -42,6 +45,7 @@ private:
 	std::vector<vakje>					_vakjes		[2];
 	vrwrkrOpslagDing<vakje>			*	_pingPong	[2];
 	size_t								_pingIsDit	= 0;
+	std::function<float(glm::vec2)> 	_hoogteMonsteraar;
 									
 										
 };
