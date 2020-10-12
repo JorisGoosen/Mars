@@ -45,6 +45,7 @@ out NaarFrag
 	out vec3 normal;
 	out vec3 tex;
 	out vec4 kleur;
+	out float waterHoogte;
 } tc_in;
 
 void main()
@@ -62,8 +63,9 @@ void main()
 	case GS_LOESS:		grondKleur	= KLEUR_LOESS;	break;
 	};
 
-	tc_in.normal	= normalize(pos);
-	tc_in.tex		= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
-	tc_in.kleur		= mix(grondKleur, vec4(0, 0, 1, 1), vakjes0[gl_VertexID].waterHoogte);
-	gl_Position		= projectie * modelView * vec4(pos * vakjes0[gl_VertexID].grondHoogte, 1);	
+	tc_in.normal		= normalize(pos);
+	tc_in.tex			= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
+	tc_in.kleur			= grondKleur;
+	tc_in.waterHoogte	= vakjes0[gl_VertexID].waterHoogte;
+	gl_Position			= projectie * modelView * vec4(pos * vakjes0[gl_VertexID].grondHoogte, 1);	
 }

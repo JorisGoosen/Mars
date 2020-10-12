@@ -17,13 +17,11 @@ int main()
 	glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
 	monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
-	planeet geo(8, [&](glm::vec2 plek){ return MOLA(plek).x * 0.06 + 1.2; });
+	planeet geo(7, [&](glm::vec2 plek){ return MOLA(plek).x * 0.06 + 1.0; });
 
 	float rot = 0.0f;
 	while(!scherm.stopGewenst())
 	{
-		
-
 		scherm.RecalculateProjection();
 		scherm.setModelView(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.5f)), rot, glm::vec3(0.0f, 1.0f, 0.0f)));
 		scherm.bereidRenderVoor("planeetWeergave");

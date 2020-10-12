@@ -7,6 +7,7 @@ in NaarFrag
 	in vec3 normal;
 	in vec3 tex; //x = u! y = s0 en z = s1
 	in vec4 kleur;
+	in float waterHoogte;
 } fs_in;
 
 
@@ -24,6 +25,6 @@ void main()
 	//if(marsHoogte > 0.3)	
 	//kleur = fs_in.kleur;
 	//else
-	kleur = marsKleur * marsHoogte;
+	kleur = mix(marsKleur * marsHoogte, vec4(0, 0, 1, 1), min(fs_in.waterHoogte * 10, 1));
 }
 	
