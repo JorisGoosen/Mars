@@ -23,13 +23,12 @@ monsterPNG::monsterPNG(unsigned char * pngGegevens, glm::uvec2 afmetingen) : _af
 glm::vec4 monsterPNG::operator()(glm::uvec2 plaats, float straal)
 {
 	//negeer straal voor nu
-	return _vakjes[plaats.y][plaats.x];
+	return _vakjes[ plaats.y % _afmetingen.y ][ plaats.x % _afmetingen.x ];
 }
 
 glm::vec4 monsterPNG::operator()(glm::vec2 plaats, float straal)
 {
-	//negeer straal voor nu
 	glm::uvec2 vergroot = glm::uvec2(glm::floor(glm::vec2(_afmetingen) * plaats));
 
-	return operator()(glm::uvec2(vergroot.x % _afmetingen.x, vergroot.y % _afmetingen.y), straal);
+	return operator()(vergroot, straal);
 }

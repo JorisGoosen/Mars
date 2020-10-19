@@ -1,4 +1,3 @@
-//This file simply opens an OpenGL window where a quad will be rendered and some simple shaders to display this fact, press escape to exit.
 #include <weergaveSchermPerspectief.h>
 #include "planeet.h"
 #include <iostream>
@@ -17,24 +16,57 @@ int main()
 	glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
 	monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
-	planeet geo(7, [&](glm::vec2 plek){ return MOLA(plek).x; });
+	planeet geo(8, [&](glm::vec2 plek)
+	{ 
+		//plek.x += 1.0;
+		//plek.x *= 0.25f;
+		//plek.x += 0.5;
 
-	float rot = 0.0f;
+		//if(plek.x < 0.0f || plek.x > 1.0f)
+		//	std::cout << "geo wil: " << plek.x << ",\t" << plek.y << std::endl; 
+		
+		return MOLA(plek).x; 
+	});
 
 	bool roteerMaar = true;
 
+	glm::vec3 	verplaatsing	(0.0f, 0.0f, -1.5f)	;
+	glm::vec2 	verdraaiing		(0.0f, 0.0f)		,
+				draaisnelheid	(0.01, 0.0)			;
+
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
-		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-			roteerMaar = !roteerMaar;
+		const float tol = 0.2, tik = 0.05;
+
+		if(action == GLFW_PRESS && key == GLFW_KEY_SPACE) roteerMaar = !roteerMaar;
+
+		switch(key)
+		{
+		case GLFW_KEY_A:			if(roteerMaar)	glm::max(draaisnelheid.x * (1.0f - tol), 0.0f);	else verdraaiing.x -= tik;		break;
+		case GLFW_KEY_D:			if(roteerMaar)	glm::max(draaisnelheid.x * (1.0f + tol), 1.0f);	else verdraaiing.x += tik;		break;
+		case GLFW_KEY_S:			if(roteerMaar)	glm::max(draaisnelheid.y * (1.0f - tol), 0.0f);	else verdraaiing.y -= tik;		break;
+		case GLFW_KEY_W:			if(roteerMaar)	glm::max(draaisnelheid.y * (1.0f + tol), 1.0f);	else verdraaiing.y += tik;		break;
+		case GLFW_KEY_Q:			verplaatsing.z -= 0.1f;		break;
+		case GLFW_KEY_E:			verplaatsing.z += 0.1f;		break;
+		}	
 	};
 
 	scherm.setCustomKeyhandler(toetsenbord);
 
+	glErrorToConsole("Voordat we beginnen: ");
 	while(!scherm.stopGewenst())
 	{
-		scherm.RecalculateProjection();
-		scherm.setModelView(glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.5f)), rot, glm::vec3(0.0f, 1.0f, 0.0f)));
+		scherm.setModelView(
+			glm::rotate(
+				glm::rotate(
+					glm::translate(glm::mat4(1.0f), verplaatsing),
+					verdraaiing.y,
+					glm::vec3(1.0f, 0.0f, 0.0f)
+				), 
+				verdraaiing.x, 
+				glm::vec3(0.0f, 1.0f, 0.0f)
+			)
+		);
 		scherm.bereidRenderVoor("planeetWeergave");
 
 		geo.volgendeRonde();
@@ -46,7 +78,7 @@ int main()
 		glErrorToConsole("rondRenderAf: ");
 		
 		if(roteerMaar)
-			rot += 0.007f;
+			verdraaiing += draaisnelheid;
 
 		
 		scherm.doeRekenVerwerker("planeetBerekening", glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
