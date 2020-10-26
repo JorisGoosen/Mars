@@ -72,5 +72,5 @@ void main()
 	tc_in.waterHoogte	= vakjes0[gl_VertexID].waterHoogte;
 	tc_in.grondHoogte	= vakjes0[gl_VertexID].grondHoogte;
 	
-	gl_Position			= projectie * modelView * vec4(pos * ((vakjes0[gl_VertexID].grondHoogte * 0.25) + 1.0), 1);	
+	gl_Position			= projectie * modelView * vec4(pos * ((vakjes0[gl_VertexID].grondHoogte * 0.05) + 1.0), 1);	
 }

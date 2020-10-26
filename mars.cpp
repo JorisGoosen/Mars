@@ -16,7 +16,7 @@ int main()
 	glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
 	monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
-	planeet geo(8, [&](glm::vec2 plek)
+	planeet geo(5, [&](glm::vec2 plek)
 	{ 
 		//plek.x += 1.0;
 		//plek.x *= 0.25f;
@@ -28,7 +28,7 @@ int main()
 		return MOLA(plek).x; 
 	});
 
-	bool roteerMaar = true;
+	bool roteerMaar = false;
 
 	glm::vec3 	verplaatsing	(0.0f, 0.0f, -1.5f)	;
 	glm::vec2 	verdraaiing		(0.0f, 0.0f)		,
@@ -44,10 +44,10 @@ int main()
 		{
 		case GLFW_KEY_A:			if(roteerMaar)	glm::max(draaisnelheid.x * (1.0f - tol), 0.0f);	else verdraaiing.x -= tik;		break;
 		case GLFW_KEY_D:			if(roteerMaar)	glm::max(draaisnelheid.x * (1.0f + tol), 1.0f);	else verdraaiing.x += tik;		break;
-		case GLFW_KEY_S:			if(roteerMaar)	glm::max(draaisnelheid.y * (1.0f - tol), 0.0f);	else verdraaiing.y -= tik;		break;
-		case GLFW_KEY_W:			if(roteerMaar)	glm::max(draaisnelheid.y * (1.0f + tol), 1.0f);	else verdraaiing.y += tik;		break;
-		case GLFW_KEY_Q:			verplaatsing.z -= 0.1f;		break;
-		case GLFW_KEY_E:			verplaatsing.z += 0.1f;		break;
+		case GLFW_KEY_Q:			if(roteerMaar)	glm::max(draaisnelheid.y * (1.0f - tol), 0.0f);	else verdraaiing.y -= tik;		break;
+		case GLFW_KEY_E:			if(roteerMaar)	glm::max(draaisnelheid.y * (1.0f + tol), 1.0f);	else verdraaiing.y += tik;		break;
+		case GLFW_KEY_S:			verplaatsing.z -= 0.1f;		break;
+		case GLFW_KEY_W:			verplaatsing.z += 0.1f;		break;
 		}	
 	};
 
