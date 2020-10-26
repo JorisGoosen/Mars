@@ -20,28 +20,15 @@ monsterPNG::monsterPNG(unsigned char * pngGegevens, glm::uvec2 afmetingen) : _af
 }
 
 
-glm::vec4 monsterPNG::operator()(glm::uvec2 plaats, glm::uvec2 straal)
+glm::vec4 monsterPNG::operator()(glm::uvec2 plaats, float straal)
 {
-	float 		hoeveelMonsters = 0;
-	glm::vec4	alleMonsters	= glm::vec4(0.0f);
-
-	glm::uvec2 	kleinste = plaats - straal,
-				grootste = plaats + straal;
-
-	for(size_t x=kleinste.x; x<=grootste.x; x++)
-		for(size_t y=kleinste.y; y<=grootste.y; y++)
-		{
-			alleMonsters 	+= _vakjes[ (y + _afmetingen.y) % _afmetingen.y ][ (x + _afmetingen.x) % _afmetingen.x ];
-			hoeveelMonsters	++;
-		}
-
-	return alleMonsters / hoeveelMonsters;
+	//negeer straal voor nu
+	return _vakjes[ plaats.y % _afmetingen.y ][ plaats.x % _afmetingen.x ];
 }
 
-glm::vec4 monsterPNG::operator()(glm::vec2 plaats, glm::vec2 straal)
+glm::vec4 monsterPNG::operator()(glm::vec2 plaats, float straal)
 {
-	glm::uvec2 	vergroottePlaats = glm::uvec2(glm::floor(glm::vec2(_afmetingen) * plaats)),
-				vergrootteStraal = glm::uvec2(glm::floor(glm::vec2(_afmetingen) * straal));
+	glm::uvec2 vergroot = glm::uvec2(glm::floor(glm::vec2(_afmetingen) * plaats));
 
-	return operator()(vergroottePlaats, vergrootteStraal);
+	return operator()(vergroot, straal);
 }

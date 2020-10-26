@@ -21,6 +21,12 @@ struct vakje
 	int		iets			= 0;
 	int		burenAantal		= 0;
 	int		buren[6]		= { -1, -1, -1, -1, -1, -1 };
+	int		pijpen[6]		= { -1, -1, -1, -1, -1, -1 };
+};
+
+struct pijp
+{
+	float 	stroming 		= 0.0;
 };
 
 class planeet : public geodesisch
@@ -42,8 +48,10 @@ protected:
 private:
 	std::vector<glm::uint32> 			_eigenschappen;
 	buurt								_buren;
-	std::vector<vakje>					_vakjes		[2];
-	vrwrkrOpslagDing<vakje>			*	_pingPong	[2];
+	std::vector<vakje>					_vakjes			[2];
+	vrwrkrOpslagDing<vakje>			*	_pingPongVakjes	[2];
+	std::vector<pijp>					_pijpen			[2];
+	vrwrkrOpslagDing<pijp>			*	_pingPongPijpen	[2];
 	size_t								_pingIsDit	= 0;
 	std::function<float(glm::vec2)> 	_hoogteMonsteraar;
 									

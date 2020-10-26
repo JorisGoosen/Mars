@@ -15,6 +15,7 @@ planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogte
 
 	//We gaan alle nodige info in _vakjes[0] wegschrijven, om het pingpongen te laten beginnen.
 	_vakjes[0].resize(_buren.size()); 
+	_pijpen[0].reserve(_vakjes[0].size()); //we hebben er meer nodig maar heb geen zin om dat uit te rekenen of uit te zoeken hoe.
 	
 	//Ook moet ieder punt een lijstje meekrijgen met de buren waar ie bij hoort (dit is ook erg handig voor het tekenen van genoemde polygoon)
 	//Alsin, dat ze naast een coordinaat nog 5 of 6 indices als vertex attribuut heeft
@@ -26,7 +27,7 @@ planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogte
 	//Nu nog twee buffers toevoegen waarin ik kan gaan rekenen en als punteigenschapwijzers kan gebruiken.
 	maakPingPongOpslagen();
 
-	//Dan een geometrische shader maken die een polygoon tekent per punt
+	//Dan een geometrische shader maken die een polygoon tekent per punt. Of niet natuurlijk
 
 }
 
@@ -59,6 +60,21 @@ void planeet::burenAlsEigenschapWijzers()
 	std::mt19937 gen(willekeur()); 
 	std::normal_distribution<> wlkGrond(1.0, 0.05);
 
+	std::map<size_t, std::map<size_t, size_t>> buurBuurPijp;
+
+	auto vindPijp = [&](size_t buurA, size_t buurB) -> size_t
+	{
+		if(buurA > buurB)	std::swap(buurA, buurB);
+
+		if(buurBuurPijp.count(buurA) == 0 || buurBuurPijp[buurA].count(buurB) == 0)
+		{
+			buurBuurPijp[buurA][buurB] = _pijpen[0].size();
+			_pijpen[0].push_back(pijp());
+		}
+
+		return buurBuurPijp[buurA][buurB];
+	};
+
 	for(size_t i=0; i<_buren.size(); i++)
 	{
 		const auto & buurt = _buren[i];
@@ -69,7 +85,12 @@ void planeet::burenAlsEigenschapWijzers()
 
 		size_t buur = 0;
 		for(const uint32 & buurId : buurt)
-			_vakjes[0][i].buren[buur++] = buurId;
+		{
+			_vakjes[0][i].pijpen[buur] 	= vindPijp(i, buurId);
+			_vakjes[0][i].buren[buur] 	= buurId;
+
+			buur++;
+		}
 
 		_vakjes[0][i].iets 			= gen()%2048;
 		_vakjes[0][i].grondHoogte 	= _hoogteMonsteraar(_tex->ggvPunt2(i));
@@ -107,10 +128,14 @@ void planeet::maakPingPongOpslagen()
 	}
 
 	_vakjes[1] = _vakjes[0];
+	_pijpen[1] = _pijpen[0];
 
 	//We gebruiken twee keer dezelfde data, want het wordt gekopieerd en de een wordt straks toch overschreven door de ander maar zo is iig de goeie grootte.
-	_pingPong[0] = new vrwrkrOpslagDing<vakje>(_vakjes[0], 0);
-	_pingPong[1] = new vrwrkrOpslagDing<vakje>(_vakjes[1], 1);
+	_pingPongVakjes[0] = new vrwrkrOpslagDing<vakje>(_vakjes[0], 0);
+	_pingPongVakjes[1] = new vrwrkrOpslagDing<vakje>(_vakjes[1], 1);
+
+	_pingPongPijpen[0] = new vrwrkrOpslagDing<pijp>	(_pijpen[0], 0);
+	_pingPongPijpen[1] = new vrwrkrOpslagDing<pijp>	(_pijpen[1], 1);
 
 
 	//We kunnen _pingPongOpslag straks wel allebei gebruiken om een SSB aan te binden en een compute shader tegenaan te gooien.
@@ -126,6 +151,9 @@ void planeet::volgendeRonde()
 
 void planeet::bindVrwrkrOpslagen()
 {
-	_pingPong[    _pingIsDit]->zetKnooppunt(0);
-	_pingPong[1 - _pingIsDit]->zetKnooppunt(1);
+	_pingPongVakjes[    _pingIsDit]->zetKnooppunt(0);
+	_pingPongVakjes[1 - _pingIsDit]->zetKnooppunt(1);
+
+	_pingPongPijpen[    _pingIsDit]->zetKnooppunt(2);
+	_pingPongPijpen[1 - _pingIsDit]->zetKnooppunt(3);
 }

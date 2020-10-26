@@ -14,6 +14,7 @@
 #define KLEUR_IJS	vec4(0.8, 	0.8, 	0.8, 	1.0)
 #define KLEUR_LOESS	vec4(0.78, 	0.75, 	0.74, 	1.0)
 
+
 struct vakje
 {
 	int		grondSoort	;
@@ -23,8 +24,13 @@ struct vakje
 	int		iets		;
 	int		burenAantal	;
 	int		buren[6]	;
+	int		pijpen[6]	;
 };
 
+struct pijp
+{
+	float 	stroming 	;
+};
 
 layout(location = 0) 		in 		vec3	pos;
 layout(location = 1) 		in 		vec2	tex;
