@@ -21,11 +21,11 @@ void main()
 
 	const vec4 marsKleur = vec4(1, 0.5, 0.5, 1);
 	
-	float marsHoogte = texture(marsHoogte, naadloosTex).x;
+	float marsHoogte = fs_in.grondHoogte;// (texture(marsHoogte, naadloosTex).x + fs_in.grondHoogte) * 0.5;
 
 	//if(marsHoogte > 0.3)	
 	//kleur = fs_in.kleur;
 	//else
-	kleur = vec4(marsHoogte, fs_in.grondHoogte, fs_in.waterHoogte, 1.0);//mix(fs_in.grondHoogte * marsKleur, vec4(0, 0, 1, 1), min(fs_in.waterHoogte / 10, 1)), 0.5);
+	kleur = vec4(marsHoogte, marsHoogte * 0.5, fs_in.waterHoogte, 1.0);//mix(fs_in.grondHoogte * marsKleur, vec4(0, 0, 1, 1), min(fs_in.waterHoogte / 10, 1)), 0.5);
 }
 	

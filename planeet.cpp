@@ -95,7 +95,9 @@ void planeet::burenAlsEigenschapWijzers()
 		_vakken[0][i].iets 			= gen()%2048;
 		_vakken[0][i].grondHoogte 	= _hoogteMonsteraar(_tex->ggvPunt2(i));
 
-		if(gen()%100 == 0) _vakken[0][i].waterHoogte = 100;
+		if(_vakken[0][i].grondHoogte < 0.15 && gen()%10 == 0) _vakken[0][i].waterHoogte = 300;
+
+		//if(gen()%28 == 0) _vakken[0][i].waterHoogte = 30;
 
 	}	
 }

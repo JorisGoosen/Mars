@@ -47,5 +47,8 @@ void main()
 		else								verschil += pijpen1[pijp].stroming;
 	}
 
-	vakken1[ID].waterHoogte = max(0.0, verschil);
+	if(verschil < 1) 			verschil -= 0.001; // beetje verdamping als weinig water
+	//else if(verschil < 3)		verschil -= 0.001;
+
+	vakken1[ID].waterHoogte = max(0.0, verschil); 
 }

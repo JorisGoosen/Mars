@@ -28,6 +28,9 @@ layout(std430, binding = 1) buffer 			pongVak 	{ vak vakken1[]; };
 layout(std430, binding = 2) buffer 			pingPijp 	{ pijp pijpen0[]; };
 layout(std430, binding = 3) buffer 			pongPijp 	{ pijp pijpen1[]; };
 
+
+#define GRONDMULT 100
+
 void main()
 {
 	float 	waterHier 	= vakken0[ID].waterHoogte;
@@ -42,13 +45,15 @@ void main()
 		{
 			int 	pijp 			= vakken0[ID].pijpen[buur];
 			float 	waterBuur 		= vakken0[buurID].waterHoogte,
-					stroomVerschil	= waterHier - waterBuur;
+					stroomVerschil	= waterHier - waterBuur,
+					grondVerschil 	= waterHier + (GRONDMULT * vakken0[ID].grondHoogte) - (GRONDMULT * vakken0[buurID].grondHoogte + waterBuur);
 
 			if(abs(stroomVerschil) > 0)
 			{
-				if		(stroomVerschil > 0)	stroomVerschil = stroomVerschil / aantalBuren; 					//max(-1 / aantalBuren, 					*/ -waterHier / aantalBuren; //);
-				else if	(stroomVerschil < 0)	stroomVerschil = stroomVerschil / vakken0[buurID].burenAantal; 	///min( 1 / vakken0[buurID].burenAantal,	*/ waterBuur / vakken0[buurID].burenAantal; //);
+				if		(stroomVerschil > 0) stroomVerschil = grondVerschil > 0 ? stroomVerschil / aantalBuren					: 0; 
+				else if	(stroomVerschil < 0) stroomVerschil = grondVerschil < 0 ? stroomVerschil / vakken0[buurID].burenAantal	: 0; 
 			}
+
 
 			pijpen1[pijp].stroming = stroomVerschil;
 

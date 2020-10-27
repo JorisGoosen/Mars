@@ -57,6 +57,8 @@ out NaarFrag
 
 uniform sampler2D marsHoogte;
 
+#define GRONDMULT 0.05
+
 void main()
 {
 	
@@ -75,8 +77,8 @@ void main()
 	tc_in.normal		= normalize(pos);
 	tc_in.tex			= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
 	tc_in.kleur			= vec4(vakken0[gl_VertexID].grondHoogte); //grondKleur;
-	tc_in.waterHoogte	= vakken0[gl_VertexID].waterHoogte;
+	tc_in.waterHoogte	= vakken0[gl_VertexID].waterHoogte > 0.02 ? 1.0 : 0.0;
 	tc_in.grondHoogte	= vakken0[gl_VertexID].grondHoogte;
 	
-	gl_Position			= projectie * modelView * vec4(pos * ((vakken0[gl_VertexID].grondHoogte * 0.05) + 1.0), 1);	
+	gl_Position			= projectie * modelView * vec4(pos * ((vakken0[gl_VertexID].grondHoogte * GRONDMULT) + 1.0), 1);	
 }
