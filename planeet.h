@@ -12,7 +12,7 @@
 #define GS_IJS		4
 #define GS_LOESS	5
 
-struct vakje
+struct vak
 {
 	int		grondSoort		= GS_ZAND;
 	float 	grondHoogte		= 1.0;
@@ -36,7 +36,7 @@ public:
 	
 	planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar);
 
-	size_t 	aantalVakjes() const { return _vakjes[0].size(); }
+	size_t 	aantalVakjes() const { return _vakken[0].size(); }
 	void	volgendeRonde();
 	void	bindVrwrkrOpslagen();
 	
@@ -48,8 +48,8 @@ protected:
 private:
 	std::vector<glm::uint32> 			_eigenschappen;
 	buurt								_buren;
-	std::vector<vakje>					_vakjes			[2];
-	vrwrkrOpslagDing<vakje>			*	_pingPongVakjes	[2];
+	std::vector<vak>					_vakken			[2];
+	vrwrkrOpslagDing<vak>			*	_pingPongVakjes	[2];
 	std::vector<pijp>					_pijpen			[2];
 	vrwrkrOpslagDing<pijp>			*	_pingPongPijpen	[2];
 	size_t								_pingIsDit	= 0;

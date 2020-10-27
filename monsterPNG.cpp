@@ -5,8 +5,8 @@ monsterPNG::monsterPNG(unsigned char * pngGegevens, glm::uvec2 afmetingen) : _af
 {
 	//van linksonder naar rechts en dan telkens rij erboven
 
-	_vakjes.resize(afmetingen.y);
-	for(auto & kolom : _vakjes)
+	_vakken.resize(afmetingen.y);
+	for(auto & kolom : _vakken)
 		kolom.resize(afmetingen.x);
 
 	auto png = [&](auto x, auto y, auto z)
@@ -16,14 +16,14 @@ monsterPNG::monsterPNG(unsigned char * pngGegevens, glm::uvec2 afmetingen) : _af
 
 	for(size_t y=0; y<afmetingen.y; y++)
 		for(size_t x=0; x<afmetingen.x; x++)
-			_vakjes[y][x] = glm::vec4(glm::uvec4(png(x, y, 0), png(x, y, 1), png(x, y, 2), png(x, y, 3))) / glm::vec4(255.0f);
+			_vakken[y][x] = glm::vec4(glm::uvec4(png(x, y, 0), png(x, y, 1), png(x, y, 2), png(x, y, 3))) / glm::vec4(255.0f);
 }
 
 
 glm::vec4 monsterPNG::operator()(glm::uvec2 plaats, float straal)
 {
 	//negeer straal voor nu
-	return _vakjes[ plaats.y % _afmetingen.y ][ plaats.x % _afmetingen.x ];
+	return _vakken[ plaats.y % _afmetingen.y ][ plaats.x % _afmetingen.x ];
 }
 
 glm::vec4 monsterPNG::operator()(glm::vec2 plaats, float straal)

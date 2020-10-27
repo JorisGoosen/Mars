@@ -10,6 +10,6 @@ public:
 	glm::vec4 operator()(glm::vec2 plaats, 	float straal = 0.0); //straal == 0 is puntmonstering
 
 private:
-	std::vector<std::vector<glm::vec4> > 	_vakjes;
+	std::vector<std::vector<glm::vec4> > 	_vakken;
 	glm::uvec2								_afmetingen;
 };

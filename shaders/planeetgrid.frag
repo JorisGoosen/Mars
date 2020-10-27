@@ -26,6 +26,6 @@ void main()
 	//if(marsHoogte > 0.3)	
 	//kleur = fs_in.kleur;
 	//else
-	kleur = vec4(marsHoogte, fs_in.grondHoogte, 0.0, 1.0);//mix(fs_in.grondHoogte * marsKleur, vec4(0, 0, 1, 1), min(fs_in.waterHoogte / 10, 1)), 0.5);
+	kleur = vec4(marsHoogte, fs_in.grondHoogte, fs_in.waterHoogte, 1.0);//mix(fs_in.grondHoogte * marsKleur, vec4(0, 0, 1, 1), min(fs_in.waterHoogte / 10, 1)), 0.5);
 }
 	

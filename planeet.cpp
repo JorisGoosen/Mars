@@ -13,9 +13,9 @@ planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogte
 	//Via deze lijst kunnen we per punt de buren bepalen, waarbij er 12 5 buren (de originele) hebben en de rest 6,
 	maakLijstBuren();
 
-	//We gaan alle nodige info in _vakjes[0] wegschrijven, om het pingpongen te laten beginnen.
-	_vakjes[0].resize(_buren.size()); 
-	_pijpen[0].reserve(_vakjes[0].size()); //we hebben er meer nodig maar heb geen zin om dat uit te rekenen of uit te zoeken hoe.
+	//We gaan alle nodige info in _vakken[0] wegschrijven, om het pingpongen te laten beginnen.
+	_vakken[0].resize(_buren.size()); 
+	_pijpen[0].reserve(_vakken[0].size()); //we hebben er meer nodig maar heb geen zin om dat uit te rekenen of uit te zoeken hoe.
 	
 	//Ook moet ieder punt een lijstje meekrijgen met de buren waar ie bij hoort (dit is ook erg handig voor het tekenen van genoemde polygoon)
 	//Alsin, dat ze naast een coordinaat nog 5 of 6 indices als vertex attribuut heeft
@@ -79,23 +79,23 @@ void planeet::burenAlsEigenschapWijzers()
 	{
 		const auto & buurt = _buren[i];
 
-		_vakjes[0][i].burenAantal = buurt.size();
+		_vakken[0][i].burenAantal = buurt.size();
 
 		assert(buurt.size() == 5 || buurt.size() == 6);
 
 		size_t buur = 0;
 		for(const uint32 & buurId : buurt)
 		{
-			_vakjes[0][i].pijpen[buur] 	= vindPijp(i, buurId);
-			_vakjes[0][i].buren[buur] 	= buurId;
+			_vakken[0][i].pijpen[buur] 	= vindPijp(i, buurId);
+			_vakken[0][i].buren[buur] 	= buurId;
 
 			buur++;
 		}
 
-		_vakjes[0][i].iets 			= gen()%2048;
-		_vakjes[0][i].grondHoogte 	= _hoogteMonsteraar(_tex->ggvPunt2(i));
+		_vakken[0][i].iets 			= gen()%2048;
+		_vakken[0][i].grondHoogte 	= _hoogteMonsteraar(_tex->ggvPunt2(i));
 
-		if(gen()%100 == 0) _vakjes[0][i].waterHoogte = 100;
+		if(gen()%100 == 0) _vakken[0][i].waterHoogte = 100;
 
 	}	
 }
@@ -124,15 +124,15 @@ void planeet::maakPingPongOpslagen()
 		//else if	(grondRand < 0.2)		grondSoort = GS_IJS;
 		else							grondSoort = GS_LOESS;
 
-		_vakjes[0][b].grondSoort = grondSoort;
+		_vakken[0][b].grondSoort = grondSoort;
 	}
 
-	_vakjes[1] = _vakjes[0];
+	_vakken[1] = _vakken[0];
 	_pijpen[1] = _pijpen[0];
 
 	//We gebruiken twee keer dezelfde data, want het wordt gekopieerd en de een wordt straks toch overschreven door de ander maar zo is iig de goeie grootte.
-	_pingPongVakjes[0] = new vrwrkrOpslagDing<vakje>(_vakjes[0], 0);
-	_pingPongVakjes[1] = new vrwrkrOpslagDing<vakje>(_vakjes[1], 1);
+	_pingPongVakjes[0] = new vrwrkrOpslagDing<vak>(_vakken[0], 0);
+	_pingPongVakjes[1] = new vrwrkrOpslagDing<vak>(_vakken[1], 1);
 
 	_pingPongPijpen[0] = new vrwrkrOpslagDing<pijp>	(_pijpen[0], 0);
 	_pingPongPijpen[1] = new vrwrkrOpslagDing<pijp>	(_pijpen[1], 1);

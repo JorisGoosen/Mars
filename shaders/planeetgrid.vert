@@ -15,7 +15,7 @@
 #define KLEUR_LOESS	vec4(0.78, 	0.75, 	0.74, 	1.0)
 
 
-struct vakje
+struct vak
 {
 	int		grondSoort	;
 	float 	grondHoogte	;
@@ -34,8 +34,8 @@ struct pijp
 
 layout(location = 0) 		in 		vec3	pos;
 layout(location = 1) 		in 		vec2	tex;
-layout(std430, binding = 0) buffer 			ping 	{ vakje vakjes0[]; };
-layout(std430, binding = 1) buffer 			pong 	{ vakje vakjes1[]; };
+layout(std430, binding = 0) buffer 			ping 	{ vak vakken0[]; };
+layout(std430, binding = 1) buffer 			pong 	{ vak vakken1[]; };
 
 
 uniform mat4 modelView;
@@ -62,7 +62,7 @@ void main()
 	
 	vec4 grondKleur;
 
-	switch(vakjes0[gl_VertexID].grondSoort)
+	switch(vakken0[gl_VertexID].grondSoort)
 	{
 	case GS_ZAND:		grondKleur	= KLEUR_ZAND;	break;
 	case GS_GROND:		grondKleur	= KLEUR_GROND;	break;
@@ -74,9 +74,9 @@ void main()
 
 	tc_in.normal		= normalize(pos);
 	tc_in.tex			= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
-	tc_in.kleur			= vec4(vakjes0[gl_VertexID].grondHoogte); //grondKleur;
-	tc_in.waterHoogte	= vakjes0[gl_VertexID].waterHoogte;
-	tc_in.grondHoogte	= vakjes0[gl_VertexID].grondHoogte;
+	tc_in.kleur			= vec4(vakken0[gl_VertexID].grondHoogte); //grondKleur;
+	tc_in.waterHoogte	= vakken0[gl_VertexID].waterHoogte;
+	tc_in.grondHoogte	= vakken0[gl_VertexID].grondHoogte;
 	
-	gl_Position			= projectie * modelView * vec4(pos * ((vakjes0[gl_VertexID].grondHoogte * 0.05) + 1.0), 1);	
+	gl_Position			= projectie * modelView * vec4(pos * ((vakken0[gl_VertexID].grondHoogte * 0.05) + 1.0), 1);	
 }

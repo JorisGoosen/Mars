@@ -8,7 +8,10 @@ int main()
 	weergaveSchermPerspectief scherm("Planeet");
 
 	scherm.maakShader(		"planeetWeergave", 		"shaders/planeetgrid.vert", "shaders/planeetgrid.frag");
-	scherm.maakRekenShader(	"planeetBerekening", 	"shaders/planeetgrid.comp");
+	//scherm.maakRekenShader(	"planeetBerekening", 	"shaders/planeetgrid.comp");
+
+	scherm.maakRekenShader(	"waterDruk", 		"shaders/waterDruk.comp");
+	scherm.maakRekenShader(	"waterStroming", 	"shaders/waterStroming.comp");
 
 	glClearColor(0,0,0,0);
 
@@ -80,7 +83,7 @@ int main()
 		if(roteerMaar)
 			verdraaiing += draaisnelheid;
 
-		
-		scherm.doeRekenVerwerker("planeetBerekening", glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
+		scherm.doeRekenVerwerker("waterStroming", 	glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
+		scherm.doeRekenVerwerker("waterDruk", 		glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
 	}
 }

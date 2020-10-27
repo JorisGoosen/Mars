@@ -11,7 +11,7 @@ layout(local_size_x = 16) in;
 
 #define ID gl_GlobalInvocationID.x
 
-struct vakje
+struct vak
 {
 	int		grondSoort	;
 	float 	grondHoogte	;
@@ -29,8 +29,8 @@ struct pijp
 };
 
 
-layout(std430, binding = 0) buffer 			pingVak 	{ vakje vakjes0[]; };
-layout(std430, binding = 1) buffer 			pongVak 	{ vakje vakjes1[]; };
+layout(std430, binding = 0) buffer 			pingVak 	{ vak vakken0[]; };
+layout(std430, binding = 1) buffer 			pongVak 	{ vak vakken1[]; };
 
 layout(std430, binding = 2) buffer 			pingPijp 	{ pijp pijpen0[]; };
 layout(std430, binding = 3) buffer 			pongPijp 	{ pijp pijpen1[]; };
@@ -39,7 +39,7 @@ const float grondMult = 10;
 
 float grondHoogte(uint deze)
 {
-	return vakjes0[deze].grondHoogte * grondMult;
+	return vakken0[deze].grondHoogte * grondMult;
 }
 
 #define MAX_WATER 4
@@ -48,25 +48,25 @@ float waterVerschil(uint ander)
 {
 
 	if(ander == -1) return 0;
-	if(grondHoogte(ID) > (vakjes0[ander].waterHoogte + grondHoogte(ander) ))
+	if(grondHoogte(ID) > (vakken0[ander].waterHoogte + grondHoogte(ander) ))
 	{
-		return max(-MAX_WATER, -vakjes0[ID].waterHoogte / vakjes0[ID].burenAantal);
+		return max(-MAX_WATER, -vakken0[ID].waterHoogte / vakken0[ID].burenAantal);
 	}
-	else if(grondHoogte(ander) > (vakjes0[ID].waterHoogte + grondHoogte(ID) ))
+	else if(grondHoogte(ander) > (vakken0[ID].waterHoogte + grondHoogte(ID) ))
 	{
-		return min(MAX_WATER, vakjes0[ander].waterHoogte / vakjes0[ander].burenAantal);
+		return min(MAX_WATER, vakken0[ander].waterHoogte / vakken0[ander].burenAantal);
 	}
 	else
 	{
-		float val = (vakjes0[ander].waterHoogte + grondHoogte(ander)) - (vakjes0[ID].waterHoogte + grondHoogte(ID));
-		return (val < 0 ? max(-MAX_WATER, val / vakjes0[ID].burenAantal) : min(MAX_WATER, val / vakjes0[ander].burenAantal)) ;
+		float val = (vakken0[ander].waterHoogte + grondHoogte(ander)) - (vakken0[ID].waterHoogte + grondHoogte(ID));
+		return (val < 0 ? max(-MAX_WATER, val / vakken0[ID].burenAantal) : min(MAX_WATER, val / vakken0[ander].burenAantal)) ;
 	}
 }
 
 float grondVerschil(uint ander)
 {
 	if(ander == -1) return 0;
-	return vakjes0[ander].grondHoogte - vakjes0[ID].grondHoogte;
+	return vakken0[ander].grondHoogte - vakken0[ID].grondHoogte;
 }
 
 
@@ -74,35 +74,35 @@ void main()
 {
 	float 	verschil 	= 0.0;
 	
-	for(int buur=0; buur < vakjes0[ID].burenAantal && buur < 6; buur++)
-		verschil += waterVerschil(vakjes0[ID].buren[buur]);
+	for(int buur=0; buur < vakken0[ID].burenAantal && buur < 6; buur++)
+		verschil += waterVerschil(vakken0[ID].buren[buur]);
 
-//	verschil /= vakjes0[ID].burenAantal;
+//	verschil /= vakken0[ID].burenAantal;
 
-	//if(vakjes0[ID].waterHoogte 
+	//if(vakken0[ID].waterHoogte 
 
-	vakjes1[ID].waterHoogte = max(0, vakjes0[ID].waterHoogte + verschil);
+	vakken1[ID].waterHoogte = max(0, vakken0[ID].waterHoogte + verschil);
 
-	/*	float nieuwWaterhoogte = vakjes0[ID].waterHoogte;
+	/*	float nieuwWaterhoogte = vakken0[ID].waterHoogte;
 
-	if(vakjes0[ID].grondSoort == GS_IJS && vakjes0[ID].waterHoogte < 0.9)
-		nieuwWaterhoogte = vakjes0[ID].waterHoogte + 0.1;
+	if(vakken0[ID].grondSoort == GS_IJS && vakken0[ID].waterHoogte < 0.9)
+		nieuwWaterhoogte = vakken0[ID].waterHoogte + 0.1;
 
-	nieuwWaterhoogte += (verschil / vakjes0[ID].burenAantal);
+	nieuwWaterhoogte += (verschil / vakken0[ID].burenAantal);
 
-	vakjes1[ID].waterHoogte = max(0, min(1, nieuwWaterhoogte));
+	vakken1[ID].waterHoogte = max(0, min(1, nieuwWaterhoogte));
 
 	float gewensteGrondHoogte = 0.0f;
 
-	for(int buur=0; buur < vakjes0[ID].burenAantal && buur < 6; buur++)
-		gewensteGrondHoogte += grondVerschil(vakjes0[ID].buren[buur]);
+	for(int buur=0; buur < vakken0[ID].burenAantal && buur < 6; buur++)
+		gewensteGrondHoogte += grondVerschil(vakken0[ID].buren[buur]);
 
-	gewensteGrondHoogte /= vakjes0[ID].burenAantal;
+	gewensteGrondHoogte /= vakken0[ID].burenAantal;
 
-	if(abs(gewensteGrondHoogte - vakjes0[ID].grondHoogte) > 0.001)
-		vakjes1[ID].grondHoogte = mix(gewensteGrondHoogte, vakjes0[ID].grondHoogte, 0.99);
+	if(abs(gewensteGrondHoogte - vakken0[ID].grondHoogte) > 0.001)
+		vakken1[ID].grondHoogte = mix(gewensteGrondHoogte, vakken0[ID].grondHoogte, 0.99);
 	else
-		vakjes1[ID].grondHoogte = vakjes0[ID].grondHoogte;*/
+		vakken1[ID].grondHoogte = vakken0[ID].grondHoogte;*/
 
 	
 }
