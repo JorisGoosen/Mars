@@ -28,7 +28,8 @@ void main()
 	//else
 
 	//Beter visuele check inbouwen voor lager dan nul water
-	if(fs_in.waterHoogte < 0.0)		kleur = vec4(1, 1, 0, 1);
-	else							kleur = vec4(marsHoogte, marsHoogte * 0.5, fs_in.waterHoogte > 0.5 ? 1.0 : 0.0, 1.0);
+	if(fs_in.waterHoogte < 0.0)			kleur = vec4(1, 1, 0, 1);
+	if(fs_in.waterHoogte > 10000.0)		kleur = vec4(0, 1, 0, 1);
+	else								kleur = vec4(marsHoogte, marsHoogte * 0.5, fs_in.waterHoogte, 1.0);
 }
 	

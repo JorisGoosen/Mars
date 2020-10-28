@@ -74,7 +74,12 @@ void planeet::burenAlsEigenschapWijzers()
 		_vakken[0][i].iets 			= gen()%2048;
 		_vakken[0][i].grondHoogte 	= _hoogteMonsteraar(_tex->ggvPunt2(i));
 
-		if(_vakken[0][i].grondHoogte > 0.09 && _vakken[0][i].grondHoogte < 0.11) _vakken[0][i].waterHoogte = 1000;
+	//	 // && _vakken[0][i].grondHoogte < 0.11
+	//	) 
+	
+	//if(_vakken[0][i].grondHoogte > 0.3)
+	if(gen()%10000 == 0)
+		_vakken[0][i].waterHoogte = 1000000;
 
 		//if(gen()%28 == 0) _vakken[0][i].waterHoogte = 30;
 

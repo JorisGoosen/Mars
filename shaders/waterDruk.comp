@@ -26,11 +26,8 @@ struct vak
 layout(std430, binding = 0) buffer 			pingVak 	{ vak  vakken0[]; };
 layout(std430, binding = 1) buffer 			pongVak 	{ vak  vakken1[]; };
 
-//Eigenlijk moeten dit uniforms zijn:
-//#define TIJD_VERSCHIL 0.1
-//#define ZWAARTEKRACHT 1.0
-//#define PIJP_DOORSNEE 1.0
-#define PIJP_LENGTE   1.0
+#define PIJP_LENGTE	1.0
+#define VERDAMPING	0.0
 
 // We hebben net in waterStroming.comp naar vakken1 geschreven, dus de nieuwe stromingswaardes staan daar.
 // Maar we willen alsnog de nieuwe waterHoogte etc naar vakken1 schrijven, dus opletten.
@@ -53,5 +50,5 @@ void main()
 			}
 	}
 
-	vakken1[ID].waterHoogte = vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE);
+	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - VERDAMPING);
 }
