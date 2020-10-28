@@ -19,7 +19,7 @@ int main()
 	glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
 	monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
-	planeet geo(7, [&](glm::vec2 plek)
+	planeet geo(9, [&](glm::vec2 plek)
 	{ 
 		//plek.x += 1.0;
 		//plek.x *= 0.25f;
@@ -31,7 +31,9 @@ int main()
 		return MOLA(plek).x; 
 	});
 
-	bool roteerMaar = false;
+	bool 		roteerMaar 		= false,
+				waterStroomt	= false,
+				waterStap		= false;
 
 	glm::vec3 	verplaatsing	(0.0f, 0.0f, -1.5f)	;
 	glm::vec2 	verdraaiing		(0.0f, 0.0f)		,
@@ -41,7 +43,12 @@ int main()
 	{
 		const float tol = 0.2, tik = 0.05;
 
-		if(action == GLFW_PRESS && key == GLFW_KEY_SPACE) roteerMaar = !roteerMaar;
+		if(action == GLFW_PRESS)
+			switch(key)
+			{
+			case GLFW_KEY_SPACE:	waterStroomt 	= !waterStroomt;	break;
+			case GLFW_KEY_R:		roteerMaar 		= !roteerMaar;		break;
+			}
 
 		switch(key)
 		{
@@ -51,6 +58,7 @@ int main()
 		case GLFW_KEY_E: case GLFW_KEY_DOWN: 	if(roteerMaar)	glm::max(draaisnelheid.y * (1.0f + tol), 1.0f);	else verdraaiing.y += tik;		break;
 		case GLFW_KEY_S:						verplaatsing.z -= 0.1f;		break;
 		case GLFW_KEY_W:						verplaatsing.z += 0.1f;		break;
+		case GLFW_KEY_ENTER:					waterStap = true;			break;
 		}	
 	};
 
@@ -81,12 +89,16 @@ int main()
 		if(roteerMaar)
 			verdraaiing += draaisnelheid;
 
-		geo.volgendeRonde();
-		scherm.doeRekenVerwerker("waterStroming", 	glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
-		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+		if(waterStroomt || waterStap)
+		{
+			geo.volgendeRonde();
+			scherm.doeRekenVerwerker("waterStroming", 	glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
+			glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-		scherm.doeRekenVerwerker("waterDruk", 		glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
-		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-		
+			scherm.doeRekenVerwerker("waterDruk", 		glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
+			glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+			waterStap = false;
+		}
 	}
 }

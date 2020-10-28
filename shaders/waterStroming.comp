@@ -20,34 +20,34 @@ struct vak
 layout(std430, binding = 0) buffer 			pingVak 	{ vak vakken0[]; };
 layout(std430, binding = 1) buffer 			pongVak 	{ vak vakken1[]; };
 
-#define TIJD_VERSCHIL 	0.1
-#define ZWAARTEKRACHT 	1.0
+#define TIJD_VERSCHIL 	1.0
+#define ZWAARTEKRACHT 	0.6
 #define PIJP_DOORSNEE 	0.1
 #define PIJP_LENGTE   	1.0
 
-#define GROND_MULT		200.0
+#define GROND_MULT		10000.0
 
-float hoogteverschil(uint buur)
+float hoogteverschil(uint buurID)
 {
-	return (GROND_MULT * vakken0[ID].grondHoogte) + vakken0[ID].waterHoogte - (GROND_MULT * vakken0[buur].grondHoogte) - vakken0[buur].waterHoogte;
+	return ((GROND_MULT * vakken0[ID].grondHoogte) + vakken0[ID].waterHoogte) - ((GROND_MULT * vakken0[buurID].grondHoogte) + vakken0[buurID].waterHoogte);
 }
 
 void main()
 {
-	float 	waterHier 	= vakken0[ID].waterHoogte,
-			fluxen		= 0.0f;
+	float	fluxen		= 0.0f;
 	uint 	aantalBuren = vakken0[ID].burenAantal;
 
 	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
 	{
-		uint 	buurID 		= vakken0[ID].buren[buur];
-		float 	waterBuur 	= vakken0[buurID].waterHoogte;
+		uint 	buurID 	= vakken0[ID].buren[buur];
+		float 	flux 	= max(0, vakken0[ID].pijpen[buur] + (TIJD_VERSCHIL * PIJP_DOORSNEE * ( ( ZWAARTEKRACHT * hoogteverschil(buurID) ) / PIJP_LENGTE ) ) );
 
-		vakken1[ID].pijpen[buur] = max(0, vakken0[ID].pijpen[buur] + TIJD_VERSCHIL * PIJP_DOORSNEE * ( ( ZWAARTEKRACHT * hoogteverschil(buurID) ) / PIJP_LENGTE ) );
-		
-		fluxen += vakken1[ID].pijpen[buur];
+
+		vakken1[ID].pijpen[buur] = flux; 
+		fluxen += flux;
 	}
 
+	memoryBarrier();
 
 	float K = min(1, (PIJP_LENGTE * vakken0[ID].waterHoogte) / (fluxen * TIJD_VERSCHIL) );
 
