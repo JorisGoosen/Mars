@@ -22,14 +22,9 @@ struct vak
 	float	waterHoogte	;
 	float	leven		;
 	int		iets		;
-	int		burenAantal	;
-	int		buren[6]	;
-	int		pijpen[6]	;
-};
-
-struct pijp
-{
-	float 	stroming 	;
+	float	pijpen[6]	;
+	uint	burenAantal	;
+	uint	buren[6]	;
 };
 
 layout(location = 0) 		in 		vec3	pos;

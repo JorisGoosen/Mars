@@ -18,37 +18,40 @@ struct vak
 	float	waterHoogte	;
 	float	leven		;
 	int		iets		;
-	int		burenAantal	;
-	int		buren[6]	;
-	int		pijpen[6]	;
+	float	pijpen[6]	;
+	uint	burenAantal	;
+	uint	buren[6]	;
 };
-
-struct pijp
-{
-	float 	stroming 	;
-};
-
 
 layout(std430, binding = 0) buffer 			pingVak 	{ vak  vakken0[]; };
 layout(std430, binding = 1) buffer 			pongVak 	{ vak  vakken1[]; };
 
-layout(std430, binding = 2) buffer 			pingPijp 	{ pijp pijpen0[]; };
-layout(std430, binding = 3) buffer 			pongPijp 	{ pijp pijpen1[]; };
+//Eigenlijk moeten dit uniforms zijn:
+//#define TIJD_VERSCHIL 0.1
+#define ZWAARTEKRACHT 1.0
+#define PIJP_DOORSNEE 1.0
+#define PIJP_LENGTE   1.0
 
+// We hebben net in waterStroming.comp naar vakken1 geschreven, dus de nieuwe stromingswaardes staan daar.
+// Maar we willen alsnog de nieuwe waterHoogte etc naar vakken1 schrijven, dus opletten.
 void main()
 {
-	float 	verschil 	= vakken0[ID].waterHoogte;
-	
-	for(int buur=0; buur < vakken0[ID].burenAantal && buur < 6; buur++)
-	{
-		int pijp	 = vakken0[ID].pijpen[buur];
 
-		if(vakken0[ID].buren[buur] > ID) 	verschil -= pijpen1[pijp].stroming; //pijpen1 want die hebben we net geupdate met waterStroming.comp
-		else								verschil += pijpen1[pijp].stroming;
+	uint 	aantalBuren = vakken0[ID].burenAantal;
+	float 	stroming 	= 0.0f;
+
+	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
+	{	
+		const uint 	buurID 		= vakken0[ID].buren[buur],
+					buurBuren 	= vakken0[buurID].burenAantal;
+
+		for(uint buurBuur=0; buurBuur < buurBuren; buurBuur++)
+			if(vakken0[buurID].buren[buurBuur] == ID)
+			{
+				stroming += vakken1[buurID].pijpen[buurBuur] - vakken1[ID].pijpen[buur];
+				break;
+			}
 	}
 
-	if(verschil < 1) 			verschil -= 0.001; // beetje verdamping als weinig water
-	//else if(verschil < 3)		verschil -= 0.001;
-
-	vakken1[ID].waterHoogte = max(0.0, verschil); 
+	vakken1[ID].waterHoogte = vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE);
 }

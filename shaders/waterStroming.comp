@@ -11,53 +11,46 @@ struct vak
 	float	waterHoogte	;
 	float	leven		;
 	int		iets		;
-	int		burenAantal	;
-	int		buren[6]	;
-	int		pijpen[6]	;
-};
-
-struct pijp
-{
-	float 	stroming 	;
+	float	pijpen[6]	;
+	uint	burenAantal	;
+	uint	buren[6]	;
 };
 
 
 layout(std430, binding = 0) buffer 			pingVak 	{ vak vakken0[]; };
 layout(std430, binding = 1) buffer 			pongVak 	{ vak vakken1[]; };
 
-layout(std430, binding = 2) buffer 			pingPijp 	{ pijp pijpen0[]; };
-layout(std430, binding = 3) buffer 			pongPijp 	{ pijp pijpen1[]; };
+#define TIJD_VERSCHIL 	0.1
+#define ZWAARTEKRACHT 	1.0
+#define PIJP_DOORSNEE 	0.1
+#define PIJP_LENGTE   	1.0
 
+#define GROND_MULT		200.0
 
-#define GRONDMULT 100
+float hoogteverschil(uint buur)
+{
+	return (GROND_MULT * vakken0[ID].grondHoogte) + vakken0[ID].waterHoogte - (GROND_MULT * vakken0[buur].grondHoogte) - vakken0[buur].waterHoogte;
+}
 
 void main()
 {
-	float 	waterHier 	= vakken0[ID].waterHoogte;
-	int 	aantalBuren = vakken0[ID].burenAantal;
+	float 	waterHier 	= vakken0[ID].waterHoogte,
+			fluxen		= 0.0f;
+	uint 	aantalBuren = vakken0[ID].burenAantal;
 
-	for(int buur=0; buur < aantalBuren && buur < 6; buur++)
+	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
 	{
-		int buurID = vakken0[ID].buren[buur];
+		uint 	buurID 		= vakken0[ID].buren[buur];
+		float 	waterBuur 	= vakken0[buurID].waterHoogte;
 
-		//Zodat iedere stroming maar 1 maal bijgewerkt wordt
-		if(ID < buurID)
-		{
-			int 	pijp 			= vakken0[ID].pijpen[buur];
-			float 	waterBuur 		= vakken0[buurID].waterHoogte,
-					stroomVerschil	= waterHier - waterBuur,
-					grondVerschil 	= waterHier + (GRONDMULT * vakken0[ID].grondHoogte) - (GRONDMULT * vakken0[buurID].grondHoogte + waterBuur);
-
-			if(abs(stroomVerschil) > 0)
-			{
-				if		(stroomVerschil > 0) stroomVerschil = grondVerschil > 0 ? stroomVerschil / aantalBuren					: 0; 
-				else if	(stroomVerschil < 0) stroomVerschil = grondVerschil < 0 ? stroomVerschil / vakken0[buurID].burenAantal	: 0; 
-			}
-
-
-			pijpen1[pijp].stroming = stroomVerschil;
-
-			// Hier iets doen dus. Maar wat?
-		}
+		vakken1[ID].pijpen[buur] = max(0, vakken0[ID].pijpen[buur] + TIJD_VERSCHIL * PIJP_DOORSNEE * ( ( ZWAARTEKRACHT * hoogteverschil(buurID) ) / PIJP_LENGTE ) );
+		
+		fluxen += vakken1[ID].pijpen[buur];
 	}
+
+
+	float K = min(1, (PIJP_LENGTE * vakken0[ID].waterHoogte) / (fluxen * TIJD_VERSCHIL) );
+
+	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
+		vakken1[ID].pijpen[buur] = K * vakken1[ID].pijpen[buur];
 }

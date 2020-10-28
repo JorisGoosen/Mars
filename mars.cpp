@@ -72,8 +72,6 @@ int main()
 		);
 		scherm.bereidRenderVoor("planeetWeergave");
 
-		geo.volgendeRonde();
-
 		geo.tekenJezelf();
 		glErrorToConsole("geo.tekenJezelf(): ");
 
@@ -83,7 +81,12 @@ int main()
 		if(roteerMaar)
 			verdraaiing += draaisnelheid;
 
+		geo.volgendeRonde();
 		scherm.doeRekenVerwerker("waterStroming", 	glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
 		scherm.doeRekenVerwerker("waterDruk", 		glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+		
 	}
 }

@@ -14,19 +14,16 @@
 
 struct vak
 {
-	int		grondSoort		= GS_ZAND;
-	float 	grondHoogte		= 1.0;
-	float	waterHoogte		= 0.0;
-	float	leven			= 0.0;
-	int		iets			= 0;
-	int		burenAantal		= 0;
-	int		buren[6]		= { -1, -1, -1, -1, -1, -1 };
-	int		pijpen[6]		= { -1, -1, -1, -1, -1, -1 };
-};
+	int			grondSoort		= GS_ZAND;
+	float 		grondHoogte		= 1.0;
+	float		waterHoogte		= 0.0;
+	float		leven			= 0.0;
+	int			iets			= 0;
+	float		pijpen[6]		= { 0, 0, 0, 0, 0, 0 }; //Naar andere vakken
 
-struct pijp
-{
-	float 	stroming 		= 0.0;
+	//Zouden eventueel in losse buffer kunnen want worden nooit aangepast:
+	glm::uint32	burenAantal		= 0;
+	glm::uint32	buren[6]		= { 0, 0, 0, 0, 0, 0 };
 };
 
 class planeet : public geodesisch
@@ -49,9 +46,7 @@ private:
 	std::vector<glm::uint32> 			_eigenschappen;
 	buurt								_buren;
 	std::vector<vak>					_vakken			[2];
-	vrwrkrOpslagDing<vak>			*	_pingPongVakjes	[2];
-	std::vector<pijp>					_pijpen			[2];
-	vrwrkrOpslagDing<pijp>			*	_pingPongPijpen	[2];
+	vrwrkrOpslagDing<vak>			*	_pingPongVakken	[2];
 	size_t								_pingIsDit	= 0;
 	std::function<float(glm::vec2)> 	_hoogteMonsteraar;
 									
