@@ -22,10 +22,10 @@ layout(std430, binding = 1) buffer 			pongVak 	{ vak vakken1[]; };
 
 #define TIJD_VERSCHIL 	1.0
 #define ZWAARTEKRACHT 	0.6
-#define PIJP_DOORSNEE 	0.1
+#define PIJP_DOORSNEE 	0.01
 #define PIJP_LENGTE   	1.0
 
-#define GROND_MULT		10000.0
+#define GROND_MULT		6000.0
 
 float hoogteverschil(uint buurID)
 {

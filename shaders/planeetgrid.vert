@@ -53,7 +53,7 @@ out NaarFrag
 uniform sampler2D marsHoogte;
 
 #define GRONDMULT 0.05
-#define WATERMULT (1.0 / 10000.0)
+#define WATERMULT (1.0 / 6000.0)
 
 void main()
 {
