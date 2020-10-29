@@ -31,7 +31,7 @@ void main()
 	//else
 
 	if(grondNietWater == 1)	kleur = vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);
-	else					kleur = vec4(0.0, 0.0, 1.0, 0.3);
+	else					kleur = fs_in.kleur;
 /*
 	//Beter visuele check inbouwen voor lager dan nul water
 	if(fs_in.waterHoogte < 0.0)			kleur = vec4(1, 1, 0, 1);

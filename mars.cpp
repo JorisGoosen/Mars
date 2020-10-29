@@ -39,8 +39,8 @@ int main()
 	glm::vec2 	verdraaiing		(0.0f, 0.0f)		,
 				draaisnelheid	(0.01, 0.0)			;
 
-	float		grondMult		= 6000.0,
-				grondSchaal		= 0.05;
+	float		grondMult		= 10000.0,
+				grondSchaal		= 0.1;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -62,6 +62,9 @@ int main()
 		case GLFW_KEY_S:						verplaatsing.z -= 0.1f;		break;
 		case GLFW_KEY_W:						verplaatsing.z += 0.1f;		break;
 		case GLFW_KEY_ENTER:					waterStap = true;			break;
+
+		case GLFW_KEY_SEMICOLON:				grondMult = glm::max(1.0f, grondMult * 0.9f);	break;
+		case GLFW_KEY_APOSTROPHE:				grondMult = glm::max(1.0f, grondMult * 1.1f);	break;
 		}	
 	};
 
