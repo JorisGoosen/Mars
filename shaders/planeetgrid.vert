@@ -35,6 +35,7 @@ layout(std430, binding = 1) buffer 			pong 	{ vak vakken1[]; };
 
 uniform mat4 modelView;
 uniform mat4 projectie;
+uniform uint grondNietWater;
 
 // Om het probleem met het texture aan de achterkant van de planeet (een lelijke naad) op te lossen gebruik ik het idee wat beschreven wordt in:
 // Cylindrical and Toroidal Parameterizations Without Vertex Seams door Marco Tarini (2012)
@@ -52,8 +53,10 @@ out NaarFrag
 
 uniform sampler2D marsHoogte;
 
-#define GRONDMULT 0.05
-#define WATERMULT (1.0 / 6000.0)
+uniform float grondSchaal;
+uniform float grondMult;
+
+#define WATERMULT (1.0 / grondMult)
 
 void main()
 {
@@ -74,12 +77,16 @@ void main()
 
 	tc_in.normal		= normalize(pos);
 	tc_in.tex			= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
-	tc_in.kleur			= vec4(vakken0[gl_VertexID].grondHoogte); //grondKleur;
 	tc_in.waterHoogte	= vakken0[gl_VertexID].waterHoogte > waterSchaler ? 1.0 : vakken0[gl_VertexID].waterHoogte / waterSchaler;
 	tc_in.grondHoogte	= vakken0[gl_VertexID].grondHoogte;
 
+	if(grondNietWater == 0)	tc_in.kleur			= vec4(0.0, 0.0, 1.0, 0.5);
+	else					tc_in.kleur			= vec4(vakken0[gl_VertexID].grondHoogte);
 
-	float vertexHoogte = vakken0[gl_VertexID].grondHoogte + (vakken0[gl_VertexID].waterHoogte * WATERMULT);
+	float vertexHoogte = vakken0[gl_VertexID].grondHoogte;
 	
-	gl_Position			= projectie * modelView * vec4(pos * (1.0 + (vertexHoogte * GRONDMULT)), 1);	
+	if(grondNietWater == 0)		vertexHoogte += (vakken0[gl_VertexID].waterHoogte * WATERMULT);
+	else						vertexHoogte += 0.01;
+	
+	gl_Position			= projectie * modelView * vec4(pos * (1.0 + (vertexHoogte * grondSchaal)), 1);	
 }

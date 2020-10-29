@@ -13,7 +13,7 @@ int main()
 	scherm.maakRekenShader(	"waterDruk", 		"shaders/waterDruk.comp");
 	scherm.maakRekenShader(	"waterStroming", 	"shaders/waterStroming.comp");
 
-	glClearColor(0,0,0,0);
+	glClearColor(0,0,0,1);
 
 	unsigned char * MarsHoogte 	= nullptr;
 	glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
@@ -38,6 +38,9 @@ int main()
 	glm::vec3 	verplaatsing	(0.0f, 0.0f, -1.5f)	;
 	glm::vec2 	verdraaiing		(0.0f, 0.0f)		,
 				draaisnelheid	(0.01, 0.0)			;
+
+	float		grondMult		= 6000.0,
+				grondSchaal		= 0.05;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -64,9 +67,22 @@ int main()
 
 	scherm.setCustomKeyhandler(toetsenbord);
 
+	auto grondShaderInfo = [&]()
+	{
+		glUniform1f(	glGetUniformLocation(scherm.huidigProgramma(), "grondMult"), 		grondMult);
+		glUniform1f(	glGetUniformLocation(scherm.huidigProgramma(), "grondSchaal"), 		grondSchaal);
+	};
+
+	auto berekenShaderBinden = [&]()
+	{
+		geo.bindVrwrkrOpslagen(); 
+		grondShaderInfo();
+	};
+
 	glErrorToConsole("Voordat we beginnen: ");
 	while(!scherm.stopGewenst())
 	{
+		
 		scherm.setModelView(
 			glm::rotate(
 				glm::rotate(
@@ -78,10 +94,21 @@ int main()
 				glm::vec3(0.0f, 1.0f, 0.0f)
 			)
 		);
-		scherm.bereidRenderVoor("planeetWeergave");
 
+		glDisable(GL_BLEND);
+		scherm.bereidRenderVoor("planeetWeergave");
+		glUniform1ui(	glGetUniformLocation(scherm.huidigProgramma(), "grondNietWater"), 	1);
+		grondShaderInfo();
 		geo.tekenJezelf();
-		glErrorToConsole("geo.tekenJezelf(): ");
+		glErrorToConsole("geo.tekenJezelf() grond: ");
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		scherm.bereidRenderVoor("planeetWeergave", false);
+		glUniform1ui(	glGetUniformLocation(scherm.huidigProgramma(), "grondNietWater"), 	0);
+		grondShaderInfo();
+		geo.tekenJezelf();
+		glErrorToConsole("geo.tekenJezelf() water: ");
 
 		scherm.rondRenderAf();
 		glErrorToConsole("rondRenderAf: ");
@@ -92,12 +119,8 @@ int main()
 		if(waterStroomt || waterStap)
 		{
 			geo.volgendeRonde();
-			scherm.doeRekenVerwerker("waterStroming", 	glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
-			glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-			scherm.doeRekenVerwerker("waterDruk", 		glm::uvec3(geo.aantalVakjes(), 1, 1), [&](){ geo.bindVrwrkrOpslagen(); });
-			glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
+			scherm.doeRekenVerwerker("waterStroming", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+			scherm.doeRekenVerwerker("waterDruk", 		glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 			waterStap = false;
 		}
 	}
