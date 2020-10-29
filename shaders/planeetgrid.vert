@@ -73,10 +73,10 @@ void main()
 	case GS_LOESS:		grondKleur	= KLEUR_LOESS;	break;
 	};
 
-	const float waterSchaler = 1000.0f;
+	const float waterSchaler = 100.0f;
 
 	tc_in.tex			= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
-	tc_in.waterHoogte	= vakken0[gl_VertexID].waterHoogte > waterSchaler ? 1.0 : vakken0[gl_VertexID].waterHoogte / waterSchaler;
+	//tc_in.waterHoogte	= vakken0[gl_VertexID].waterHoogte;// > waterSchaler ? 1.0 : vakken0[gl_VertexID].waterHoogte / waterSchaler;
 	tc_in.grondHoogte	= vakken0[gl_VertexID].grondHoogte;
 
 	if(grondNietWater == 0)	tc_in.kleur			= vec4(0.0, 0.0, 1.0, 0.2 + tc_in.waterHoogte * 0.5);
@@ -88,7 +88,8 @@ void main()
 	float vertexHoogte = vakken0[gl_VertexID].grondHoogte;
 	
 	if(grondNietWater == 0)		vertexHoogte += (vakken0[gl_VertexID].waterHoogte * WATERMULT);
-	else						vertexHoogte += 1.0 / waterSchaler;
-	
+	else						vertexHoogte += WATERMULT;
+
+	tc_in.waterHoogte	= vakken0[gl_VertexID].waterHoogte + (vakken0[gl_VertexID].grondHoogte * grondMult);	
 	gl_Position			= projectie * modelView * vec4(pos * (1.0 + (vertexHoogte * grondSchaal)), 1);	
 }

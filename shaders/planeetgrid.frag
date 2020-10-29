@@ -30,8 +30,12 @@ void main()
 	//kleur = fs_in.kleur;
 	//else
 
+	vec2 gradient = vec2(dFdx(fs_in.waterHoogte), dFdy(fs_in.waterHoogte));
+
+	float lichtheid = 0.3 * dot(normalize(vec2(0, 1)), normalize(gradient));
+
 	if(grondNietWater == 1)	kleur = vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);
-	else					kleur = fs_in.kleur;
+	else					kleur = mix(fs_in.kleur, vec4(1), lichtheid);
 /*
 	//Beter visuele check inbouwen voor lager dan nul water
 	if(fs_in.waterHoogte < 0.0)			kleur = vec4(1, 1, 0, 1);

@@ -19,7 +19,7 @@ int main()
 	glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
 	monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
-	planeet geo(7, [&](glm::vec2 plek)
+	planeet geo(8, [&](glm::vec2 plek)
 	{ 
 		//plek.x += 1.0;
 		//plek.x *= 0.25f;
