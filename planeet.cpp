@@ -78,8 +78,8 @@ void planeet::burenAlsEigenschapWijzers()
 	//	) 
 	
 	//if(_vakken[0][i].grondHoogte > 0.3)
-	if(gen()%1000 == 0)
-		_vakken[0][i].waterHoogte = 100000;
+	//if(gen()%100 == 0)
+	_vakken[0][i].waterHoogte = gen()%10000;
 
 		//if(gen()%28 == 0) _vakken[0][i].waterHoogte = 30;
 

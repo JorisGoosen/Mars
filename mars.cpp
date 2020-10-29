@@ -19,17 +19,7 @@ int main()
 	glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
 	monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
-	planeet geo(8, [&](glm::vec2 plek)
-	{ 
-		//plek.x += 1.0;
-		//plek.x *= 0.25f;
-		//plek.x += 0.5;
-
-		//if(plek.x < 0.0f || plek.x > 1.0f)
-		//	std::cout << "geo wil: " << plek.x << ",\t" << plek.y << std::endl; 
-		
-		return MOLA(plek).x; 
-	});
+	planeet geo(8, [&](glm::vec2 plek){ return MOLA(plek).x; });
 
 	bool 		roteerMaar 		= false,
 				waterStroomt	= false,
@@ -39,7 +29,7 @@ int main()
 	glm::vec2 	verdraaiing		(0.0f, 0.0f)		,
 				draaisnelheid	(0.01, 0.0)			;
 
-	float		grondMult		= 10000.0,
+	float		grondMult		= 12000.0,
 				grondSchaal		= 0.1;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)

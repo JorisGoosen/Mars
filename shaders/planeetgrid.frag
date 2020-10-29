@@ -30,12 +30,25 @@ void main()
 	//kleur = fs_in.kleur;
 	//else
 
-	vec2 gradient = vec2(dFdx(fs_in.waterHoogte), dFdy(fs_in.waterHoogte));
+	const vec2 	lichtGradient = normalize(vec2(1, 1));
+	vec2 		gradient;
+	float 		lichtheid = 0.3;
+	
 
-	float lichtheid = 0.3 * dot(normalize(vec2(0, 1)), normalize(gradient));
+	if(grondNietWater == 1)
+	{
+	//	gradient 	 = vec2(dFdx(fs_in.grondHoogte), dFdy(fs_in.grondHoogte));
+	//	lichtheid 	*= dot(lichtGradient, normalize(gradient));
 
-	if(grondNietWater == 1)	kleur = vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);
-	else					kleur = mix(fs_in.kleur, vec4(1), lichtheid);
+		kleur = vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
+	}
+	else
+	{
+		gradient 	 = vec2(dFdx(fs_in.waterHoogte), dFdy(fs_in.waterHoogte));
+		lichtheid 	*= dot(lichtGradient, normalize(gradient));
+
+		kleur = mix(fs_in.kleur, vec4(0.75, 0.75, 1.0, 1.0), lichtheid) * vec4(1, 1, 1, 0.75);
+	}
 /*
 	//Beter visuele check inbouwen voor lager dan nul water
 	if(fs_in.waterHoogte < 0.0)			kleur = vec4(1, 1, 0, 1);
