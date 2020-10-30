@@ -4,7 +4,8 @@ out vec4 kleur;
 
 in NaarFrag
 {
-	in vec3 normal;
+	in vec3 grondNormaal;
+	in vec3 waterNormaal;
 	in vec3 tex; //x = u! y = s0 en z = s1
 	in vec4 kleur;
 	in float waterHoogte;
@@ -17,7 +18,7 @@ uniform uint grondNietWater;
 
 void main()
 {
-	//if(grondNietWater == 0 && fs_in.waterHoogte < 0.0001) discard;
+	if(grondNietWater == 0 && fs_in.waterHoogte < 0.01) discard;
 
 	//Naadloos tex is op basis van in vertshader genoemd algoritme door Tarini
 	vec2 naadloosTex = vec2(fwidth(fs_in.tex.y) <= fwidth(fs_in.tex.z) + 0.000001 ? fs_in.tex.y : fs_in.tex.z, fs_in.tex.x);
@@ -30,9 +31,9 @@ void main()
 	//kleur = fs_in.kleur;
 	//else
 
-	const vec3 	lichtGradient = reflect(normalize(vec3(0.5, 1, 0.5)), fs_in.normal);
-	vec2 		gradient;
-	float 		lichtheid = 0.3;
+	const vec3 	lichtGradient = reflect(normalize(vec3(0.5, 1, 0.5)), fs_in.waterNormaal);
+	//vec2 		gradient;
+	float 		lichtheid;
 	
 
 	if(grondNietWater == 1)
@@ -45,7 +46,7 @@ void main()
 	else
 	{
 		
-		lichtheid 	= pow(dot(lichtGradient, fs_in.normal), 2);
+		lichtheid 	= pow(abs(dot(fs_in.grondNormaal, fs_in.waterNormaal)), 1);
 
 		kleur = mix(fs_in.kleur, vec4(1.0), lichtheid) * vec4(1, 1, 1, 0.75);
 	}

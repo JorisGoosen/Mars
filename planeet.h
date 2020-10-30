@@ -41,6 +41,7 @@ protected:
 	void maakLijstBuren();
 	void burenAlsEigenschapWijzers();
 	void maakPingPongOpslagen();
+	void gaHetKlokjeRondMetDeBuren(size_t ID);
 
 private:
 	std::vector<glm::uint32> 			_eigenschappen;

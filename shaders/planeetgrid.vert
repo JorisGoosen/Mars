@@ -44,7 +44,8 @@ uniform uint grondNietWater;
 
 out NaarFrag
 {
-	out vec3 normal;
+	out vec3 grondNormaal;
+	out vec3 waterNormaal;
 	out vec3 tex;
 	out vec4 kleur;
 	out float waterHoogte;
@@ -95,18 +96,17 @@ void main()
 
 	vec3 gradientNormal = normalize(vec3(
 								(			hoogteBuur(buurID(0)) 				 - 				hoogteBuur(buurID(3))				) * 2.0,
-								((hoogteBuur(buurID(1)) + hoogteBuur(buurID(2))) - (hoogteBuur(buurID(4)) + hoogteBuur(buurID(5)))	) * 2.0,
-																																		-4.0
-							));
+								((hoogteBuur(buurID(1)) + hoogteBuur(buurID(2))) - (hoogteBuur(buurID(4)) + hoogteBuur(buurID(5)))	),
+								2.0));
 
-//	tc_in.normal		= (projectie * modelView * vec4(normalize(pos), 0.0)).xyz;
-	tc_in.normal 		= gradientNormal;//(projectie * modelView * vec4(gradientNormal, 0.0f)).xyz;
+	tc_in.waterNormaal 		= gradientNormal;
+	tc_in.grondNormaal		= (projectie * modelView * vec4(normalize(pos), 0.0)).xyz;
 
 	float vertexHoogte = vakken0[gl_VertexID].grondHoogte;
 	
 	if(grondNietWater == 0)		vertexHoogte += (vakken0[gl_VertexID].waterHoogte * WATERMULT);
 	//else						vertexHoogte += WATERMULT;
 
-	tc_in.waterHoogte	= hoogteBuur(gl_VertexID);
+	tc_in.waterHoogte	= vakken0[gl_VertexID].waterHoogte; //hoogteBuur(gl_VertexID);
 	gl_Position			= projectie * modelView * vec4(pos * (1.0 + (vertexHoogte * grondSchaal)), 1);	
 }

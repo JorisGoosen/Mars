@@ -71,6 +71,8 @@ void planeet::burenAlsEigenschapWijzers()
 		for(const uint32 & buurId : buurt)
 			_vakken[0][i].buren[buur++] 	= buurId;
 
+		gaHetKlokjeRondMetDeBuren(i);
+
 		_vakken[0][i].iets 			= gen()%2048;
 		_vakken[0][i].grondHoogte 	= _hoogteMonsteraar(_tex->ggvPunt2(i));
 
@@ -79,13 +81,54 @@ void planeet::burenAlsEigenschapWijzers()
 	
 	//if(_vakken[0][i].grondHoogte > 0.3)
 	//if(gen()%100 == 0)
-	_vakken[0][i].waterHoogte = gen()%100000;
+	_vakken[0][i].waterHoogte = 100;
 
 		//if(gen()%28 == 0) _vakken[0][i].waterHoogte = 30;
 
 	}	
 }
 
+void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
+{
+	using namespace std;
+	using namespace glm;
+	
+	//Het zou mooi zijn als we de buren vanuit ons gezien in een rondje met de klok mee
+	//Om dat te doen ga ik eerst de posities verzamelen:
+
+	vec3 			midden;
+	vector<vec3> 	buren;
+
+	midden = _punten->ggvPunt3(ID);
+
+	for(size_t i=0; i<_vakken[0][ID].burenAantal; i++)
+		buren.push_back(_punten->ggvPunt3(_vakken[0][ID].buren[i]));
+
+	auto sorteerder = [](const pair<size_t, float> & l, const pair<size_t, float> & r)
+	{
+		return l.second < r.second;
+	};
+
+	// [ <buurNo, hoek>, ... ]
+	vector<pair<size_t, float>> sorteerDit;
+
+	vec3 noord = normalize(buren[0] - midden);
+
+	for(size_t i=0; i<_vakken[0][ID].burenAantal; i++)
+	{
+		vec3 relatief = normalize(buren[i] - midden);
+		sorteerDit.push_back(make_pair(_vakken[0][ID].buren[i], -acos(dot(noord, relatief))));
+	}
+
+	sort(sorteerDit.begin(), sorteerDit.end(), sorteerder);
+
+	assert(sorteerDit.size() == buren.size()				);
+	assert(sorteerDit.size() == _vakken[0][ID].burenAantal	);
+
+	size_t buur = 0;
+	for(auto & buurNoHoek : sorteerDit)
+		_vakken[0][ID].buren[buur++] = buurNoHoek.first;
+}
 
 void planeet::maakPingPongOpslagen()
 {
