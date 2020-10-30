@@ -32,7 +32,7 @@ void main()
 	
 
 	//Eigenlijk licht normaal X oppervlakte
-	const vec3 	lichtGradient = reflect(normalize(vec3(0.0, 1.0, 1.0)), fs_in.waterNormaal);
+	const vec3 	lichtGradient = reflect(normalize(vec3(0.0, 1.0, -1.0)), fs_in.waterNormaal);
 	//vec2 		gradient;
 	float 		lichtheid;
 	

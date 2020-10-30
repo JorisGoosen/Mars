@@ -112,7 +112,25 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	// [ <buurNo, hoek>, ... ]
 	vector<pair<size_t, float>> sorteerDit;
 
-	vec3 	noord = normalize(buren[0] - midden);
+	//Bepaal de buur die dichtste bij het noorden ligt, gaan we vanaf daar buren bepalen
+	vec3 	noordPool 	= vec3(0, 1, 0);
+	float 	meestNoord	= length(normalize(midden) - noordPool);
+	int		buurNoord	= -1; //oftwel midden
+
+	for(size_t i=0; i<buren.size(); i++)
+	{
+		float mijnNoord = length(normalize(buren[i]) - noordPool);
+		if(mijnNoord < meestNoord)
+		{
+			meestNoord 	= mijnNoord;
+			buurNoord	= i;
+		}
+	}
+
+	vec3 	noord = vec3(1.0f, 0.0f, 0.0f);
+
+	if(buurNoord != -1)
+		noord = normalize(buren[buurNoord] -  midden);
 
 	for(size_t i=0; i<_vakken[0][ID].burenAantal; i++)
 	{
