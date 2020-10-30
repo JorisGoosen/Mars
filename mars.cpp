@@ -2,6 +2,7 @@
 #include "planeet.h"
 #include <iostream>
 #include "monsterPNG.h"
+#include <random>
 
 int main()
 {
@@ -19,7 +20,13 @@ int main()
 	glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
 	monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
-	planeet geo(7, [&](glm::vec2 plek){ return MOLA(plek).x; });
+	//planeet geo(7, [&](glm::vec2 plek){ return MOLA(plek).x; });
+
+	std::random_device 	willekeur;  //Wordt gebruikt om het zaadje te planten
+    std::mt19937 		bemonsteraar(willekeur()); 
+    
+	std::uniform_real_distribution<> dis(0.0, 1.0);
+	planeet geo(8, [&](glm::vec2 plek){ return dis(bemonsteraar); });
 
 	bool 		roteerMaar 		= false,
 				waterStroomt	= false,
@@ -31,7 +38,7 @@ int main()
 				draaisnelheid	(0.01, 0.0)			;
 
 	float		grondMult		= 1000.0,
-				grondSchaal		= 0.1,
+				grondSchaal		= 0.3,
 				verdamping		= 0.0;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)

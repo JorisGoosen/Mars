@@ -41,6 +41,7 @@ protected:
 	void maakLijstBuren();
 	void burenAlsEigenschapWijzers();
 	void maakPingPongOpslagen();
+	void browniaansLand();
 	void gaHetKlokjeRondMetDeBuren(size_t ID);
 
 private:

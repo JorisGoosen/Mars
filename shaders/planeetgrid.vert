@@ -90,8 +90,8 @@ void main()
 	float lokaalWater	= vakken0[gl_VertexID].waterHoogte > waterSchaler ? 1.0 : vakken0[gl_VertexID].waterHoogte / waterSchaler;
 	tc_in.grondHoogte	= vakken0[gl_VertexID].grondHoogte;
 
-	if(grondNietWater == 0)	tc_in.kleur			= vec4(0.0, 0.0, 1.0, 0.1 + (lokaalWater * 0.5));
-	else					tc_in.kleur			= vec4(vakken0[gl_VertexID].grondHoogte);
+	if(grondNietWater == 0)	tc_in.kleur	= vec4(0.0, 0.0, 1.0, 0.1 + (lokaalWater * 0.5));
+	else					tc_in.kleur	= vec4(vakken0[gl_VertexID].grondHoogte); // grondKleur;
 
 
 	vec3 gradientNormal = normalize(vec3(

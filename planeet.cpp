@@ -22,6 +22,10 @@ planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogte
 	//Configuratie van [{{#buren, buur0, buur1, buur3}, {buur4, buur5, ( ? | buur6), ?}}, ...]
 	//Dus twee aparte attribpointers maar zelfde buffer met stride 4
 	burenAlsEigenschapWijzers();
+
+	//Strijk de boel glad
+	for(size_t zoVaak = 6; zoVaak > 0; zoVaak--)
+		browniaansLand();
 	
 	//Nu nog twee buffers toevoegen waarin ik kan gaan rekenen en als punteigenschapwijzers kan gebruiken.
 	maakPingPongOpslagen();
@@ -146,6 +150,19 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	size_t buur = 0;
 	for(auto & buurNoHoek : sorteerDit)
 		_vakken[0][ID].buren[buur++] = buurNoHoek.first;
+}
+
+void planeet::browniaansLand()
+{
+	for(vak & deze : _vakken[0])
+	{
+		float burenHoogte = 0.0f;
+		for(size_t i=0; i<deze.burenAantal; i++)
+			burenHoogte += _vakken[0][deze.buren[i]].grondHoogte;
+
+		deze.grondHoogte += burenHoogte / deze.burenAantal;
+		deze.grondHoogte *= 0.5f;
+	}
 }
 
 void planeet::maakPingPongOpslagen()
