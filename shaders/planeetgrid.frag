@@ -30,7 +30,7 @@ void main()
 	//kleur = fs_in.kleur;
 	//else
 
-	const vec2 	lichtGradient = normalize(vec2(1, 1));
+	const vec3 	lichtGradient = reflect(normalize(vec3(0.5, 1, 0.5)), fs_in.normal);
 	vec2 		gradient;
 	float 		lichtheid = 0.3;
 	
@@ -44,10 +44,10 @@ void main()
 	}
 	else
 	{
-		gradient 	 = vec2(dFdx(fs_in.waterHoogte), dFdy(fs_in.waterHoogte));
-		lichtheid 	*= dot(lichtGradient, normalize(gradient));
+		
+		lichtheid 	= pow(dot(lichtGradient, fs_in.normal), 2);
 
-		kleur = mix(fs_in.kleur, vec4(0.75, 0.75, 1.0, 1.0), lichtheid) * vec4(1, 1, 1, 0.75);
+		kleur = mix(fs_in.kleur, vec4(1.0), lichtheid) * vec4(1, 1, 1, 0.75);
 	}
 /*
 	//Beter visuele check inbouwen voor lager dan nul water

@@ -58,6 +58,16 @@ uniform float grondMult;
 
 #define WATERMULT (1.0 / grondMult)
 
+uint buurID(uint buur)
+{
+	return vakken0[gl_VertexID].buren[buur];
+}
+
+float hoogteBuur(uint buurID)
+{
+	return vakken0[buurID].waterHoogte + (vakken0[buurID].grondHoogte * grondMult);
+}
+
 void main()
 {
 	
@@ -83,13 +93,20 @@ void main()
 	else					tc_in.kleur			= vec4(vakken0[gl_VertexID].grondHoogte);
 
 
-	tc_in.normal		= (projectie * modelView * vec4(normalize(pos), 0.0)).xyz;
+	vec3 gradientNormal = normalize(vec3(
+								(			hoogteBuur(buurID(0)) 				 - 				hoogteBuur(buurID(3))				) * 2.0,
+								((hoogteBuur(buurID(1)) + hoogteBuur(buurID(2))) - (hoogteBuur(buurID(4)) + hoogteBuur(buurID(5)))	) * 2.0,
+																																		-4.0
+							));
+
+//	tc_in.normal		= (projectie * modelView * vec4(normalize(pos), 0.0)).xyz;
+	tc_in.normal 		= gradientNormal;//(projectie * modelView * vec4(gradientNormal, 0.0f)).xyz;
 
 	float vertexHoogte = vakken0[gl_VertexID].grondHoogte;
 	
 	if(grondNietWater == 0)		vertexHoogte += (vakken0[gl_VertexID].waterHoogte * WATERMULT);
 	//else						vertexHoogte += WATERMULT;
 
-	tc_in.waterHoogte	= vakken0[gl_VertexID].waterHoogte + (vakken0[gl_VertexID].grondHoogte * grondMult);	
+	tc_in.waterHoogte	= hoogteBuur(gl_VertexID);
 	gl_Position			= projectie * modelView * vec4(pos * (1.0 + (vertexHoogte * grondSchaal)), 1);	
 }
