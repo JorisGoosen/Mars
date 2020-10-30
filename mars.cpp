@@ -3,6 +3,7 @@
 #include <iostream>
 #include "monsterPNG.h"
 #include <random>
+#include <perlinRuis.h>
 
 int main()
 {
@@ -22,11 +23,12 @@ int main()
 
 	//planeet geo(7, [&](glm::vec2 plek){ return MOLA(plek).x; });
 
-	std::random_device 	willekeur;  //Wordt gebruikt om het zaadje te planten
-    std::mt19937 		bemonsteraar(willekeur()); 
-    
-	std::uniform_real_distribution<> dis(0.0, 1.0);
-	planeet geo(8, [&](glm::vec2 plek){ return dis(bemonsteraar); });
+//	std::random_device 	willekeur;  //Wordt gebruikt om het zaadje te planten
+//	std::mt19937 		bemonsteraar(willekeur()); 
+//	std::uniform_real_distribution<> dis(0.0, 1.0);
+
+	perlinRuis ruisje;
+	planeet geo(6, [&](glm::vec3 plek){ return ruisje.geefIniqoQuilesRuis(plek * glm::vec3(0.1f)); });
 
 	bool 		roteerMaar 		= false,
 				waterStroomt	= false,

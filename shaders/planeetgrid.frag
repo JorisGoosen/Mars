@@ -24,7 +24,7 @@ void main()
 	//Naadloos tex is op basis van in vertshader genoemd algoritme door Tarini
 	vec2 naadloosTex = vec2(fwidth(fs_in.tex.y) <= fwidth(fs_in.tex.z) + 0.000001 ? fs_in.tex.y : fs_in.tex.z, fs_in.tex.x);
 
-	// const vec4 marsKleur = vec4(1, 0.5, 0.5, 1);
+	 const vec4 marsKleur = vec4(1, 0.5, 0.5, 1);
 	// float marsHoogte = texture(marsHoogte, naadloosTex).x;// + fs_in.grondHoogte) * 0.5;
 	// Eigenlijk licht normaal X oppervlakte
 	const vec3 	lichtGradient = reflect(normalize(vec3(0.0, 1.0, -1.0)), fs_in.waterNormaal);
@@ -34,7 +34,7 @@ void main()
 
 	if(grondNietWater == 1)
 	{
-		kleur = fs_in.kleur;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
+		kleur = marsKleur;// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
 	}
 	else
 	{

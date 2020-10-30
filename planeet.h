@@ -32,12 +32,14 @@ public:
 	typedef std::vector<std::set<glm::uint32>> buurt;
 	
 	planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar);
+	planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis);
 
 	size_t 	aantalVakjes() const { return _vakken[0].size(); }
 	void	volgendeRonde();
 	void	bindVrwrkrOpslagen();
 	
 protected:
+	void bouwPlaneet();
 	void maakLijstBuren();
 	void burenAlsEigenschapWijzers();
 	void maakPingPongOpslagen();
