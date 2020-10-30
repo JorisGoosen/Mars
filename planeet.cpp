@@ -5,53 +5,12 @@
 
 using namespace glm;
 
-planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis) : geodesisch(onderverdelingen)
+planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis) : geodesisch(onderverdelingen), _ruis(ruis), _isRuis(true)
 {
-	
-
-	_hoogteMonsteraar = [=](glm::vec2 p) -> float
-	{
-		auto ruisVerplaatst = [&](glm::vec3 plek, float verplaatsing)
-		{
-			plek += normalize(plek) * verplaatsing;// * 0.1f;
-			return ruis(plek);
-		};
-
-		p -= vec2(0.5f, 0.5f); 
-		p *= vec2(2.0f, 1.0f);
-		p *= vec2(pi<float>());
-		
-
-		vec3 plek =	vec3(sin(p.x), sin(p.y), cos(p.x) * cos(p.y));
-
-		const float hoogteMin   = -1.0f	 ,
-					hoogteMax   =  2.0f	 ,
-					hoogteStap  =  0.01f ,
-					hoogteGrens =  0.0f	 ;
-
-	//	std::cout << "Eerste ruis is: " << ruis(plek) << "\t\tvoor coordinaat\t" << p.x << ",\t" << p.y << "\tvoor plek\t" << plek.x << ",\t"<< plek.y << ",\t"<< plek.z << "." << std::endl;
-
-		if(ruis(plek) < hoogteGrens)
-		{
-			for(float hoogte = 0.0f; hoogte > hoogteMin; hoogte -= hoogteStap)
-				if(ruisVerplaatst(plek, hoogte) > hoogteGrens)
-					return hoogte;
-		}
-		else
-		{
-			for(float hoogte = 0.0f; hoogte < hoogteMax; hoogte += hoogteStap)
-				if(ruisVerplaatst(plek, hoogte) < hoogteGrens)
-					return hoogte;	
-		}
-				
-		return 0.0f;
-			
-	};
-
 	bouwPlaneet();
 }
 
-planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar) : geodesisch(onderverdelingen), _hoogteMonsteraar(hoogteMonsteraar)
+planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar) : geodesisch(onderverdelingen), _hoogteMonsteraar(hoogteMonsteraar), _isRuis(false)
 {
 	bouwPlaneet();
 }
@@ -75,7 +34,7 @@ void planeet::bouwPlaneet()
 	burenAlsEigenschapWijzers();
 
 	//Strijk de boel glad
-	for(size_t zoVaak = 6; zoVaak > 0; zoVaak--)
+	for(size_t zoVaak = 5; zoVaak > 0; zoVaak--)
 		browniaansLand();
 	
 	//Nu nog twee buffers toevoegen waarin ik kan gaan rekenen en als punteigenschapwijzers kan gebruiken.
@@ -129,14 +88,14 @@ void planeet::burenAlsEigenschapWijzers()
 		gaHetKlokjeRondMetDeBuren(i);
 
 		_vakken[0][i].iets 			= gen()%2048;
-		_vakken[0][i].grondHoogte 	= _hoogteMonsteraar(_tex->ggvPunt2(i));
+		_vakken[0][i].grondHoogte 	= _isRuis ? _ruis(_punten->ggvPunt3(i)) : _hoogteMonsteraar(_tex->ggvPunt2(i));
 
 	//	 // && _vakken[0][i].grondHoogte < 0.11
 	//	) 
 	
 	//if(_vakken[0][i].grondHoogte > 0.3)
-	//if(gen()%100 == 0)
-	_vakken[0][i].waterHoogte = 100;
+	if(gen()%10000 == 0)
+		_vakken[0][i].waterHoogte = 100000;
 
 		//if(gen()%28 == 0) _vakken[0][i].waterHoogte = 30;
 

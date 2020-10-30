@@ -28,7 +28,16 @@ int main()
 //	std::uniform_real_distribution<> dis(0.0, 1.0);
 
 	perlinRuis ruisje;
-	planeet geo(6, [&](glm::vec3 plek){ return ruisje.geefIniqoQuilesRuis(plek * glm::vec3(0.1f)); });
+	planeet geo(8, [&](glm::vec3 plek)
+	{
+		 float	val  = ruisje.geefIniqoQuilesRuis(plek); 
+		 		val += ruisje.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.2f;
+				val += ruisje.geefIniqoQuilesRuis(plek * glm::vec3(23.0f)) * 0.1f; 
+				val	+= 1.0f;
+				//val *= 0.5f;
+		
+		 return val > 0.0f ? pow( val, 0.5f) * 0.3333f : 0.0f; 
+	});
 
 	bool 		roteerMaar 		= false,
 				waterStroomt	= false,

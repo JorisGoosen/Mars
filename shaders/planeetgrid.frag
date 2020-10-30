@@ -19,22 +19,22 @@ uniform vec3 		kijkRichting;
 
 void main()
 {
-	if(grondNietWater == 0 && fs_in.waterHoogte < 0.01) discard;
+	if(grondNietWater == 0 && fs_in.waterHoogte < 0.5) discard;
 
 	//Naadloos tex is op basis van in vertshader genoemd algoritme door Tarini
 	vec2 naadloosTex = vec2(fwidth(fs_in.tex.y) <= fwidth(fs_in.tex.z) + 0.000001 ? fs_in.tex.y : fs_in.tex.z, fs_in.tex.x);
 
 	 const vec4 marsKleur = vec4(1, 0.5, 0.5, 1);
 	// float marsHoogte = texture(marsHoogte, naadloosTex).x;// + fs_in.grondHoogte) * 0.5;
-	// Eigenlijk licht normaal X oppervlakte
-	const vec3 	lichtGradient = reflect(normalize(vec3(0.0, 1.0, -1.0)), fs_in.waterNormaal);
-	//vec2 		gradient;
-	float 		lichtheid;
+	
+	const vec3 	lichtRicht 		= normalize(vec3(0.0, 1.0, -1.0));
+	const vec3 	lichtGradient 	= reflect(lichtRicht, fs_in.waterNormaal);
+	float 		diffuus 		= abs(dot(lichtRicht,  fs_in.waterNormaal));
 	
 
 	if(grondNietWater == 1)
 	{
-		kleur = marsKleur;// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
+		kleur = fs_in.kleur * marsKleur;// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
 	}
 	else
 	{

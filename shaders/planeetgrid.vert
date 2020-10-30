@@ -66,7 +66,7 @@ uint buurID(uint buur)
 
 float hoogteBuur(uint buurID)
 {
-	return vakken0[buurID].waterHoogte + (vakken0[buurID].grondHoogte * grondMult);
+	return (grondNietWater == 0 ? vakken0[buurID].waterHoogte : 0.0f) + (vakken0[buurID].grondHoogte * grondMult);
 }
 
 void main()
@@ -91,7 +91,7 @@ void main()
 	tc_in.grondHoogte	= vakken0[gl_VertexID].grondHoogte;
 
 	if(grondNietWater == 0)	tc_in.kleur	= vec4(0.0, 0.0, 1.0, 0.1 + (lokaalWater * 0.5));
-	else					tc_in.kleur	= vec4(vakken0[gl_VertexID].grondHoogte); // grondKleur;
+	else					tc_in.kleur	= vec4(vec3( vakken0[gl_VertexID].grondHoogte), 1.0f); //vec4(vakken0[gl_VertexID].grondHoogte); // grondKleur;
 
 
 	vec3 gradientNormal = normalize(vec3(

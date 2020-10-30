@@ -53,6 +53,8 @@ private:
 	vrwrkrOpslagDing<vak>			*	_pingPongVakken	[2];
 	size_t								_pingIsDit	= 0;
 	std::function<float(glm::vec2)> 	_hoogteMonsteraar;
+	std::function<float(glm::vec3)> 	_ruis;
+	bool								_isRuis;
 									
 										
 };
