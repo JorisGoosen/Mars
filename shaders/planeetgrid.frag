@@ -13,8 +13,10 @@ in NaarFrag
 } fs_in;
 
 
-uniform sampler2D marsHoogte;
-uniform uint grondNietWater;
+uniform sampler2D 	marsHoogte;
+uniform uint 		grondNietWater;
+uniform vec3 		kijkRichting;
+uniform mat4 projectie;
 
 void main()
 {
@@ -27,26 +29,22 @@ void main()
 	
 	float marsHoogte = texture(marsHoogte, naadloosTex).x;// + fs_in.grondHoogte) * 0.5;
 
-	//if(marsHoogte > 0.3)	
-	//kleur = fs_in.kleur;
-	//else
+	
 
-	const vec3 	lichtGradient = reflect(normalize(vec3(0.5, 1, 0.5)), fs_in.waterNormaal);
+	//Eigenlijk licht normaal X oppervlakte
+	const vec3 	lichtGradient = reflect(normalize(vec3(0.0, 1.0, 1.0)), fs_in.waterNormaal);
 	//vec2 		gradient;
 	float 		lichtheid;
 	
 
 	if(grondNietWater == 1)
 	{
-	//	gradient 	 = vec2(dFdx(fs_in.grondHoogte), dFdy(fs_in.grondHoogte));
-	//	lichtheid 	*= dot(lichtGradient, normalize(gradient));
-
 		kleur = vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
 	}
 	else
 	{
 		
-		lichtheid 	= pow(abs(dot(fs_in.grondNormaal, fs_in.waterNormaal)), 1);
+		float lichtheid 	= pow(abs(dot(lichtGradient,  -fs_in.grondNormaal)), 4);
 
 		kleur = mix(fs_in.kleur, vec4(1.0), lichtheid) * vec4(1, 1, 1, 0.75);
 	}

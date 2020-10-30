@@ -112,7 +112,7 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	// [ <buurNo, hoek>, ... ]
 	vector<pair<size_t, float>> sorteerDit;
 
-	vec3 noord = normalize(buren[0] - midden);
+	vec3 	noord = normalize(buren[0] - midden);
 
 	for(size_t i=0; i<_vakken[0][ID].burenAantal; i++)
 	{

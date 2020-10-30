@@ -5,7 +5,7 @@
 
 int main()
 {
-	weergaveSchermPerspectief scherm("Planeet");
+	weergaveSchermPerspectief scherm("Planeet", 1280, 720, 8);
 
 	scherm.maakShader(		"planeetWeergave", 		"shaders/planeetgrid.vert", "shaders/planeetgrid.frag");
 	//scherm.maakRekenShader(	"planeetBerekening", 	"shaders/planeetgrid.comp");
@@ -25,12 +25,14 @@ int main()
 				waterStroomt	= false,
 				waterStap		= false;
 
-	glm::vec3 	verplaatsing	(0.0f, 0.0f, -1.5f)	;
+	glm::vec3 	verplaatsing	(0.0f, 0.0f, -1.5f)	,
+				kijkRichting	(0.0f)				;
 	glm::vec2 	verdraaiing		(0.0f, 0.0f)		,
 				draaisnelheid	(0.01, 0.0)			;
 
 	float		grondMult		= 1000.0,
-				grondSchaal		= 0.1;
+				grondSchaal		= 0.1,
+				verdamping		= 0.0;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -55,6 +57,9 @@ int main()
 
 		case GLFW_KEY_SEMICOLON:				grondMult = glm::max(1.0f, grondMult * 0.9f);	break;
 		case GLFW_KEY_APOSTROPHE:				grondMult = glm::max(1.0f, grondMult * 1.1f);	break;
+
+		case GLFW_KEY_K:						verdamping = glm::max(0.0f, verdamping - 0.1f);	break;
+		case GLFW_KEY_L:						verdamping = glm::max(0.0f, verdamping + 0.1f);	break;
 		}	
 	};
 
@@ -62,8 +67,10 @@ int main()
 
 	auto grondShaderInfo = [&]()
 	{
-		glUniform1f(	glGetUniformLocation(scherm.huidigProgramma(), "grondMult"), 		grondMult);
-		glUniform1f(	glGetUniformLocation(scherm.huidigProgramma(), "grondSchaal"), 		grondSchaal);
+		glUniform1f(	glGetUniformLocation(scherm.huidigProgramma(), "grondMult"		),	grondMult						);
+		glUniform1f(	glGetUniformLocation(scherm.huidigProgramma(), "grondSchaal"	),	grondSchaal						);
+		glUniform1f(	glGetUniformLocation(scherm.huidigProgramma(), "verdamping"		),	verdamping						);
+		glUniform3fv(	glGetUniformLocation(scherm.huidigProgramma(), "kijkRichting"	),  1, glm::value_ptr(kijkRichting)	);
 	};
 
 	auto berekenShaderBinden = [&]()
@@ -87,6 +94,10 @@ int main()
 				glm::vec3(0.0f, 1.0f, 0.0f)
 			)
 		);
+
+		kijkRichting = glm::mat3(scherm.modelView()) * glm::vec3(0.0, 0.0, 1.0);
+
+		
 
 		glDisable(GL_BLEND);
 		scherm.bereidRenderVoor("planeetWeergave");
