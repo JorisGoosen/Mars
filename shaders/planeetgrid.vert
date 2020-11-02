@@ -23,14 +23,23 @@ struct vak
 	float	leven		;
 	int		iets		;
 	float	pijpen[6]	;
+};
+
+struct vakMetasS
+{
+	float	normaal[3]	;
 	uint	burenAantal	;
 	uint	buren[6]	;
 };
 
-layout(location = 0) 		in 		vec3	pos;
-layout(location = 1) 		in 		vec2	tex;
-layout(std430, binding = 0) buffer 			ping 	{ vak vakken0[]; };
-layout(std430, binding = 1) buffer 			pong 	{ vak vakken1[]; };
+
+layout(std430, binding = 0) buffer	pingVak { vak 		vakken0	[]; };
+layout(std430, binding = 1) buffer	pongVak { vak 		vakken1	[]; };
+layout(std430, binding = 2) buffer	vakInfo	{ vakMetasS	vakMetas[];	};
+
+layout(location = 0) in	vec3 pos;
+layout(location = 1) in	vec2 tex;
+
 
 
 uniform mat4 modelView;
@@ -61,12 +70,21 @@ uniform float grondMult;
 
 uint buurID(uint buur)
 {
-	return vakken0[gl_VertexID].buren[buur];
+	return vakMetas[gl_VertexID].buren[buur];
 }
 
 float hoogteBuur(uint buurID)
 {
-	return (grondNietWater == 0 ? vakken0[buurID].waterHoogte : 0.0f) + (vakken0[buurID].grondHoogte * grondMult);
+	return (grondNietWater == 0 ? vakken0[buurID].waterHoogte : 0.0f) + (vakken0[buurID].grondHoogte);
+}
+
+vec3 vakPlek(uint buurID, float hoogte)
+{
+	vec3 n;
+	for(uint i=0; i<3; i++)
+		n[i] = vakMetas[buurID].normaal[i];
+
+	return (n * (1.0 + (hoogte * grondSchaal)));
 }
 
 void main()
@@ -92,14 +110,45 @@ void main()
 
 	if(grondNietWater == 0)	tc_in.kleur	= vec4(0.0, 0.0, 1.0, 0.1 + (lokaalWater * 0.5));
 	else					tc_in.kleur	= vec4(vec3( vakken0[gl_VertexID].grondHoogte), 1.0f); //vec4(vakken0[gl_VertexID].grondHoogte); // grondKleur;
+	
+	vec3 n;
 
+	for(uint i=0; i<3; i++)
+		n[i] = vakMetas[gl_VertexID].normaal[i];
 
-	vec3 gradientNormal = normalize(vec3(
-								(			hoogteBuur(buurID(0)) 				 - 				hoogteBuur(buurID(3))				) * 2.0,
-								((hoogteBuur(buurID(1)) + hoogteBuur(buurID(2))) - (hoogteBuur(buurID(4)) + hoogteBuur(buurID(5)))	),
-								2.0));
+	const bool doeNormaal = false;
+	if(doeNormaal)
+	{	
+		
 
-	tc_in.waterNormaal 		= gradientNormal;
+		tc_in.waterNormaal 		= n;
+	}
+	else
+	{
+		//bool isZes = vakMets[gl_VertexID].burenAantal > 5;
+
+		uint burenAantal 	= vakMetas[gl_VertexID].burenAantal;
+		vec3 buurPos[6];
+
+		
+		
+		for(uint p=0; p<burenAantal; p++)
+			buurPos[p] = vakPlek(buurID(p), hoogteBuur(buurID(p)));
+
+		vec3 hier 			= vakPlek(gl_VertexID, hoogteBuur(gl_VertexID));
+
+		vec3 kruis 			= vec3(0.0); //cross(normalize(buurPos[0] - hier), normalize(buurPos[1] - hier));
+	
+		
+		for(uint i=0; i<burenAantal; i++)
+		{
+			vec3 tussen = cross(buurPos[i] - hier, buurPos[(i+2)%burenAantal] - hier);
+
+			kruis += tussen * sign(dot(tussen, hier));
+		}
+
+		tc_in.waterNormaal = normalize(kruis);
+	}
 	tc_in.grondNormaal		= (projectie * modelView * vec4(normalize(pos), 0.0)).xyz;
 
 	float vertexHoogte = vakken0[gl_VertexID].grondHoogte;

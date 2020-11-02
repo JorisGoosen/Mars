@@ -24,7 +24,8 @@ void planeet::bouwPlaneet()
 	maakLijstBuren();
 
 	//We gaan alle nodige info in _vakken[0] wegschrijven, om het pingpongen te laten beginnen.
-	_vakken[0].resize(_buren.size()); 
+	_vakken[0].resize(_buren.size());
+	_vakMetas .resize(_buren.size());
 	
 	//Ook moet ieder punt een lijstje meekrijgen met de buren waar ie bij hoort (dit is ook erg handig voor het tekenen van genoemde polygoon)
 	//Alsin, dat ze naast een coordinaat nog 5 of 6 indices als vertex attribuut heeft
@@ -77,28 +78,25 @@ void planeet::burenAlsEigenschapWijzers()
 	{
 		const auto & buurt = _buren[i];
 
-		_vakken[0][i].burenAantal = buurt.size();
+		_vakMetas[i].burenAantal = buurt.size();
 
 		assert(buurt.size() == 5 || buurt.size() == 6);
 
 		size_t buur = 0;
 		for(const uint32 & buurId : buurt)
-			_vakken[0][i].buren[buur++] 	= buurId;
+			_vakMetas[i].buren[buur++] 	= buurId;
 
 		gaHetKlokjeRondMetDeBuren(i);
 
 		_vakken[0][i].iets 			= gen()%2048;
 		_vakken[0][i].grondHoogte 	= _isRuis ? _ruis(_punten->ggvPunt3(i)) : _hoogteMonsteraar(_tex->ggvPunt2(i));
+		
+		glm::vec3 n = normalize(_punten->ggvPunt3(i));
+		for(size_t ii=0; ii<3; ii++)
+			_vakMetas[i].normaal[ii] = n[ii];
 
-	//	 // && _vakken[0][i].grondHoogte < 0.11
-	//	) 
-	
-	//if(_vakken[0][i].grondHoogte > 0.3)
-	if(gen()%10000 == 0)
-		_vakken[0][i].waterHoogte = 100000;
-
-		//if(gen()%28 == 0) _vakken[0][i].waterHoogte = 30;
-
+		if(gen()%20000 == 0)
+			_vakken[0][i].waterHoogte = 100000;
 	}	
 }
 
@@ -115,8 +113,8 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 
 	midden = _punten->ggvPunt3(ID);
 
-	for(size_t i=0; i<_vakken[0][ID].burenAantal; i++)
-		buren.push_back(_punten->ggvPunt3(_vakken[0][ID].buren[i]));
+	for(size_t i=0; i<_vakMetas[ID].burenAantal; i++)
+		buren.push_back(_punten->ggvPunt3(_vakMetas[ID].buren[i]));
 
 	auto sorteerder = [](const pair<size_t, float> & l, const pair<size_t, float> & r)
 	{
@@ -146,31 +144,34 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	if(buurNoord != -1)
 		noord = normalize(buren[buurNoord] -  midden);
 
-	for(size_t i=0; i<_vakken[0][ID].burenAantal; i++)
+	for(size_t i=0; i<_vakMetas[ID].burenAantal; i++)
 	{
 		vec3 relatief = normalize(buren[i] - midden);
-		sorteerDit.push_back(make_pair(_vakken[0][ID].buren[i], -acos(dot(noord, relatief))));
+		sorteerDit.push_back(make_pair(_vakMetas[ID].buren[i], -acos(dot(noord, relatief))));
 	}
 
 	sort(sorteerDit.begin(), sorteerDit.end(), sorteerder);
 
 	assert(sorteerDit.size() == buren.size()				);
-	assert(sorteerDit.size() == _vakken[0][ID].burenAantal	);
+	assert(sorteerDit.size() == _vakMetas[ID].burenAantal	);
 
 	size_t buur = 0;
 	for(auto & buurNoHoek : sorteerDit)
-		_vakken[0][ID].buren[buur++] = buurNoHoek.first;
+		_vakMetas[ID].buren[buur++] = buurNoHoek.first;
 }
 
 void planeet::browniaansLand()
 {
-	for(vak & deze : _vakken[0])
+	for(size_t i=0; i<_vakMetas.size(); i++)
 	{
-		float burenHoogte = 0.0f;
-		for(size_t i=0; i<deze.burenAantal; i++)
-			burenHoogte += _vakken[0][deze.buren[i]].grondHoogte;
+		vak 	& deze 		= _vakken[0][i];
+		vakMeta & dezeMeta 	= _vakMetas[i];
+		float 	burenHoogte = 0.0f;
 
-		deze.grondHoogte += burenHoogte / deze.burenAantal;
+		for(size_t i=0; i<dezeMeta.burenAantal; i++)
+			burenHoogte += _vakken[0][dezeMeta.buren[i]].grondHoogte;
+
+		deze.grondHoogte += burenHoogte / dezeMeta.burenAantal;
 		deze.grondHoogte *= 0.5f;
 	}
 }
@@ -204,8 +205,9 @@ void planeet::maakPingPongOpslagen()
 	_vakken[1] = _vakken[0];
 
 	//We gebruiken twee keer dezelfde data, want het wordt gekopieerd en de een wordt straks toch overschreven door de ander maar zo is iig de goeie grootte.
-	_pingPongVakken[0] = new vrwrkrOpslagDing<vak>(_vakken[0], 0);
-	_pingPongVakken[1] = new vrwrkrOpslagDing<vak>(_vakken[1], 1);
+	_pingPongVakken[0] 	= new vrwrkrOpslagDing<vak>(	_vakken[0], 0);
+	_pingPongVakken[1] 	= new vrwrkrOpslagDing<vak>(	_vakken[1], 1);
+	_vakMetaOpslag 		= new vrwrkrOpslagDing<vakMeta>(_vakMetas, 	2);
 
 
 	//We kunnen _pingPongOpslag straks wel allebei gebruiken om een SSB aan te binden en een compute shader tegenaan te gooien.
@@ -221,6 +223,7 @@ void planeet::volgendeRonde()
 
 void planeet::bindVrwrkrOpslagen()
 {
-	_pingPongVakken[    _pingIsDit]->zetKnooppunt(0);
-	_pingPongVakken[1 - _pingIsDit]->zetKnooppunt(1);
+	_pingPongVakken[    _pingIsDit]	->zetKnooppunt(0);
+	_pingPongVakken[1 - _pingIsDit]	->zetKnooppunt(1);
+	_vakMetaOpslag					->zetKnooppunt(2);
 }

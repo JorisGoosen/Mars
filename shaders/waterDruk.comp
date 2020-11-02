@@ -19,12 +19,19 @@ struct vak
 	float	leven		;
 	int		iets		;
 	float	pijpen[6]	;
+};
+
+struct vakMetasS
+{
+	float	normaal[3]	;
 	uint	burenAantal	;
 	uint	buren[6]	;
 };
 
-layout(std430, binding = 0) buffer 			pingVak 	{ vak  vakken0[]; };
-layout(std430, binding = 1) buffer 			pongVak 	{ vak  vakken1[]; };
+
+layout(std430, binding = 0) buffer	pingVak { vak 		vakken0	[]; };
+layout(std430, binding = 1) buffer	pongVak { vak 		vakken1	[]; };
+layout(std430, binding = 2) buffer	vakInfo	{ vakMetasS	vakMetas[];	};
 
 #define PIJP_LENGTE	1.0
 
@@ -36,16 +43,16 @@ uniform float verdamping;
 void main()
 {
 
-	uint 	aantalBuren = vakken0[ID].burenAantal;
+	uint 	aantalBuren = vakMetas[ID].burenAantal;
 	float 	stroming 	= 0.0f;
 
 	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
 	{	
-		const uint 	buurID 		= vakken0[ID].buren[buur],
-					buurBuren 	= vakken0[buurID].burenAantal;
+		const uint 	buurID 		= vakMetas[ID].buren[buur],
+					buurBuren 	= vakMetas[buurID].burenAantal;
 
 		for(uint buurBuur=0; buurBuur < buurBuren; buurBuur++)
-			if(vakken0[buurID].buren[buurBuur] == ID)
+			if(vakMetas[buurID].buren[buurBuur] == ID)
 			{
 				stroming += vakken1[buurID].pijpen[buurBuur] - vakken1[ID].pijpen[buur];
 				break;

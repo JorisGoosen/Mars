@@ -19,7 +19,7 @@ uniform vec3 		kijkRichting;
 
 void main()
 {
-	if(grondNietWater == 0 && fs_in.waterHoogte < 0.5) discard;
+//	if(grondNietWater == 0 && fs_in.waterHoogte < 0.5) discard;
 
 	//Naadloos tex is op basis van in vertshader genoemd algoritme door Tarini
 	vec2 naadloosTex = vec2(fwidth(fs_in.tex.y) <= fwidth(fs_in.tex.z) + 0.000001 ? fs_in.tex.y : fs_in.tex.z, fs_in.tex.x);
@@ -29,19 +29,20 @@ void main()
 	
 	const vec3 	lichtRicht 		= normalize(vec3(0.0, 1.0, -1.0));
 	const vec3 	lichtGradient 	= reflect(lichtRicht, fs_in.waterNormaal);
-	float 		diffuus 		= abs(dot(lichtRicht,  fs_in.waterNormaal));
+	float 		diffuus 		= 0.2 + 0.8 * (dot(lichtRicht,  fs_in.waterNormaal));
 	
 
 	if(grondNietWater == 1)
 	{
-		kleur = fs_in.kleur * marsKleur;// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
+		kleur = fs_in.kleur * diffuus * marsKleur;// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
 	}
 	else
 	{
 		
-		float lichtheid 	= pow(abs(dot(lichtGradient,  -fs_in.grondNormaal)), 4);
+		float lichtheid 	= pow(dot(lichtGradient,  fs_in.grondNormaal), 4);
 
 		kleur = mix(fs_in.kleur, vec4(1.0), lichtheid) * vec4(1, 1, 1, 0.75);
+		kleur.a = max(kleur.a, lichtheid);
 	}
 /*
 	//Beter visuele check inbouwen voor lager dan nul water

@@ -20,8 +20,11 @@ struct vak
 	float		leven			= 0.0;
 	int			iets			= 0;
 	float		pijpen[6]		= { 0, 0, 0, 0, 0, 0 }; //Naar andere vakken
+};
 
-	//Zouden eventueel in losse buffer kunnen want worden nooit aangepast:
+struct vakMeta
+{
+	float		normaal[3]		= { 0.0f, 0.0f, 0.0f};
 	glm::uint32	burenAantal		= 0;
 	glm::uint32	buren[6]		= { 0, 0, 0, 0, 0, 0 };
 };
@@ -51,6 +54,8 @@ private:
 	buurt								_buren;
 	std::vector<vak>					_vakken			[2];
 	vrwrkrOpslagDing<vak>			*	_pingPongVakken	[2];
+	std::vector<vakMeta>				_vakMetas;
+	vrwrkrOpslagDing<vakMeta>		*	_vakMetaOpslag;
 	size_t								_pingIsDit	= 0;
 	std::function<float(glm::vec2)> 	_hoogteMonsteraar;
 	std::function<float(glm::vec3)> 	_ruis;

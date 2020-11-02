@@ -17,9 +17,9 @@ int main()
 
 	glClearColor(0,0,0,1);
 
-	unsigned char * MarsHoogte 	= nullptr;
-	glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
-	monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
+	//unsigned char * MarsHoogte 	= nullptr;
+	//glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
+	//monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
 	//planeet geo(7, [&](glm::vec2 plek){ return MOLA(plek).x; });
 
@@ -28,9 +28,9 @@ int main()
 //	std::uniform_real_distribution<> dis(0.0, 1.0);
 
 	perlinRuis ruisje;
-	planeet geo(8, [&](glm::vec3 plek)
+	planeet geo(7, [&](glm::vec3 plek)
 	{
-		 float	val  = ruisje.geefIniqoQuilesRuis(plek); 
+		 float	val  = ruisje.geefIniqoQuilesRuis(plek * glm::vec3(03.0f)); 
 		 		val += ruisje.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.2f;
 				val += ruisje.geefIniqoQuilesRuis(plek * glm::vec3(23.0f)) * 0.1f; 
 				val	+= 1.0f;
@@ -89,6 +89,7 @@ int main()
 		glUniform1f(	glGetUniformLocation(scherm.huidigProgramma(), "grondSchaal"	),	grondSchaal						);
 		glUniform1f(	glGetUniformLocation(scherm.huidigProgramma(), "verdamping"		),	verdamping						);
 		glUniform3fv(	glGetUniformLocation(scherm.huidigProgramma(), "kijkRichting"	),  1, glm::value_ptr(kijkRichting)	);
+		ruisje.zetKnooppunten(3, 4);
 	};
 
 	auto berekenShaderBinden = [&]()
@@ -98,6 +99,7 @@ int main()
 	};
 
 	glErrorToConsole("Voordat we beginnen: ");
+	std::cout << "Laten we beginnen..." << std::endl;
 	while(!scherm.stopGewenst())
 	{
 		

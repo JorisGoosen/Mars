@@ -14,5 +14,6 @@ gereedschap:
 	$(MAKE) -C Gereedschap
 
 clean:
-	rm $(OBJECTS) mars || echo "mars wasn't there"
+	rm $(OBJECTS) 	|| echo "geen objecten om op te ruimen"
+	rm mars 		|| echo "er was geen mars"
 	$(MAKE) clean -C Gereedschap
