@@ -35,7 +35,7 @@ void planeet::bouwPlaneet()
 	burenAlsEigenschapWijzers();
 
 	//Strijk de boel glad
-	for(size_t zoVaak = 5; zoVaak > 0; zoVaak--)
+	for(size_t zoVaak = 2; zoVaak > 0; zoVaak--)
 		browniaansLand();
 	
 	//Nu nog twee buffers toevoegen waarin ik kan gaan rekenen en als punteigenschapwijzers kan gebruiken.
@@ -74,6 +74,8 @@ void planeet::burenAlsEigenschapWijzers()
 	std::mt19937 gen(willekeur()); 
 	std::normal_distribution<> wlkGrond(1.0, 0.05);
 
+	size_t dezeIsNat = gen()%_buren.size();
+
 	for(size_t i=0; i<_buren.size(); i++)
 	{
 		const auto & buurt = _buren[i];
@@ -88,15 +90,16 @@ void planeet::burenAlsEigenschapWijzers()
 
 		gaHetKlokjeRondMetDeBuren(i);
 
-		_vakken[0][i].iets 			= gen()%2048;
+		//_vakken[0][i].iets 			= gen()%2048;
 		_vakken[0][i].grondHoogte 	= _isRuis ? _ruis(_punten->ggvPunt3(i)) : _hoogteMonsteraar(_tex->ggvPunt2(i));
 		
 		glm::vec3 n = normalize(_punten->ggvPunt3(i));
 		for(size_t ii=0; ii<3; ii++)
 			_vakMetas[i].normaal[ii] = n[ii];
 
-		if(gen()%20000 == 0)
-			_vakken[0][i].waterHoogte = 100000;
+	//	if(gen()%100000 == 0)
+		if(i == dezeIsNat)
+			_vakken[0][i].waterHoogte = 100000000;
 	}	
 }
 
@@ -189,15 +192,16 @@ void planeet::maakPingPongOpslagen()
 		int 	grondSoort	= 0;
 
 		vec2	lenBrdGr	= _tex->ggvPunt2(b);
-		bool	poolIjs		= lenBrdGr.y < _poolA || lenBrdGr.y > _poolB;
+		bool	poolIjs		= (lenBrdGr.y < _poolA && dis(gen) > (lenBrdGr.y / _poolA)) || (lenBrdGr.y > _poolB && dis(gen) < (lenBrdGr.y - _poolB) / (1.0f - _poolB));
 
-		if		(poolIjs)				grondSoort = GS_IJS;
-		else if (grondRand < 0.5)		grondSoort = GS_ZAND;
-		//else if	(grondRand < 0.0)		grondSoort = GS_GROND;
-		else if	(grondRand < 0.85)		grondSoort = GS_ROTS;
-		else if	(grondRand < 0.9)		grondSoort = GS_KLEI;
-		//else if	(grondRand < 0.2)		grondSoort = GS_IJS;
-		else							grondSoort = GS_LOESS;
+		if		(_vakken[0][b].grondHoogte > 0.8f || poolIjs)	grondSoort = GS_IJS;
+		else if (_vakken[0][b].grondHoogte < 0.1f)				grondSoort = GS_ZAND;
+		//else if	(grondRand < 0.0)							grondSoort = GS_GROND;
+		else if (_vakken[0][b].grondHoogte < 0.6f)				grondSoort = grondRand < (_vakken[0][b].grondHoogte - 0.1f) * 2.0 ? GS_ROTS : GS_ZAND;
+		else													grondSoort = GS_ROTS;
+	//	else if	(grondRand < 0.9)								grondSoort = GS_KLEI;
+		//else if	(grondRand < 0.2)							grondSoort = GS_IJS;
+	//	else													grondSoort = GS_LOESS;
 
 		_vakken[0][b].grondSoort = grondSoort;
 	}

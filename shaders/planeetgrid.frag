@@ -4,12 +4,12 @@ out vec4 kleur;
 
 in NaarFrag
 {
-	in vec3 grondNormaal;
-	in vec3 waterNormaal;
+	in vec3 normaal;
 	in vec3 tex; //x = u! y = s0 en z = s1
 	in vec4 kleur;
 	in float waterHoogte;
 	in float grondHoogte;
+	in float snelheid;
 } fs_in;
 
 
@@ -28,22 +28,25 @@ void main()
 	// float marsHoogte = texture(marsHoogte, naadloosTex).x;// + fs_in.grondHoogte) * 0.5;
 	
 	const vec3 	lichtRicht 		= normalize(vec3(0.0, 1.0, -1.0));
-	const vec3 	lichtGradient 	= reflect(lichtRicht, fs_in.waterNormaal);
-	float 		diffuus 		= 0.2 + 0.8 * (dot(lichtRicht,  fs_in.waterNormaal));
+	const vec3 	lichtGradient 	= reflect(lichtRicht, fs_in.normaal);
+	float 		diffuus 		= max(0.0, dot(lichtRicht,  fs_in.normaal));
 	
 
 	if(grondNietWater == 1)
 	{
-		kleur = fs_in.kleur * diffuus * marsKleur;// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
+		kleur = fs_in.kleur * max(0.2, diffuus);// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
 	}
 	else
 	{
 		
-		float lichtheid 	= pow(dot(lichtGradient,  fs_in.grondNormaal), 4);
+		float lichtheid 	= diffuus <= 0.0f ? 0.0f : pow(max(0.0, max(0.0f, dot(lichtGradient,  kijkRichting))), 10);
 
-		kleur = mix(fs_in.kleur, vec4(1.0), lichtheid) * vec4(1, 1, 1, 0.75);
+		kleur = mix(vec4(fs_in.kleur.xyz * max(0.2, diffuus), fs_in.kleur.a), vec4(vec3(1.0), fs_in.kleur.a), lichtheid) * vec4(1, 1, 1, 0.85);
 		kleur.a = max(kleur.a, lichtheid);
+	//	kleur.g = fs_in.snelheid;
 	}
+
+	
 /*
 	//Beter visuele check inbouwen voor lager dan nul water
 	if(fs_in.waterHoogte < 0.0)			kleur = vec4(1, 1, 0, 1);

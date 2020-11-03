@@ -18,7 +18,7 @@ struct vak
 	float 		grondHoogte		= 1.0;
 	float		waterHoogte		= 0.0;
 	float		leven			= 0.0;
-	int			iets			= 0;
+	float		snelheid		= 0;
 	float		pijpen[6]		= { 0, 0, 0, 0, 0, 0 }; //Naar andere vakken
 };
 

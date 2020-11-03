@@ -9,6 +9,8 @@ int main()
 {
 	weergaveSchermPerspectief scherm("Planeet", 1280, 720, 8);
 
+	glEnable(GL_CULL_FACE);
+
 	scherm.maakShader(		"planeetWeergave", 		"shaders/planeetgrid.vert", "shaders/planeetgrid.frag");
 	//scherm.maakRekenShader(	"planeetBerekening", 	"shaders/planeetgrid.comp");
 
@@ -30,9 +32,10 @@ int main()
 	perlinRuis ruisje;
 	planeet geo(7, [&](glm::vec3 plek)
 	{
-		 float	val  = ruisje.geefIniqoQuilesRuis(plek * glm::vec3(03.0f)); 
+		 float	val  = ruisje.geefIniqoQuilesRuis(plek * glm::vec3(07.0f)) * 0.5; 
 		 		val += ruisje.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.2f;
-				val += ruisje.geefIniqoQuilesRuis(plek * glm::vec3(23.0f)) * 0.1f; 
+		 		val += ruisje.geefIniqoQuilesRuis(plek * glm::vec3(23.0f)) * 0.1f;
+				val += ruisje.geefIniqoQuilesRuis(plek * glm::vec3(41.0f)) * 0.05f; 
 				val	+= 1.0f;
 				//val *= 0.5f;
 		
@@ -43,12 +46,12 @@ int main()
 				waterStroomt	= false,
 				waterStap		= false;
 
-	glm::vec3 	verplaatsing	(0.0f, 0.0f, -1.5f)	,
+	glm::vec3 	verplaatsing	(0.0f, 0.0f, -2.0f)	,
 				kijkRichting	(0.0f)				;
 	glm::vec2 	verdraaiing		(0.0f, 0.0f)		,
 				draaisnelheid	(0.01, 0.0)			;
 
-	float		grondMult		= 1000.0,
+	float		grondMult		= 8000.0,
 				grondSchaal		= 0.3,
 				verdamping		= 0.0;
 
@@ -115,7 +118,9 @@ int main()
 			)
 		);
 
-		kijkRichting = glm::mat3(scherm.modelView()) * glm::vec3(0.0, 0.0, 1.0);
+		kijkRichting = 
+			//glm::mat3(scherm.modelView()) * 
+			glm::vec3(0.0, 0.0, 1.0);
 
 		
 

@@ -17,7 +17,7 @@ struct vak
 	float 	grondHoogte	;
 	float	waterHoogte	;
 	float	leven		;
-	int		iets		;
+	float	snelheid	;
 	float	pijpen[6]	;
 };
 
@@ -42,9 +42,15 @@ uniform float verdamping;
 // Maar we willen alsnog de nieuwe waterHoogte etc naar vakken1 schrijven, dus opletten.
 void main()
 {
+	vec3 n;
+
+	for(uint i=0; i<3; i++)
+		n[i] = vakMetas[ID].normaal[i];
 
 	uint 	aantalBuren = vakMetas[ID].burenAantal;
 	float 	stroming 	= 0.0f;
+	vec3	snelheid	= vec3(0.0f);
+	vec3	buurNrml[6];
 
 	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
 	{	
@@ -54,7 +60,16 @@ void main()
 		for(uint buurBuur=0; buurBuur < buurBuren; buurBuur++)
 			if(vakMetas[buurID].buren[buurBuur] == ID)
 			{
-				stroming += vakken1[buurID].pijpen[buurBuur] - vakken1[ID].pijpen[buur];
+				for(uint i=0; i<3; i++)
+					buurNrml[buur][i] = vakMetas[buurID].normaal[i];
+
+				buurNrml[buur] = buurNrml[buur] - n;
+
+				float stroomWeg = vakken1[buurID].pijpen[buurBuur] 	- vakken1[ID].pijpen[buur];
+
+				stroming += stroomWeg;
+				snelheid += buurNrml[buur] * stroomWeg;
+				
 				break;
 			}
 	}
@@ -62,4 +77,7 @@ void main()
 	float verdampje = vakken0[ID].waterHoogte > 1.0 ? (1.0 / vakken0[ID].waterHoogte) * verdamping : verdamping;
 
 	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdampje);
+
+
+	vakken1[ID].snelheid	= (length(snelheid) / aantalBuren) * 0.1;
 }
