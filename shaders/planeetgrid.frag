@@ -21,7 +21,7 @@ uniform vec3 		zonPos;
 
 void main()
 {
-//	if(grondNietWater == 0 && fs_in.waterHoogte < 0.5) discard;
+	if(grondNietWater == 0 && fs_in.waterHoogte < 0.15) discard;
 
 	//Naadloos tex is op basis van in vertshader genoemd algoritme door Tarini
 	vec2 naadloosTex = vec2(fwidth(fs_in.tex.y) <= fwidth(fs_in.tex.z) + 0.000001 ? fs_in.tex.y : fs_in.tex.z, fs_in.tex.x);
@@ -42,7 +42,7 @@ void main()
 	{
 		
 		
-		float lichtheid 	= diffuus <= 0.0f ? 0.0f : pow(max(0.0f, dot(lichtSpiegel,  normalize(kijkPlek - mijnPlek))), 40) * 0.8f;
+		float lichtheid 	= diffuus <= 0.0f || dot(lichtRicht, normalize(mijnPlek)) >= 0.0f ? 0.0f : pow(max(0.0f, dot(lichtSpiegel,  normalize(kijkPlek - mijnPlek))), 40) * 0.8f;
 
 		kleur = mix(vec4(fs_in.kleur.xyz * max(0.2, diffuus), fs_in.kleur.a), vec4(vec3(1.0), fs_in.kleur.a), lichtheid) * vec4(1, 1, 1, 0.85);
 		kleur.a = max(kleur.a, lichtheid);

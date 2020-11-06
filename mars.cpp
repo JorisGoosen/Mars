@@ -31,20 +31,20 @@ int main()
 //	std::uniform_real_distribution<> dis(0.0, 1.0);
 
 	perlinRuis ruisje0, ruisje1;
-	planeet geo(9, [&](glm::vec3 plek)
+	planeet geo(8, [&](glm::vec3 plek)
 	{
-		plek *= 0.5f;
+		//plek *= 0.5f;
 
 		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(07.0f)) * 0.5; 
 		 		val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.35f;
 		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(17.0f)) * 0.225f;
 				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(23.0f)) * 0.1625f; 
 				val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(03.0f)) * 0.6f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(02.0f)) * 0.4f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(02.0f)) * 0.8f;
 				val	+= 1.0f;
-				val *= 0.4f;
+				//val *= 2.0f;
 		
-		 return val > 0.0f ? pow( val, 0.666f) * 0.3333f : 0.0f; 
+		 return (val > 0.0f ? pow( val, 0.666f) * 0.3333f : 0.0f) - 0.5f; 
 	});
 
 	bool 		roteerMaar 		= false,

@@ -99,9 +99,11 @@ void planeet::burenAlsEigenschapWijzers()
 
 	//	if(gen()%100000 == 0)
 		float wijstIeNaarBoven = glm::dot(n, glm::vec3(0.0f, 1.0f, 0.0f));
-		const float vanafHier = 0.9;
-		if(wijstIeNaarBoven > vanafHier)
-			_vakken[0][i].waterHoogte = 400 * (wijstIeNaarBoven - vanafHier) / (1.0f - vanafHier) ;
+		const float vanafHier = 0.9, vanafDaar = 0.1, hoogte = 200;
+		float polig = abs(wijstIeNaarBoven);
+
+		if(polig > vanafHier)	_vakken[0][i].waterHoogte = hoogte * (polig - vanafHier) / (1.0f - 	vanafHier) ;
+		//if(wijstIeNaarBoven < vanafDaar)	_vakken[0][i].waterHoogte = hoogte * (wijstIeNaarBoven  			/ 			vanafDaar) ;
 	}	
 }
 
