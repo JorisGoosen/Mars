@@ -14,11 +14,12 @@ layout(local_size_x = 16) in;
 struct vak
 {
 	int		grondSoort	;
-	float 	grondHoogte	;
-	float	waterHoogte	;
-	float	leven		;
-	float	snelheid	;
-	float	pijpen[6]	;
+	float 	grondHoogte	,
+			waterHoogte	,
+			waterSchijn	,
+			leven		,
+			snelheid	,
+			pijpen[6]	;
 };
 
 struct vakMetasS

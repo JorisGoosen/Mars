@@ -1,0 +1,48 @@
+#version 440
+
+layout(local_size_x = 16) in;
+
+#define ID gl_GlobalInvocationID.x
+
+struct vak
+{
+	int		grondSoort	;
+	float 	grondHoogte	,
+			waterHoogte	,
+			waterSchijn	,
+			leven		,
+			snelheid	,
+			pijpen[6]	;
+};
+
+struct vakMetasS
+{
+	float	normaal[3]	;
+	uint	burenAantal	;
+	uint	buren[6]	;
+};
+
+
+layout(std430, binding = 0) buffer	pingVak { vak 		vakken0	[]; };
+layout(std430, binding = 1) buffer	pongVak { vak 		vakken1	[]; };
+layout(std430, binding = 2) buffer	vakInfo	{ vakMetasS	vakMetas[];	};
+
+
+uint buurID(uint buur)
+{
+	return vakMetas[ID].buren[buur];
+}
+
+// We hebben net in waterStroming.comp en waterDruk.comp naar vakken1 geschreven, dus de nieuwe stromingswaardes staan daar.
+// De zojuist berekende waterHoogtes ook. Maar waterSchijn, ofwel "gemiddelde" waterhoogte wordt hier bepaald.
+void main()
+{
+
+	uint 	aantalBuren = vakMetas[ID].burenAantal;
+	float 	waterSchijn = vakken1[ID].waterHoogte;
+
+	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
+		waterSchijn += vakken1[buurID(buur)].waterHoogte;
+
+	vakken1[ID].waterSchijn = waterSchijn / (aantalBuren + 1);
+}

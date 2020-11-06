@@ -35,7 +35,7 @@ void planeet::bouwPlaneet()
 	burenAlsEigenschapWijzers();
 
 	//Strijk de boel glad
-	for(size_t zoVaak = 2; zoVaak > 0; zoVaak--)
+	for(size_t zoVaak = 30; zoVaak > 0; zoVaak--)
 		browniaansLand();
 	
 	//Nu nog twee buffers toevoegen waarin ik kan gaan rekenen en als punteigenschapwijzers kan gebruiken.
@@ -98,8 +98,10 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakMetas[i].normaal[ii] = n[ii];
 
 	//	if(gen()%100000 == 0)
-		if(i == dezeIsNat)
-			_vakken[0][i].waterHoogte = 100000000;
+		float wijstIeNaarBoven = glm::dot(n, glm::vec3(0.0f, 1.0f, 0.0f));
+		const float vanafHier = 0.9;
+		if(wijstIeNaarBoven > vanafHier)
+			_vakken[0][i].waterHoogte = 400 * (wijstIeNaarBoven - vanafHier) / (1.0f - vanafHier) ;
 	}	
 }
 

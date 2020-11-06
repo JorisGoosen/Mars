@@ -15,11 +15,12 @@
 struct vak
 {
 	int			grondSoort		= GS_ZAND;
-	float 		grondHoogte		= 1.0;
-	float		waterHoogte		= 0.0;
-	float		leven			= 0.0;
-	float		snelheid		= 0;
-	float		pijpen[6]		= { 0, 0, 0, 0, 0, 0 }; //Naar andere vakken
+	float 		grondHoogte		= 1.0,
+				waterHoogte		= 0.0,
+				waterSchijn		= 0.0,
+				leven			= 0.0,
+				snelheid		= 0,
+				pijpen[6]		= { 0, 0, 0, 0, 0, 0 }; //Naar andere vakken
 };
 
 struct vakMeta
