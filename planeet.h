@@ -18,6 +18,7 @@ struct vak
 	float 		grondHoogte		= 1.0,
 				waterHoogte		= 0.0,
 				waterSchijn		= 0.0,
+				vocht			= 0.0,
 				leven			= 0.0,
 				snelheid		= 0,
 				pijpen[6]		= { 0, 0, 0, 0, 0, 0 }; //Naar andere vakken

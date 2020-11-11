@@ -44,7 +44,7 @@ int main()
 				val	+= 1.0f;
 				//val *= 2.0f;
 		
-		 return (val > 0.0f ? pow( val, 0.666f) * 0.3333f : 0.0f) - 0.5f; 
+		 return (val > 0.0f ? pow( val, 0.666f) * 0.1833f : 0.0f) - 0.5f; 
 	});
 
 	bool 		roteerMaar 		= false,
@@ -53,13 +53,14 @@ int main()
 
 	glm::vec3 	verplaatsing	(0.0f, 0.0f, -2.0f)	,
 				kijkPlek		(0.0f)				,
+				regenPlek		(0.0f)				,
 				zonPos			(0.0f)				;
 	glm::vec2 	verdraaiing		(0.0f, 0.0f)		,
 				draaisnelheid	(0.01, 0.0)			;
 
 	float		grondMult		= 100.0,
 				grondSchaal		= 0.3,
-				verdamping		= 0.0;
+				verdamping		= 0.01;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -97,6 +98,7 @@ int main()
 		glUniform1f(	glGetUniformLocation(scherm.huidigProgramma(), "verdamping"		),		verdamping				);
 		glUniform3fv(	glGetUniformLocation(scherm.huidigProgramma(), "kijkPlek"		),  1, 	glm::value_ptr(kijkPlek));
 		glUniform3fv(	glGetUniformLocation(scherm.huidigProgramma(), "zonPos"			),  1, 	glm::value_ptr(zonPos)	);
+		glUniform3fv(	glGetUniformLocation(scherm.huidigProgramma(), "regenPlek"		),  1, 	glm::value_ptr(regenPlek));
 		ruisje0.zetKnooppunten(3, 4);
 		ruisje0.zetKnooppunten(5, 6);
 	};
@@ -143,6 +145,11 @@ int main()
 		glm::vec4 zonPosTdlk = scherm.modelView() * zonRoteerder * glm::normalize(glm::vec4(0.0, sin(zonPos.x / 365.0f), 7.0, 1.0));
 
 		zonPos = zonPosTdlk.xyz() / zonPosTdlk.w;
+
+		static size_t regenRot = 0;
+
+		if(regenRot ++ % 23 == 0)
+			regenPlek = glm::normalize(willekeurigeVec3());
 		
 
 		glDisable(GL_BLEND);

@@ -10,6 +10,7 @@ struct vak
 	float 	grondHoogte	,
 			waterHoogte	,
 			waterSchijn	,
+			vocht		,
 			leven		,
 			snelheid	,
 			pijpen[6]	;

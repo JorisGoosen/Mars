@@ -11,6 +11,7 @@ in NaarFrag
 	in float 	grondHoogte;
 	in float 	snelheid;
 	in vec4 	pos;
+	in float 	leven;
 } fs_in;
 
 
@@ -21,7 +22,7 @@ uniform vec3 		zonPos;
 
 void main()
 {
-	if(grondNietWater == 0 && fs_in.waterHoogte < 0.15) discard;
+	if(grondNietWater == 0 && fs_in.waterHoogte < 0.25) discard;
 
 	//Naadloos tex is op basis van in vertshader genoemd algoritme door Tarini
 	vec2 naadloosTex = vec2(fwidth(fs_in.tex.y) <= fwidth(fs_in.tex.z) + 0.000001 ? fs_in.tex.y : fs_in.tex.z, fs_in.tex.x);
@@ -36,7 +37,8 @@ void main()
 
 	if(grondNietWater == 1)
 	{	
-		kleur = fs_in.kleur * max(0.2, diffuus);// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
+		kleur 	= mix(fs_in.kleur, vec4(0.0, 0.35, 0.0, 1.0), fs_in.leven) * max(0.2, diffuus);// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
+		
 	}
 	else
 	{

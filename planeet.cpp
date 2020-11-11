@@ -198,8 +198,8 @@ void planeet::maakPingPongOpslagen()
 		vec2	lenBrdGr	= _tex->ggvPunt2(b);
 		bool	poolIjs		= (lenBrdGr.y < _poolA && dis(gen) > (lenBrdGr.y / _poolA)) || (lenBrdGr.y > _poolB && dis(gen) < (lenBrdGr.y - _poolB) / (1.0f - _poolB));
 
-		if		(_vakken[0][b].grondHoogte > 0.8f || poolIjs)	grondSoort = GS_IJS;
-		else if (_vakken[0][b].grondHoogte < 0.1f)				grondSoort = GS_ZAND;
+		/*if		(_vakken[0][b].grondHoogte > 0.8f || poolIjs)	grondSoort = GS_IJS;
+		else*/ if (_vakken[0][b].grondHoogte < 0.1f)				grondSoort = GS_ZAND;
 		//else if	(grondRand < 0.0)							grondSoort = GS_GROND;
 		else if (_vakken[0][b].grondHoogte < 0.6f)				grondSoort = grondRand < (_vakken[0][b].grondHoogte - 0.1f) * 2.0 ? GS_ROTS : GS_ZAND;
 		else													grondSoort = GS_ROTS;

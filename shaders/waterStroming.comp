@@ -10,6 +10,7 @@ struct vak
 	float 	grondHoogte	,
 			waterHoogte	,
 			waterSchijn	,
+			vocht		,
 			leven		,
 			snelheid	,
 			pijpen[6]	;
@@ -32,7 +33,8 @@ layout(std430, binding = 2) buffer	vakInfo	{ vakMetasS	vakMetas[];	};
 #define PIJP_DOORSNEE 	0.75
 #define PIJP_LENGTE   	1.0
 
-uniform float grondMult;
+uniform float 	grondMult;
+
 
 float hoogteverschil(uint buurID)
 {
@@ -60,4 +62,5 @@ void main()
 
 	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
 		vakken1[ID].pijpen[buur] = K * vakken1[ID].pijpen[buur];
+
 }

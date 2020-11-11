@@ -17,6 +17,7 @@ struct vak
 	float 	grondHoogte	,
 			waterHoogte	,
 			waterSchijn	,
+			vocht		,
 			leven		,
 			snelheid	,
 			pijpen[6]	;
@@ -38,6 +39,8 @@ layout(std430, binding = 2) buffer	vakInfo	{ vakMetasS	vakMetas[];	};
 
 
 uniform float verdamping;
+uniform vec3	regenPlek;
+
 
 // We hebben net in waterStroming.comp naar vakken1 geschreven, dus de nieuwe stromingswaardes staan daar.
 // Maar we willen alsnog de nieuwe waterHoogte etc naar vakken1 schrijven, dus opletten.
@@ -49,7 +52,10 @@ void main()
 		n[i] = vakMetas[ID].normaal[i];
 
 	uint 	aantalBuren = vakMetas[ID].burenAantal;
-	float 	stroming 	= 0.0f;
+	float 	stroming 	= 0.0f,
+			buurVocht	= 0.0f,
+			mijnVocht	= vakken0[ID].vocht,
+			buurLeven	= 0.0f;
 	vec3	snelheid	= vec3(0.0f);
 	vec3	buurNrml[6];
 
@@ -70,15 +76,41 @@ void main()
 
 				stroming += stroomWeg;
 				snelheid += buurNrml[buur] * stroomWeg;
+
+				buurVocht += (vakken1[buurID].vocht - mijnVocht) / 6;
+				buurLeven += vakken1[buurID].leven;
 				
 				break;
 			}
 	}
 
-	float verdampje = vakken0[ID].waterHoogte > 1.0 ? (1.0 / vakken0[ID].waterHoogte) * verdamping : verdamping;
+	
 
-	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdampje);
+	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdamping);
+	vakken1[ID].vocht		= min(1.0, max(0.0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte)));
+
+	if(	length(regenPlek) 	> 0.00	&& 
+		vakken1[ID].vocht	> 0.75	&&
+		dot(regenPlek, n) 	> 0.99	)
+	{
+		vakken1[ID].waterHoogte += vakken1[ID].vocht;
+		vakken1[ID].vocht		 = 0.0f;
+	}
 
 
 	vakken1[ID].snelheid	= (length(snelheid) / aantalBuren) * 0.1;
+
+	buurLeven /= aantalBuren;
+	float leven = vakken0[ID].leven;
+
+	if(vakken1[ID].waterHoogte <= 1.0)
+	{
+				if(vakken1[ID].vocht > 0.75)	leven = max(0.001, min(1.0, max(leven * 1.001, leven + buurLeven * 0.3333)));
+		else 	if(vakken1[ID].vocht < 0.5)		leven = max(0.000, min(1.0, 	leven * 0.999));
+	}
+	else
+		leven *= 0.85;
+
+	vakken1[ID].leven = leven;
+
 }

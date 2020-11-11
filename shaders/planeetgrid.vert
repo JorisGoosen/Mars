@@ -21,6 +21,7 @@ struct vak
 	float 	grondHoogte	,
 			waterHoogte	,
 			waterSchijn	,
+			vocht		,
 			leven		,
 			snelheid	,
 			pijpen[6]	;
@@ -62,6 +63,7 @@ out NaarFrag
 	out float grondHoogte;
 	out float snelheid;
 	out vec4 pos;
+	out float leven;
 } tc_in;
 
 uniform sampler2D marsHoogte;
@@ -152,8 +154,8 @@ void main()
 		tc_in.normaal = kruis;
 	}
 
-	tc_in.normaal = normalize((transInvMV * vec4(tc_in.normaal, 0.0f)).xyz);
-
+	tc_in.normaal		= normalize((transInvMV * vec4(tc_in.normaal, 0.0f)).xyz);
+	tc_in.leven			= vakken0[gl_VertexID].leven;
 	tc_in.snelheid		= vakken0[gl_VertexID].snelheid;
 	tc_in.waterHoogte	= vakken0[gl_VertexID].waterSchijn; //hoogteBuur(gl_VertexID);
 	tc_in.pos			= modelView * vec4(hier, 1.0f);
