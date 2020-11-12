@@ -9,7 +9,7 @@ in NaarFrag
 	in vec4 	kleur;
 	in float 	waterHoogte;
 	in float 	grondHoogte;
-	in float 	snelheid;
+	in vec2 	snelheid;
 	in vec4 	pos;
 	in float 	leven;
 } fs_in;
@@ -48,7 +48,6 @@ void main()
 
 		kleur = mix(vec4(fs_in.kleur.xyz * max(0.2, diffuus), fs_in.kleur.a), vec4(vec3(1.0), fs_in.kleur.a), lichtheid) * vec4(1, 1, 1, 0.85);
 		kleur.a = max(kleur.a, lichtheid);
-	//	kleur.g = fs_in.snelheid;
 	}
 
 	

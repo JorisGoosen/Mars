@@ -35,7 +35,7 @@ void planeet::bouwPlaneet()
 	burenAlsEigenschapWijzers();
 
 	//Strijk de boel glad
-	for(size_t zoVaak = 30; zoVaak > 0; zoVaak--)
+	for(size_t zoVaak = 15; zoVaak > 0; zoVaak--)
 		browniaansLand();
 	
 	//Nu nog twee buffers toevoegen waarin ik kan gaan rekenen en als punteigenschapwijzers kan gebruiken.
@@ -68,8 +68,6 @@ void planeet::maakLijstBuren()
 
 void planeet::burenAlsEigenschapWijzers()
 {
-	//_eigenschappen.reserve(_buren.size() * 8); //De grootte is eigenlijk _buren.size() * 6 - 12 maar ik denk dat het beter is voor de gpu om ze allebei een vec4 te geven, anders accepteert ie misschien wel, maar...
-	
 	std::random_device willekeur;
 	std::mt19937 gen(willekeur()); 
 	std::normal_distribution<> wlkGrond(1.0, 0.05);
@@ -88,16 +86,13 @@ void planeet::burenAlsEigenschapWijzers()
 		for(const uint32 & buurId : buurt)
 			_vakMetas[i].buren[buur++] 	= buurId;
 
-		gaHetKlokjeRondMetDeBuren(i);
-
-		//_vakken[0][i].iets 			= gen()%2048;
 		_vakken[0][i].grondHoogte 	= _isRuis ? _ruis(_punten->ggvPunt3(i)) : _hoogteMonsteraar(_tex->ggvPunt2(i));
-		
 		
 		vec3 n = normalize(_punten->ggvPunt3(i));
 		_vakMetas[i].normaal = vec4(n, 0.0f);
 
-	//	if(gen()%100000 == 0)
+		gaHetKlokjeRondMetDeBuren(i);
+
 		float wijstIeNaarBoven = dot(n, glm::vec3(0.0f, 1.0f, 0.0f));
 		const float vanafHier = 0.9, vanafDaar = 0.1, hoogte = 200;
 		float polig = abs(wijstIeNaarBoven);
@@ -123,13 +118,21 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	for(size_t i=0; i<_vakMetas[ID].burenAantal; i++)
 		buren.push_back(_punten->ggvPunt3(_vakMetas[ID].buren[i]));
 
-	auto sorteerder = [](const pair<size_t, float> & l, const pair<size_t, float> & r)
+
+	struct sorteerDit
 	{
-		return l.second < r.second;
+		size_t 	buurNo;
+		float 	hoek;
+		vec2	buurRicht;
 	};
 
-	// [ <buurNo, hoek>, ... ]
-	vector<pair<size_t, float>> sorteerDit;
+	auto sorteerder = [](const sorteerDit & l, const sorteerDit & r)
+	{
+		return l.hoek < r.hoek;
+	};
+
+	
+	vector<sorteerDit> sorteerDeze;
 
 	//Bepaal de buur die dichtste bij het noorden ligt, gaan we vanaf daar buren bepalen
 	vec3 	noordPool 	= vec3(0, 1, 0);
@@ -146,25 +149,36 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 		}
 	}
 
-	vec3 	noord = vec3(1.0f, 0.0f, 0.0f);
+	vec3 	omhoog	= _vakMetas[ID].normaal.xyz(),
+			noord 	= buurNoord != -1 ? normalize(buren[buurNoord] -  midden) : vec3(1.0f, 0.0f, 0.0f),
+			west	= cross(noord, omhoog);
 
-	if(buurNoord != -1)
-		noord = normalize(buren[buurNoord] -  midden);
-
+	//std::cout << "noord: " << noord << " west: " << west << " omhoog: " << omhoog << std::endl;
+	
 	for(size_t i=0; i<_vakMetas[ID].burenAantal; i++)
 	{
 		vec3 relatief = normalize(buren[i] - midden);
-		sorteerDit.push_back(make_pair(_vakMetas[ID].buren[i], -acos(dot(noord, relatief))));
+		sorteerDeze.push_back(
+			sorteerDit(
+				_vakMetas[ID].buren[i], 
+				-acos(dot(noord, relatief)),
+				normalize(vec2(dot(west, relatief), dot(noord, relatief)))
+			)
+		);
 	}
 
-	sort(sorteerDit.begin(), sorteerDit.end(), sorteerder);
+	sort(sorteerDeze.begin(), sorteerDeze.end(), sorteerder);
 
-	assert(sorteerDit.size() == buren.size()				);
-	assert(sorteerDit.size() == _vakMetas[ID].burenAantal	);
+	assert(sorteerDeze.size() == buren.size()				);
+	assert(sorteerDeze.size() == _vakMetas[ID].burenAantal	);
 
 	size_t buur = 0;
-	for(auto & buurNoHoek : sorteerDit)
-		_vakMetas[ID].buren[buur++] = buurNoHoek.first;
+	for(auto & buurNoHoek : sorteerDeze)
+	{
+		_vakMetas[ID].buurRicht	[buur	] = buurNoHoek.buurRicht;
+		_vakMetas[ID].buren		[buur++	] = buurNoHoek.buurNo;
+	}
+
 }
 
 void planeet::browniaansLand()

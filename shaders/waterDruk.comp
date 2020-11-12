@@ -21,15 +21,15 @@ void main()
 	for(uint i=0; i<3; i++)
 		n[i] = vakMetas[ID].normaal[i];
 
-	uint 	aantalBuren = vakMetas[ID].burenAantal;
+	uint 	burenAantal = vakMetas[ID].burenAantal;
 	float 	stroming 	= 0.0f,
 			buurVocht	= 0.0f,
 			mijnVocht	= vakken0[ID].vocht,
 			buurLeven	= 0.0f;
-	vec3	snelheid	= vec3(0.0f);
 	vec3	buurNrml[6];
+	vec2 	snelheid 	= vec2(0.0f);
 
-	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
+	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
 	{	
 		const uint 	buurID 		= vakMetas[ID].buren[buur],
 					buurBuren 	= vakMetas[buurID].burenAantal;
@@ -44,17 +44,16 @@ void main()
 
 				float stroomWeg = vakken1[buurID].pijpen[buurBuur] 	- vakken1[ID].pijpen[buur];
 
-				stroming += stroomWeg;
-				snelheid += buurNrml[buur] * stroomWeg;
-
+				stroming  += stroomWeg;
 				buurVocht += (vakken1[buurID].vocht - mijnVocht) / 6;
 				buurLeven += vakken1[buurID].leven;
+				snelheid  += vakMetas[ID].buurRicht[buur] * stroomWeg;
 				
 				break;
 			}
 	}
 
-	
+	vakken1[ID].snelheid = snelheid;// / burenAantal;
 
 	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdamping);
 	vakken1[ID].vocht		= min(1.0, max(0.0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte)));
@@ -66,15 +65,12 @@ void main()
 	}
 
 
-	vakken1[ID].snelheid	= (length(snelheid) / aantalBuren) * 0.1;
-
-	buurLeven /= aantalBuren;
+	buurLeven /= burenAantal;
 	float leven = vakken0[ID].leven;
 
-	if(vakken1[ID].waterHoogte <= 0.5)
-		leven = max(0.001, min(vakken1[ID].vocht, max(leven * 1.001, leven + buurLeven * 0.3333)));
-	else
-		leven *= 0.85;
+	if(vakken1[ID].waterHoogte <= 0.05)		leven = max(0.001, min(vakken1[ID].vocht, max(leven * 1.001, leven + buurLeven * 0.3333)));
+	else if(vakken1[ID].waterHoogte > 2.0)	leven *= 0.85;
+	else									leven *= 0.95;
 
 	vakken1[ID].leven = leven;
 

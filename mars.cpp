@@ -148,8 +148,9 @@ int main()
 
 		static size_t regenRot = 0;
 
-		if(regenRot ++ % 23 == 0)
+		if(regenRot ++ % 17 == 0)	
 			regenPlek = glm::normalize(willekeurigeVec3());
+
 		
 
 		glDisable(GL_BLEND);

@@ -22,9 +22,9 @@ float hoogteverschil(uint buurID)
 void main()
 {
 	float	fluxen		= 0.0f;
-	uint 	aantalBuren = vakMetas[ID].burenAantal;
+	uint 	burenAantal = vakMetas[ID].burenAantal;
 
-	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
+	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
 	{
 		uint 	buurID 	= vakMetas[ID].buren[buur];
 		float 	flux 	= max(0, vakken0[ID].pijpen[buur] + (TIJD_VERSCHIL * PIJP_DOORSNEE * ( ( ZWAARTEKRACHT * hoogteverschil(buurID) ) / PIJP_LENGTE ) ) );
@@ -38,7 +38,7 @@ void main()
 
 	float K = max(0, min(1, (PIJP_LENGTE * vakken0[ID].waterHoogte) / (fluxen * TIJD_VERSCHIL) ) );
 
-	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
+	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
 		vakken1[ID].pijpen[buur] = K * vakken1[ID].pijpen[buur];
 
 }

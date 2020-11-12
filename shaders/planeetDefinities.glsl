@@ -13,14 +13,14 @@ struct vak
 			waterSchijn	,
 			vocht		,
 			leven		,
-			snelheid	,
 			pijpen[6]	;
+	vec2	snelheid	;
 };
 
 struct vakMetasS
 {
 	vec4	normaal			;
-	vec2	buurAfzet	[6]	;
+	vec2	buurRicht	[6]	;
 	uint	buren		[6]	;
 	uint	burenAantal		;
 	uint 	opvulling		;

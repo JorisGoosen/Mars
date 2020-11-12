@@ -16,11 +16,13 @@ uint buurID(uint buur)
 void main()
 {
 
-	uint 	aantalBuren = vakMetas[ID].burenAantal;
+	uint 	burenAantal = vakMetas[ID].burenAantal;
 	float 	waterSchijn = vakken1[ID].waterHoogte;
 
-	for(uint buur=0; buur < aantalBuren && buur < 6; buur++)
+	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
 		waterSchijn += vakken1[buurID(buur)].waterHoogte;
 
-	vakken1[ID].waterSchijn = waterSchijn / (aantalBuren + 1);
+	vakken1[ID].waterSchijn = waterSchijn / (burenAantal + 1);
+
+
 }

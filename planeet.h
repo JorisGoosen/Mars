@@ -20,8 +20,8 @@ struct vak
 				waterSchijn	,
 				vocht		,
 				leven		,
-				snelheid	,
 				pijpen[6]	;
+	glm::vec2	snelheid	;
 };
 
 struct vakMeta

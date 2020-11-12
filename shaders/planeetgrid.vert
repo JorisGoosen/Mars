@@ -7,12 +7,12 @@
 #define KLEUR_IJS	vec4(0.8, 	0.8, 	0.8, 	1.0)
 #define KLEUR_LOESS	vec4(0.78, 	0.75, 	0.74, 	1.0)
 
+#define ID gl_VertexID
+
 #include "planeetDefinities.glsl"
 
 layout(location = 0) in	vec3 posV;
 layout(location = 1) in	vec2 tex;
-
-
 
 uniform mat4 modelView;
 uniform mat4 transInvMV;
@@ -31,7 +31,7 @@ out NaarFrag
 	out vec4 kleur;
 	out float waterHoogte;
 	out float grondHoogte;
-	out float snelheid;
+	out vec2 snelheid;
 	out vec4 pos;
 	out float leven;
 } tc_in;
@@ -46,7 +46,7 @@ uniform float grondMult;
 
 uint buurID(uint buur)
 {
-	return vakMetas[gl_VertexID].buren[buur];
+	return vakMetas[ID].buren[buur];
 }
 
 float hoogteBuur(uint buurID)
@@ -65,10 +65,10 @@ vec3 vakPlek(uint buurID, float hoogte)
 
 void main()
 {
-	
-	vec4 grondKleur;
+	uint 	burenAantal = vakMetas[ID].burenAantal;
+	vec4 	grondKleur;
 
-	switch(vakken0[gl_VertexID].grondSoort)
+	switch(vakken0[ID].grondSoort)
 	{
 	case GS_ZAND:		grondKleur	= KLEUR_ZAND;	break;
 	case GS_GROND:		grondKleur	= KLEUR_GROND;	break;
@@ -81,21 +81,17 @@ void main()
 	const float waterSchaler = 0.1 * grondMult;
 
 	tc_in.tex			= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
-	float lokaalWater	= vakken0[gl_VertexID].waterHoogte > waterSchaler ? 1.0 : vakken0[gl_VertexID].waterHoogte / waterSchaler;
-	tc_in.grondHoogte	= vakken0[gl_VertexID].grondHoogte;
+	float lokaalWater	= vakken0[ID].waterHoogte > waterSchaler ? 1.0 : vakken0[ID].waterHoogte / waterSchaler;
+	tc_in.grondHoogte	= vakken0[ID].grondHoogte;
 
-	if(grondNietWater == 0)	tc_in.kleur	= vec4(0.0, 0.0, 0.4, 0.3 + (lokaalWater * 0.7));
-	else					tc_in.kleur = grondKleur; //tc_in.kleur	= vec4(vec3( vakken0[gl_VertexID].grondHoogte), 1.0f); //vec4(vakken0[gl_VertexID].grondHoogte); // grondKleur;
+	if(grondNietWater == 0)	tc_in.kleur	= vec4(abs(vakken0[ID].snelheid), 0.4, 0.3 + (lokaalWater * 0.7));
+	else					tc_in.kleur = grondKleur; //tc_in.kleur	= vec4(vec3( vakken0[ID].grondHoogte), 1.0f); //vec4(vakken0[ID].grondHoogte); // grondKleur;
 	
-	vec3 n;
-
-	for(uint i=0; i<3; i++)
-		n[i] = vakMetas[gl_VertexID].normaal[i];
-
-	uint 	burenAantal 			= vakMetas[gl_VertexID].burenAantal;
-	vec3	hier					= vakPlek(gl_VertexID, hoogteBuur(gl_VertexID));
-
-	hier *= sign(dot(posV, hier));
+	//tc_in.kleur = vec4(vakken0[ID].snelheid, 0.0, 1.0);
+	
+	vec3 	n 		 = vakMetas[ID].normaal.xyz,
+			hier	 = vakPlek(ID, hoogteBuur(ID));
+			hier 	*= sign(dot(posV, hier));
 
 	const bool doeNormaal = false;
 	if(doeNormaal)
@@ -124,10 +120,10 @@ void main()
 		tc_in.normaal = kruis;
 	}
 
-	tc_in.normaal		= normalize((transInvMV * vec4(tc_in.normaal, 0.0f)).xyz);
-	tc_in.leven			= vakken0[gl_VertexID].leven;
-	tc_in.snelheid		= vakken0[gl_VertexID].snelheid;
-	tc_in.waterHoogte	= vakken0[gl_VertexID].waterSchijn; //hoogteBuur(gl_VertexID);
+	tc_in.normaal		= normalize( (transInvMV * vec4(tc_in.normaal, 0.0f)).xyz );
+	tc_in.leven			= vakken0[ID].leven;
+	tc_in.snelheid		= vakken0[ID].snelheid;
+	tc_in.waterHoogte	= vakken0[ID].waterSchijn; //hoogteBuur(ID);
 	tc_in.pos			= modelView * vec4(hier, 1.0f);
 	gl_Position			= projectie * tc_in.pos;
 }
