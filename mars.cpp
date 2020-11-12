@@ -31,7 +31,7 @@ int main()
 //	std::uniform_real_distribution<> dis(0.0, 1.0);
 
 	perlinRuis ruisje0, ruisje1;
-	planeet geo(8, [&](glm::vec3 plek)
+	planeet geo(6, [&](glm::vec3 plek)
 	{
 		//plek *= 0.5f;
 

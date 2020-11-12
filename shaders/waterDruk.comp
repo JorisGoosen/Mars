@@ -1,39 +1,9 @@
 #version 440
 
 layout(local_size_x = 16) in;
-
-#define GS_ZAND		0
-#define GS_GROND	1	//Ook wel humus of rijke grond
-#define GS_ROTS		2
-#define GS_KLEI		3
-#define GS_IJS		4
-#define GS_LOESS	5
-
 #define ID gl_GlobalInvocationID.x
 
-struct vak
-{
-	int		grondSoort	;
-	float 	grondHoogte	,
-			waterHoogte	,
-			waterSchijn	,
-			vocht		,
-			leven		,
-			snelheid	,
-			pijpen[6]	;
-};
-
-struct vakMetasS
-{
-	float	normaal[3]	;
-	uint	burenAantal	;
-	uint	buren[6]	;
-};
-
-
-layout(std430, binding = 0) buffer	pingVak { vak 		vakken0	[]; };
-layout(std430, binding = 1) buffer	pongVak { vak 		vakken1	[]; };
-layout(std430, binding = 2) buffer	vakInfo	{ vakMetasS	vakMetas[];	};
+#include "planeetDefinities.glsl"
 
 #define PIJP_LENGTE	1.0
 

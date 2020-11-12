@@ -93,12 +93,12 @@ void planeet::burenAlsEigenschapWijzers()
 		//_vakken[0][i].iets 			= gen()%2048;
 		_vakken[0][i].grondHoogte 	= _isRuis ? _ruis(_punten->ggvPunt3(i)) : _hoogteMonsteraar(_tex->ggvPunt2(i));
 		
-		glm::vec3 n = normalize(_punten->ggvPunt3(i));
-		for(size_t ii=0; ii<3; ii++)
-			_vakMetas[i].normaal[ii] = n[ii];
+		
+		vec3 n = normalize(_punten->ggvPunt3(i));
+		_vakMetas[i].normaal = vec4(n, 0.0f);
 
 	//	if(gen()%100000 == 0)
-		float wijstIeNaarBoven = glm::dot(n, glm::vec3(0.0f, 1.0f, 0.0f));
+		float wijstIeNaarBoven = dot(n, glm::vec3(0.0f, 1.0f, 0.0f));
 		const float vanafHier = 0.9, vanafDaar = 0.1, hoogte = 200;
 		float polig = abs(wijstIeNaarBoven);
 

@@ -1,12 +1,5 @@
 #version 440
 
-#define GS_ZAND		0
-#define GS_GROND	1	//Ook wel humus of rijke grond
-#define GS_ROTS		2
-#define GS_KLEI		3
-#define GS_IJS		4
-#define GS_LOESS	5
-
 #define KLEUR_ZAND	vec4(0.7, 	0.52, 	0.3, 	1.0)
 #define KLEUR_GROND	vec4(0.16, 	0.13, 	0.1, 	1.0)
 #define KLEUR_ROTS	vec4(0.5, 	0.4, 	0.2, 	1.0)
@@ -14,30 +7,7 @@
 #define KLEUR_IJS	vec4(0.8, 	0.8, 	0.8, 	1.0)
 #define KLEUR_LOESS	vec4(0.78, 	0.75, 	0.74, 	1.0)
 
-
-struct vak
-{
-	int		grondSoort	;
-	float 	grondHoogte	,
-			waterHoogte	,
-			waterSchijn	,
-			vocht		,
-			leven		,
-			snelheid	,
-			pijpen[6]	;
-};
-
-struct vakMetasS
-{
-	float	normaal[3]	;
-	uint	burenAantal	;
-	uint	buren[6]	;
-};
-
-
-layout(std430, binding = 0) buffer	pingVak { vak 		vakken0	[]; };
-layout(std430, binding = 1) buffer	pongVak { vak 		vakken1	[]; };
-layout(std430, binding = 2) buffer	vakInfo	{ vakMetasS	vakMetas[];	};
+#include "planeetDefinities.glsl"
 
 layout(location = 0) in	vec3 posV;
 layout(location = 1) in	vec2 tex;

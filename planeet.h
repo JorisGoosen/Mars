@@ -14,22 +14,24 @@
 
 struct vak
 {
-	int			grondSoort		= GS_ZAND;
-	float 		grondHoogte		= 1.0,
-				waterHoogte		= 0.0,
-				waterSchijn		= 0.0,
-				vocht			= 0.0,
-				leven			= 0.0,
-				snelheid		= 0,
-				pijpen[6]		= { 0, 0, 0, 0, 0, 0 }; //Naar andere vakken
+	int			grondSoort	;
+	float 		grondHoogte	,
+				waterHoogte	,
+				waterSchijn	,
+				vocht		,
+				leven		,
+				snelheid	,
+				pijpen[6]	;
 };
 
 struct vakMeta
 {
-	float		normaal[3]		= { 0.0f, 0.0f, 0.0f};
-	glm::uint32	burenAantal		= 0;
-	glm::uint32	buren[6]		= { 0, 0, 0, 0, 0, 0 };
-};
+	glm::vec4	normaal			;	// base alignment 4 bytes want std430
+	glm::vec2	buurRicht[6]	;	// 3 * 4
+	glm::uint32	buren[6]		,	//     6 
+				burenAantal		,	// 	   1
+				opvulling		;	//     1
+};									//
 
 class planeet : public geodesisch
 {
