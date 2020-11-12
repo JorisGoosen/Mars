@@ -89,9 +89,7 @@ void main()
 	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdamping);
 	vakken1[ID].vocht		= min(1.0, max(0.0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte)));
 
-	if(	length(regenPlek) 	> 0.00	&& 
-		vakken1[ID].vocht	> 0.75	&&
-		dot(regenPlek, n) 	> 0.99	)
+	if(dot(regenPlek, n) 	> 0.99)
 	{
 		vakken1[ID].waterHoogte += vakken1[ID].vocht;
 		vakken1[ID].vocht		 = 0.0f;
@@ -103,11 +101,8 @@ void main()
 	buurLeven /= aantalBuren;
 	float leven = vakken0[ID].leven;
 
-	if(vakken1[ID].waterHoogte <= 1.0)
-	{
-				if(vakken1[ID].vocht > 0.75)	leven = max(0.001, min(1.0, max(leven * 1.001, leven + buurLeven * 0.3333)));
-		else 	if(vakken1[ID].vocht < 0.5)		leven = max(0.000, min(1.0, 	leven * 0.999));
-	}
+	if(vakken1[ID].waterHoogte <= 0.5)
+		leven = max(0.001, min(vakken1[ID].vocht, max(leven * 1.001, leven + buurLeven * 0.3333)));
 	else
 		leven *= 0.85;
 
