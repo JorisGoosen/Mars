@@ -67,7 +67,7 @@ vec3 berekenNormaal(uint id, bool water, vec3 hint)
 {
 	vec3 	n 			 = vakMetas[ID].normaal.xyz,
 			hier		 = vakHoogte(ID, water);
-	//		hier 		*= sign(dot(hint, hier));
+			hier 		*= sign(dot(hint, hier));
 	uint 	burenAantal  = vakMetas[id].burenAantal,
 			buurIdTmp;
 	vec3 	buurPos[6],

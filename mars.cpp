@@ -31,7 +31,7 @@ int main()
 //	std::uniform_real_distribution<> dis(0.0, 1.0);
 
 	perlinRuis ruisje0, ruisje1;
-	planeet geo(6, [&](glm::vec3 plek)
+	planeet geo(7, [&](glm::vec3 plek)
 	{
 		//plek *= 0.5f;
 
@@ -48,9 +48,9 @@ int main()
 	});
 
 	bool 		roteerMaar 		= false,
-				waterStroomt	= false,
+				waterStroomt	= true,
 				waterStap		= false,
-				zonDraait		= false;
+				zonDraait		= true;
 
 	glm::vec3 	verplaatsing	(0.0f, 0.0f, -2.0f)	,
 				kijkPlek		(0.0f)				,
@@ -61,7 +61,7 @@ int main()
 
 	float		grondMult		= 100.0,
 				grondSchaal		= 0.3,
-				verdamping		= 0.01;
+				verdamping		= 0.001;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -133,7 +133,7 @@ int main()
 		kijkPlek = verplaatsing;//glm::vec3(0.0f, 0.0f, -1.0f);;//glm::mat3(scherm.modelView()) * -verplaatsing;
 
 		if(zonDraait)
-			zonRot.x += 0.03333;
+			zonRot.x += 0.013333;
 
 		glm::mat4 zonRoteerder = 
 			glm::rotate(
@@ -153,7 +153,7 @@ int main()
 
 		static size_t regenRot = 0;
 
-		if(regenRot ++ % 17 == 0)	
+		if(regenRot ++ % 20 == 0)	
 			regenPlek = glm::normalize(willekeurigeVec3());
 
 		

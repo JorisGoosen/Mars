@@ -44,13 +44,22 @@ void main()
 	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdamping);
 	vakken1[ID].vocht		= min(1.0, max(0.0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte)));
 
+	float 	leven = vakken0[ID].leven,
+			regen = dot(regenPlek, n);
+
 	//het lekker laten regenen
-	if(dot(regenPlek, n) 	> 0.99)
+	if( regen > 0.96)
 	{
-		vakken1[ID].waterHoogte += vakken1[ID].vocht;
-		vakken1[ID].vocht		 = 0.0f;
+		const float minderVocht = 0.03333;
+		vakken1[ID].waterHoogte += vakken1[ID].vocht * minderVocht;
+		vakken1[ID].vocht		*= 1.0 - minderVocht;
+	}
+	else if(regen > 0.955)
+	{
+		leven = max(0.04, leven);
 	}
 
+/*
 	//laten we kijken of er iets veranderd moet worden aan de droesem
 	float 	helling = dot(n, berekenNormaal(ID, false, n));
 	//		helling	= sin(acos(helling));
@@ -63,13 +72,13 @@ void main()
 	//if(vakken0[ID].grondHoogte - droesem < 1) droesem = vakken0[ID].grondHoogte - 1.0;
 
 	vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte 	- droesem;
-	vakken1[ID].droesem	 	= vakken0[ID].droesem 		+ droesem;
+	vakken1[ID].droesem	 	= vakken0[ID].droesem 		+ droesem;*/
 	
 	//hoop doet leven
 	buurLeven  /= burenAantal;
-	float leven = vakken0[ID].leven;
+	
 
-	if(vakken1[ID].waterHoogte <= 0.05)		leven = max(0.001, min(vakken1[ID].vocht, max(leven * 1.001, leven + buurLeven * 0.3333)));
+	if(vakken1[ID].waterHoogte <= 0.05)		leven = max(0.0, min(vakken1[ID].vocht, max(leven * 1.01, leven + (buurLeven * 0.03333))));
 	else if(vakken1[ID].waterHoogte > 2.0)	leven *= 0.85;
 	else									leven *= 0.95;
 
