@@ -11,12 +11,12 @@ int main()
 
 	glEnable(GL_CULL_FACE);
 
-	scherm.maakShader(		"planeetWeergave", 		"shaders/planeetgrid.vert", "shaders/planeetgrid.frag");
-	//scherm.maakRekenShader(	"planeetBerekening", 	"shaders/planeetgrid.comp");
+	scherm.maakShader(		"planeetWeergave", 	"shaders/planeetgrid.vert", 		"shaders/planeetgrid.frag"		);
+	
 
-	scherm.maakRekenShader(	"waterDruk", 		"shaders/waterDruk.comp");
-	scherm.maakRekenShader(	"waterStroming", 	"shaders/waterStroming.comp");
-	scherm.maakRekenShader(	"waterGemiddelde", 	"shaders/waterGemiddelde.comp");
+	scherm.maakRekenShader(	"waterDruk", 		"shaders/waterDruk.comp"											);
+	scherm.maakRekenShader(	"waterStroming", 	"shaders/waterStroming.comp"										);
+	scherm.maakRekenShader(	"waterGemiddelde", 	"shaders/waterGemiddelde.comp"										);
 
 	glClearColor(0,0,0,1);
 
@@ -31,7 +31,7 @@ int main()
 //	std::uniform_real_distribution<> dis(0.0, 1.0);
 
 	perlinRuis ruisje0, ruisje1;
-	planeet geo(7, [&](glm::vec3 plek)
+	planeet geo(6, [&](glm::vec3 plek)
 	{
 		//plek *= 0.5f;
 
@@ -50,7 +50,7 @@ int main()
 	bool 		roteerMaar 		= false,
 				waterStroomt	= true,
 				waterStap		= false,
-				zonDraait		= true;
+				zonDraait		= false;
 
 	glm::vec3 	verplaatsing	(0.0f, 0.0f, -2.0f)	,
 				kijkPlek		(0.0f)				,

@@ -142,15 +142,16 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	
 	vector<sorteerDit> sorteerDeze;
 
-	//Bepaal de buur die dichtste bij het noorden ligt, gaan we vanaf daar buren bepalen
-	vec3 	noordPool 	= vec3(0, 1, 0);
-	float 	meestNoord	= length(normalize(midden) - noordPool);
+	//Bepaal de buur die het meeste naar het noorden ligt, gaan we vanaf daar buren bepalen
+	vec3 	noordPool 	= vec3(0, 2, 0);
+	float 	meestNoord	= length(noordPool - midden);
 	int		buurNoord	= -1; //oftwel midden
 
 	for(size_t i=0; i<buren.size(); i++)
 	{
-		float mijnNoord = length(normalize(buren[i]) - noordPool);
-		if(mijnNoord < meestNoord)
+		float mijnNoord = length(noordPool - buren[i]);
+
+		if(mijnNoord > meestNoord)
 		{
 			meestNoord 	= mijnNoord;
 			buurNoord	= i;
@@ -158,10 +159,10 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	}
 
 	vec3 	omhoog	= _vakMetas[ID].normaal.xyz(),
-			noord 	= buurNoord != -1 ? normalize(normalize(buren[buurNoord]) -  normalize(midden)) : vec3(1.0f, 0.0f, 0.0f),
+			noord 	= buurNoord != -1 ? normalize(buren[buurNoord] -  midden) : vec3(1.0f, 0.0f, 0.0f),
 			west	= cross(noord, omhoog);
 
-	//std::cout << "noord: " << noord << " west: " << west << " omhoog: " << omhoog << std::endl;
+//	std::cout << "noord: " << noord << "\twest: " << west << "\tomhoog: " << omhoog << std::endl;
 	
 	for(size_t i=0; i<_vakMetas[ID].burenAantal; i++)
 	{
@@ -169,7 +170,7 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 		sorteerDeze.push_back(
 			sorteerDit(
 				_vakMetas[ID].buren[i], 
-				-acos(dot(noord, relatief)),
+				acos(dot(noord, relatief)),
 				normalize(vec2(dot(west, relatief), dot(noord, relatief)))
 			)
 		);

@@ -53,21 +53,25 @@ uint buurID(uint buur)
 	return vakMetas[ID].buren[buur];
 }
 
-float hoogteBuur(uint buurID, bool water)
+float hoogteBuur(uint id, bool water)
 {
-	return vakken0[buurID].grondHoogte + (water ? vakken0[buurID].waterSchijn * WATERMULT + vakken0[buurID].droesem : 0.0f);
+	return vakken0[id].grondHoogte + (water ? vakken0[id].waterSchijn * WATERMULT + vakken0[id].droesem : 0.0f);
 }
 
-vec3 vakHoogte(uint id, bool water)
+float vakHoogte(uint id, bool water)
 {
-	return (vakMetas[id].normaal.xyz * (1.0 + (hoogteBuur(id, water) * grondSchaal)));
+	return max(0.001, 1.0 + (hoogteBuur(id, water) * grondSchaal));
 }
 
-vec3 berekenNormaal(uint id, bool water, vec3 hint)
+vec3 vakHoogteNormaal(uint id, bool water)
 {
-	vec3 	n 			 = vakMetas[ID].normaal.xyz,
-			hier		 = vakHoogte(ID, water);
-			hier 		*= sign(dot(hint, hier));
+	return vakMetas[id].normaal.xyz * vakHoogte(id, water);
+}
+
+vec3 berekenNormaal(uint id, bool water)
+{
+	vec3 	n 			 = vakMetas[id].normaal.xyz,
+			hier		 = vakHoogteNormaal(id, water);
 	uint 	burenAantal  = vakMetas[id].burenAantal,
 			buurIdTmp;
 	vec3 	buurPos[6],
@@ -77,7 +81,7 @@ vec3 berekenNormaal(uint id, bool water, vec3 hint)
 	for(uint p=0; p<burenAantal; p++)
 	{
 		buurIdTmp  				 = vakMetas[id].buren[p];
-		buurPos[p] 				 = vakHoogte(buurIdTmp, water);
+		buurPos[p] 				 = vakHoogteNormaal(buurIdTmp, water);
 	}
 
 	for(uint i=0; i<burenAantal; i++)

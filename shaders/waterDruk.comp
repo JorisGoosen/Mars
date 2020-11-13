@@ -18,7 +18,7 @@ void main()
 			mijnVocht	= vakken0[ID].vocht,
 			buurLeven	= 0.0f;
 	vec2 	snelheid 	= vec2(0.0f);
-	vec3	hier		= vakHoogte(ID, false);
+	vec3	hier		= vakHoogteNormaal(ID, false);
 
 	//Ga de buur er telkens bijzoeken zodat we normalen kunnen berekenen en zo veel meer
 	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
@@ -61,7 +61,7 @@ void main()
 
 /*
 	//laten we kijken of er iets veranderd moet worden aan de droesem
-	float 	helling = dot(n, berekenNormaal(ID, false, n));
+	float 	helling = dot(n, berekenNormaal(ID, false));
 	//		helling	= sin(acos(helling));
 	float	droesemCapaciteit 	= (DROESEMHEID * helling * length(snelheid)),// * vakken0[ID].waterHoogte,
 			droesem 			=  droesemCapaciteit - vakken0[ID].droesem;

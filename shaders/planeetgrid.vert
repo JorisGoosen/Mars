@@ -64,10 +64,10 @@ void main()
 	if(grondNietWater == 0)	tc_in.kleur	= vec4(vakken0[ID].droesem, 0.0, 0.4, 0.3 + (lokaalWater * 0.7));
 	else					tc_in.kleur = grondKleur; 
 	
-	
-	vec3 	hier		= vakHoogte(ID, grondNietWater == 0);
+	//Niet posV aanroepen zorgt er op een of andere manier voor dat de shader niet werkt...
+	vec3 	hier		= posV *  vakHoogte(ID, grondNietWater == 0);
 
-	tc_in.normaal		= normalize( (transInvMV * vec4(berekenNormaal(ID, grondNietWater == 0, posV), 0.0f)).xyz );
+	tc_in.normaal		= normalize( (modelView * vec4(berekenNormaal(ID, grondNietWater == 0), 0.0f)).xyz );
 	tc_in.leven			= vakken0[ID].leven;
 	tc_in.snelheid		= vakken0[ID].snelheid;
 	tc_in.waterHoogte	= vakken0[ID].waterSchijn; 
