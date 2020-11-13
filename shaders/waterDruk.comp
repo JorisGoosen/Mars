@@ -16,7 +16,8 @@ void main()
 	float 	stroming 	= 0.0f,
 			buurVocht	= 0.0f,
 			mijnVocht	= vakken0[ID].vocht,
-			buurLeven	= 0.0f;
+			buurLeven	= 0.0f,
+			droesem 	= 0.0f;
 	vec2 	snelheid 	= vec2(0.0f);
 	vec3	hier		= vakHoogteNormaal(ID, false);
 
@@ -29,12 +30,19 @@ void main()
 		for(uint buurBuur=0; buurBuur < buurBuren; buurBuur++)
 			if(vakMetas[buurID].buren[buurBuur] == ID)
 			{
+				
 				float stroomWeg = vakken1[buurID].pijpen[buurBuur] 	- vakken1[ID].pijpen[buur];
 
 				stroming  += stroomWeg;
 				buurVocht += (vakken1[buurID].vocht - mijnVocht) / 6;
 				buurLeven += vakken1[buurID].leven;
 				snelheid  += vakMetas[ID].buurRicht[buur] * stroomWeg;
+
+				//Als stroomWeg positief is gaat het dus richting de buren
+				uint id = stroomWeg >= 0 ? buurID : ID;
+
+				droesem += ( stroomWeg / vakken0[id].waterHoogte) * vakken0[id].droesem;
+				
 				break;
 			}
 	}
@@ -54,17 +62,18 @@ void main()
 		vakken1[ID].waterHoogte += vakken1[ID].vocht * minderVocht;
 		vakken1[ID].vocht		*= 1.0 - minderVocht;
 	}
-	else if(regen > 0.955)
-	{
-		leven = max(0.04, leven);
-	}
+	else if(regen < -0.99)
+		leven = max(0.00001, leven);
 
-/*
+
+
 	//laten we kijken of er iets veranderd moet worden aan de droesem
-	float 	helling = dot(n, berekenNormaal(ID, false));
-	//		helling	= sin(acos(helling));
-	float	droesemCapaciteit 	= (DROESEMHEID * helling * length(snelheid)),// * vakken0[ID].waterHoogte,
-			droesem 			=  droesemCapaciteit - vakken0[ID].droesem;
+	float 	helling = 1.0f - dot(n, berekenNormaal(ID, false));
+			//helling	= sin(acos(helling));
+	float	droesemCapaciteit 	= (DROESEMHEID * helling * length(snelheid)), 
+			droesemAangespoeld 	= droesem + vakken0[ID].droesem;//* min(1.0, vakken0[ID].waterSchijn * WATERMULT); // * vakken0[ID].waterHoogte,
+	
+	droesem = droesemCapaciteit - max(0, droesemAangespoeld);
 
 				//   C > st
 	droesem *= droesem > 0 ? OPLOSHEID : BEZINKHEID;
@@ -72,7 +81,7 @@ void main()
 	//if(vakken0[ID].grondHoogte - droesem < 1) droesem = vakken0[ID].grondHoogte - 1.0;
 
 	vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte 	- droesem;
-	vakken1[ID].droesem	 	= vakken0[ID].droesem 		+ droesem;*/
+	vakken1[ID].droesem	 	= droesemAangespoeld		+ droesem;
 	
 	//hoop doet leven
 	buurLeven  /= burenAantal;
