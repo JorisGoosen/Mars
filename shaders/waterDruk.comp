@@ -5,30 +5,22 @@ layout(local_size_x = 16) in;
 
 #include "planeetDefinities.glsl"
 
-#define PIJP_LENGTE	1.0
-
-
-uniform float verdamping;
-uniform vec3	regenPlek;
 
 
 // We hebben net in waterStroming.comp naar vakken1 geschreven, dus de nieuwe stromingswaardes staan daar.
 // Maar we willen alsnog de nieuwe waterHoogte etc naar vakken1 schrijven, dus opletten.
 void main()
 {
-	vec3 n;
-
-	for(uint i=0; i<3; i++)
-		n[i] = vakMetas[ID].normaal[i];
-
+	vec3 	n 			= vakMetas[ID].normaal.xyz;
 	uint 	burenAantal = vakMetas[ID].burenAantal;
 	float 	stroming 	= 0.0f,
 			buurVocht	= 0.0f,
 			mijnVocht	= vakken0[ID].vocht,
 			buurLeven	= 0.0f;
-	vec3	buurNrml[6];
 	vec2 	snelheid 	= vec2(0.0f);
+	vec3	hier		= vakHoogte(ID, false);
 
+	//Ga de buur er telkens bijzoeken zodat we normalen kunnen berekenen en zo veel meer
 	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
 	{	
 		const uint 	buurID 		= vakMetas[ID].buren[buur],
@@ -37,35 +29,44 @@ void main()
 		for(uint buurBuur=0; buurBuur < buurBuren; buurBuur++)
 			if(vakMetas[buurID].buren[buurBuur] == ID)
 			{
-				for(uint i=0; i<3; i++)
-					buurNrml[buur][i] = vakMetas[buurID].normaal[i];
-
-				buurNrml[buur] = buurNrml[buur] - n;
-
 				float stroomWeg = vakken1[buurID].pijpen[buurBuur] 	- vakken1[ID].pijpen[buur];
 
 				stroming  += stroomWeg;
 				buurVocht += (vakken1[buurID].vocht - mijnVocht) / 6;
 				buurLeven += vakken1[buurID].leven;
 				snelheid  += vakMetas[ID].buurRicht[buur] * stroomWeg;
-				
 				break;
 			}
 	}
 
-	vakken1[ID].snelheid = snelheid;// / burenAantal;
-
+	//Dan tijd om het een ent ander weg te schrijven
+	vakken1[ID].snelheid 	= snelheid /= burenAantal;
 	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdamping);
 	vakken1[ID].vocht		= min(1.0, max(0.0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte)));
 
+	//het lekker laten regenen
 	if(dot(regenPlek, n) 	> 0.99)
 	{
 		vakken1[ID].waterHoogte += vakken1[ID].vocht;
 		vakken1[ID].vocht		 = 0.0f;
 	}
 
+	//laten we kijken of er iets veranderd moet worden aan de droesem
+	float 	helling = dot(n, berekenNormaal(ID, false, n));
+	//		helling	= sin(acos(helling));
+	float	droesemCapaciteit 	= (DROESEMHEID * helling * length(snelheid)),// * vakken0[ID].waterHoogte,
+			droesem 			=  droesemCapaciteit - vakken0[ID].droesem;
 
-	buurLeven /= burenAantal;
+				//   C > st
+	droesem *= droesem > 0 ? OPLOSHEID : BEZINKHEID;
+
+	//if(vakken0[ID].grondHoogte - droesem < 1) droesem = vakken0[ID].grondHoogte - 1.0;
+
+	vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte 	- droesem;
+	vakken1[ID].droesem	 	= vakken0[ID].droesem 		+ droesem;
+	
+	//hoop doet leven
+	buurLeven  /= burenAantal;
 	float leven = vakken0[ID].leven;
 
 	if(vakken1[ID].waterHoogte <= 0.05)		leven = max(0.001, min(vakken1[ID].vocht, max(leven * 1.001, leven + buurLeven * 0.3333)));

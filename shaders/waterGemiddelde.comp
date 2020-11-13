@@ -6,11 +6,6 @@ layout(local_size_x = 16) in;
 
 #include "planeetDefinities.glsl"
 
-uint buurID(uint buur)
-{
-	return vakMetas[ID].buren[buur];
-}
-
 // We hebben net in waterStroming.comp en waterDruk.comp naar vakken1 geschreven, dus de nieuwe stromingswaardes staan daar.
 // De zojuist berekende waterHoogtes ook. Maar waterSchijn, ofwel "gemiddelde" waterhoogte wordt hier bepaald.
 void main()

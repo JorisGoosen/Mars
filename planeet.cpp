@@ -93,12 +93,19 @@ void planeet::burenAlsEigenschapWijzers()
 
 		gaHetKlokjeRondMetDeBuren(i);
 
-		float wijstIeNaarBoven = dot(n, glm::vec3(0.0f, 1.0f, 0.0f));
-		const float vanafHier = 0.9, vanafDaar = 0.1, hoogte = 200;
-		float polig = abs(wijstIeNaarBoven);
+		if(false)
+		{
+			float wijstIeNaarBoven = dot(n, glm::vec3(0.0f, 1.0f, 0.0f));
+			const float vanafHier = 0.9, vanafDaar = 0.1, hoogte = 200;
+			float polig = abs(wijstIeNaarBoven);
 
-		if(polig > vanafHier)	_vakken[0][i].waterHoogte = hoogte * (polig - vanafHier) / (1.0f - 	vanafHier) ;
-		//if(wijstIeNaarBoven < vanafDaar)	_vakken[0][i].waterHoogte = hoogte * (wijstIeNaarBoven  			/ 			vanafDaar) ;
+			if(polig > vanafHier)	_vakken[0][i].waterHoogte = hoogte * (polig - vanafHier) / (1.0f - 	vanafHier) ;
+			//if(wijstIeNaarBoven < vanafDaar)	_vakken[0][i].waterHoogte = hoogte * (wijstIeNaarBoven  			/ 			vanafDaar) ;
+		}
+		else
+		{
+			_vakken[0][i].waterHoogte = 10.0f;
+		}
 	}	
 }
 
@@ -150,7 +157,7 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	}
 
 	vec3 	omhoog	= _vakMetas[ID].normaal.xyz(),
-			noord 	= buurNoord != -1 ? normalize(buren[buurNoord] -  midden) : vec3(1.0f, 0.0f, 0.0f),
+			noord 	= buurNoord != -1 ? normalize(normalize(buren[buurNoord]) -  normalize(midden)) : vec3(1.0f, 0.0f, 0.0f),
 			west	= cross(noord, omhoog);
 
 	//std::cout << "noord: " << noord << " west: " << west << " omhoog: " << omhoog << std::endl;

@@ -19,7 +19,9 @@ struct vak
 				waterHoogte	,
 				waterSchijn	,
 				vocht		,
+				ijs			,
 				leven		,
+				droesem		,
 				pijpen[6]	;
 	glm::vec2	snelheid	;
 };

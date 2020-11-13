@@ -49,7 +49,8 @@ int main()
 
 	bool 		roteerMaar 		= false,
 				waterStroomt	= false,
-				waterStap		= false;
+				waterStap		= false,
+				zonDraait		= false;
 
 	glm::vec3 	verplaatsing	(0.0f, 0.0f, -2.0f)	,
 				kijkPlek		(0.0f)				,
@@ -71,6 +72,7 @@ int main()
 			{
 			case GLFW_KEY_SPACE:	waterStroomt 	= !waterStroomt;	break;
 			case GLFW_KEY_R:		roteerMaar 		= !roteerMaar;		break;
+			case GLFW_KEY_Z:		zonDraait 		= !zonDraait;		break;
 			}
 
 		switch(key)
@@ -130,12 +132,15 @@ int main()
 
 		kijkPlek = verplaatsing;//glm::vec3(0.0f, 0.0f, -1.0f);;//glm::mat3(scherm.modelView()) * -verplaatsing;
 
+		if(zonDraait)
+			zonRot.x += 0.03333;
+
 		glm::mat4 zonRoteerder = 
 			glm::rotate(
 				glm::rotate(
 					//scherm.modelView(),
 					glm::mat4(1.0f),
-					zonRot.x += 0.002,
+					zonRot.x,
 					glm::vec3(0.0f, 1.0f, 0.0f)
 				),
 				zonRot.y, // += 0.02,
