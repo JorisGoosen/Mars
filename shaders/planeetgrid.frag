@@ -42,11 +42,14 @@ void main()
 	}
 	else
 	{
-		
-		
 		float lichtheid 	= diffuus <= 0.0f || dot(lichtRicht, normalize(mijnPlek)) >= 0.0f ? 0.0f : pow(max(0.0f, dot(lichtSpiegel,  normalize(kijkPlek - mijnPlek))), 40) * 0.8f;
 
-		kleur = mix(vec4(fs_in.kleur.xyz * max(0.2, diffuus), fs_in.kleur.a), vec4(vec3(1.0), fs_in.kleur.a), lichtheid) * vec4(1, 1, 1, 0.85);
+		float sn = length(fs_in.snelheid);
+		vec2  nn = fs_in.snelheid / sn;
+		float hk = atan(nn.y, nn.x);
+
+		//kleur = mix(vec4(fs_in.kleur.xyz * max(0.2, diffuus), fs_in.kleur.a), vec4(vec3(1.0), fs_in.kleur.a), lichtheid) * vec4(1, 1, 1, 0.85);
+		kleur = vec4((0.5 + 0.5 * sin(hk)), (0.5 + 0.5 * cos(hk)), sn, 1.0);
 		kleur.a = max(kleur.a, lichtheid);
 	}
 

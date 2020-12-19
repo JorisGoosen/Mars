@@ -18,6 +18,4 @@ void main()
 		waterSchijn += vakken1[buurID(buur)].waterHoogte;
 
 	vakken1[ID].waterSchijn = waterSchijn / (burenAantal + 1);
-
-
 }

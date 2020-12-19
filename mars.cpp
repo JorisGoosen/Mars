@@ -42,7 +42,7 @@ int main()
 				val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(03.0f)) * 0.6f;
 				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(02.0f)) * 0.8f;
 				val	+= 1.0f;
-				//val *= 0.5f;
+				val *= 0.5f;
 		
 		 return (val > 0.0f ? pow( val, 0.666f) * 0.1833f : 0.0f) - 0.5f; 
 	});
