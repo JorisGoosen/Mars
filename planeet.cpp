@@ -104,8 +104,9 @@ void planeet::burenAlsEigenschapWijzers()
 		}
 		else
 		{
-			_vakken[0][i].waterHoogte 	= 0.0f;
-			_vakken[0][i].vocht			= 30.0f;
+			_vakken[0][i].waterHoogte 	= 10.0f;
+			_vakken[0][i].vocht			= 20.0f;
+			_vakken[0][i].droesem		= 0.0f;
 		}
 	}	
 }
@@ -143,7 +144,7 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	vector<sorteerDit> sorteerDeze;
 
 	//Bepaal de buur die het meeste naar het noorden ligt, gaan we vanaf daar buren bepalen
-	vec3 	noordPool 	= vec3(0, 2, 0);
+	vec3 	noordPool 	= vec3(0, 1, 0);
 	float 	meestNoord	= length(noordPool - midden);
 	int		buurNoord	= -1; //oftwel midden
 
@@ -159,7 +160,7 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	}
 
 	vec3 	omhoog	= _vakMetas[ID].normaal.xyz(),
-			noord 	= buurNoord != -1 ? normalize(buren[buurNoord] -  midden) : vec3(1.0f, 0.0f, 0.0f),
+			noord 	= buurNoord != -1 ? normalize(buren[buurNoord] -  midden) : vec3(0.0f, 1.0f, 0.0f),
 			west	= cross(noord, omhoog);
 
 //	std::cout << "noord: " << noord << "\twest: " << west << "\tomhoog: " << omhoog << std::endl;

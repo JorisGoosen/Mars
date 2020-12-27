@@ -61,7 +61,7 @@ void main()
 	float lokaalWater	= vakken0[ID].waterHoogte > waterSchaler ? 1.0 : vakken0[ID].waterHoogte / waterSchaler;
 	tc_in.grondHoogte	= vakken0[ID].grondHoogte;
 
-	if(grondNietWater == 0)	tc_in.kleur	= vec4(0.0, 0.0, 0.4, 0.3 + (lokaalWater * 0.7));
+	if(grondNietWater == 0)	tc_in.kleur	= vec4(0.0, 0.0, 0.4, 0.3 + (lokaalWater * 0.5));
 	else					tc_in.kleur = grondKleur; 
 	
 	//Niet posV aanroepen zorgt er op een of andere manier voor dat de shader niet werkt...

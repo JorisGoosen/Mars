@@ -61,7 +61,7 @@ int main()
 
 	float		grondMult		= 100.0,
 				grondSchaal		= 0.3,
-				verdamping		= 0.001;
+				verdamping		= 0.002;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{

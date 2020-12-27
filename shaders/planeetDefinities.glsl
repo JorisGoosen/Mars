@@ -9,9 +9,9 @@
 #define ZWAARTEKRACHT 	0.8
 #define PIJP_DOORSNEE 	0.75
 #define PIJP_LENGTE		1.0
-#define OPLOSHEID		0.005
-#define BEZINKHEID		0.001
-#define DROESEMHEID		0.1
+#define OPLOSHEID		0.1
+#define BEZINKHEID		0.05
+#define DROESEMHEID		0.3
 
 struct vak
 {
@@ -55,7 +55,7 @@ uint buurID(uint buur)
 
 float hoogteBuur(uint id, bool water)
 {
-	return vakken0[id].grondHoogte + (!water ? 0.0f : ( vakken0[id].waterSchijn  /*+ vakken0[id].droesem*/ ) * WATERMULT);
+	return vakken0[id].grondHoogte + (!water ? 0.0f : ( vakken0[id].waterSchijn ) * WATERMULT);
 }
 
 float vakHoogte(uint id, bool water)

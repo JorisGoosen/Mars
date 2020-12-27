@@ -37,8 +37,7 @@ void main()
 
 	if(grondNietWater == 1)
 	{	
-		kleur 	= mix(fs_in.kleur, vec4(0.0, 0.35, 0.0, 1.0), fs_in.leven) * max(0.2, diffuus);// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
-		
+		kleur 	= mix(fs_in.kleur, vec4(0.0, 0.35, 0.0, 1.0), 0.0 /*fs_in.leven*/) * max(0.2, diffuus);// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
 	}
 	else
 	{
@@ -48,8 +47,9 @@ void main()
 		vec2  nn = fs_in.snelheid / sn;
 		float hk = atan(nn.y, nn.x);
 
-		//kleur = mix(vec4(fs_in.kleur.xyz * max(0.2, diffuus), fs_in.kleur.a), vec4(vec3(1.0), fs_in.kleur.a), lichtheid) * vec4(1, 1, 1, 0.85);
-		kleur = vec4((0.5 + 0.5 * sin(hk)), (0.5 + 0.5 * cos(hk)), sn, 1.0);
+		kleur = mix(vec4(fs_in.kleur.xyz * max(0.2, diffuus), fs_in.kleur.a), vec4(vec3(1.0), fs_in.kleur.a), lichtheid) * vec4(1, 1, 1, 0.85);
+		//kleur = vec4(sn, abs(sn * sin(hk)), abs(sn * cos(hk)), 1.0);
+		//kleur= vec4(sn, sn, hk / 3.142, 1.0);
 		kleur.a = max(kleur.a, lichtheid);
 	}
 

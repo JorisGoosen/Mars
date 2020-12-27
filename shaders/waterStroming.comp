@@ -22,7 +22,6 @@ void main()
 		uint 	buurID 	= vakMetas[ID].buren[buur];
 		float 	flux 	= max(0, vakken0[ID].pijpen[buur] + (TIJD_VERSCHIL * PIJP_DOORSNEE * ( ( ZWAARTEKRACHT * hoogteverschil(buurID) ) / PIJP_LENGTE ) ) );
 
-
 		vakken1[ID].pijpen[buur] = flux; 
 		fluxen += flux;
 	}
@@ -33,5 +32,4 @@ void main()
 
 	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
 		vakken1[ID].pijpen[buur] = K * vakken1[ID].pijpen[buur];
-
 }
