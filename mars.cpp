@@ -31,18 +31,18 @@ int main()
 //	std::uniform_real_distribution<> dis(0.0, 1.0);
 
 	perlinRuis ruisje0, ruisje1;
-	planeet geo(7, [&](glm::vec3 plek)
+	planeet geo(8, [&](glm::vec3 plek)
 	{
 		//plek *= 0.5;//0.25f;
 
 		//plek *= 2;
 
-		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 1.0f)) * 0.2;// * 0.5; 
-		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 3.0f)) * 0.2;// * 0.6f;
+		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 1.0f)) * 0.3;// * 0.5; 
+		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 3.0f)) * 0.3;// * 0.6f;
 				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 5.0f)) * 0.2;// * 0.5f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.2;// * 0.35f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.1;// * 0.35f;
 		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.2;// * 0.225f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.2;// * 0.1625f; 
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.3;// * 0.1625f; 
 				
 				val *= 0.1f;
 
@@ -65,7 +65,7 @@ int main()
 
 	float		grondMult		= 100.0,
 				grondSchaal		= 0.3,
-				verdamping		= 0.00;
+				verdamping		= 0.01;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{

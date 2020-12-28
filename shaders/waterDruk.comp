@@ -65,7 +65,7 @@ void main()
 	//het lekker laten regenen
 	if( regen > 0.96)
 	{
-		const float minderVocht = 0.03333;
+		const float minderVocht = 0.3333;
 		vakken1[ID].waterHoogte += vakken1[ID].vocht * minderVocht;
 		vakken1[ID].vocht		*= 1.0 - minderVocht;
 	}
@@ -104,29 +104,31 @@ void main()
 
 	//vakken1[ID].droesem	 =	 droesemAangespoeld;
 
-	vakken1[ID].grondHoogte = vakken0[ID].grondHoogte;
+	//vakken1[ID].grondHoogte = vakken0[ID].grondHoogte;
 
-	if(vakken1[ID].waterHoogte <= 0.00001)
+	if(vakken1[ID].waterHoogte <= ZEER_KLEIN)
 		droesemAangespoeld = 0;
 
 	if(isnan(droesemCapaciteit) || isinf(droesemCapaciteit))
 		droesemCapaciteit = 0;
 
 	droesem  = droesemAangespoeld - droesemCapaciteit;
-	droesem	*= BEZINKHEID;
+	
 
 	if(isnan(droesem) || isinf(droesem))
 		droesem = droesemAangespoeld;
 
 	//if(vakken1[ID].waterHoogte <= 0.00001 && droesemAangespoeld > 0)
-	if(droesem >= 0)
+	if(abs(droesem) > ZEER_KLEIN)
 	{
+		droesem	*= droesem > 0 ? BEZINKHEID : OPLOSHEID;
+
 		vakken1[ID].droesem 	= droesemAangespoeld - droesem;
 		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + (droesem * WATERMULT);
 	}
 	else
 	{
-		vakken1[ID].droesem 	= droesemAangespoeld;
+		vakken1[ID].droesem 	= 0;
 		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte;
 	}
 	

@@ -5,14 +5,24 @@
 #define GS_IJS		4
 #define GS_LOESS	5
 
+
+uniform float 	grondSchaal;
+uniform float 	grondMult;
+uniform float	verdamping;
+uniform vec3	regenPlek;
+
+
+#define WATERMULT (1.0 / grondMult)
+
 #define TIJD_VERSCHIL 	0.1
 #define ZWAARTEKRACHT 	0.8
 #define PIJP_DOORSNEE 	0.5
 #define PIJP_LENGTE		1.0
-#define OPLOSHEID		0.2
+#define OPLOSHEID		0.1
 #define BEZINKHEID		0.001
-#define DROESEMHEID		1.0
-#define VERTRAGER		(1.0 / 2.0)
+#define DROESEMHEID		(10.0 * WATERMULT)
+#define VERTRAGER		(1.0 / 4.0)
+#define ZEER_KLEIN		0.0001
 
 struct vak
 {
@@ -41,13 +51,6 @@ layout(std430, binding = 0) buffer	pingVak { vak 		vakken0	[]; };
 layout(std430, binding = 1) buffer	pongVak { vak 		vakken1	[]; };
 layout(std430, binding = 2) buffer	vakInfo	{ vakMetasS	vakMetas[];	};
 
-uniform float 	grondSchaal;
-uniform float 	grondMult;
-uniform float	verdamping;
-uniform vec3	regenPlek;
-
-
-#define WATERMULT (1.0 / grondMult)
 
 uint buurID(uint buur)
 {

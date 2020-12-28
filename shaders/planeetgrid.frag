@@ -22,7 +22,7 @@ uniform vec3 		zonPos;
 
 void main()
 {
-	if(grondNietWater == 0 && fs_in.waterHoogte < 0.125) discard;
+	if(grondNietWater == 0 && fs_in.waterHoogte < 0.5) discard;
 
 	//Naadloos tex is op basis van in vertshader genoemd algoritme door Tarini
 	vec2 naadloosTex = vec2(fwidth(fs_in.tex.y) <= fwidth(fs_in.tex.z) + 0.000001 ? fs_in.tex.y : fs_in.tex.z, fs_in.tex.x);
