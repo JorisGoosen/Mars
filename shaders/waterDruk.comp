@@ -80,9 +80,9 @@ void main()
 	//droesemWeg 	*= PIJP_LENGTE;
 
 	//laten we kijken of er iets veranderd moet worden aan de droesem
-	float 	helling = 1.0f - dot(n, berekenNormaal(ID, true));
+	float 	helling = max(0.2, (1.0f - dot(n, berekenNormaal(ID, true))));
 			//helling	= sin(acos(helling));
-	float	droesemCapaciteit 	= max(0.0, vakken0[ID].waterHoogte * (DROESEMHEID * helling * length(snelheid))), 
+	float	droesemCapaciteit 	= max(0.0, vakken0[ID].waterHoogte * (DROESEMHEID * helling * min(1.0, length(snelheid) * VERTRAGER))), 
 			droesemAangespoeld 	= droesem + vakken0[ID].droesem;//* min(1.0, vakken0[ID].waterSchijn * WATERMULT); // * vakken0[ID].waterHoogte,
 	
 	droesem = droesemCapaciteit - droesemAangespoeld;
@@ -91,7 +91,7 @@ void main()
 	droesem *= droesem > 0 ? OPLOSHEID : BEZINKHEID;
 
 	
-
+	droesem =  0;//
 	//droesem = sign(droesem) * max(0.0, min(1.0, abs(droesem)));
 
 	//droesem *= ;
@@ -100,8 +100,10 @@ void main()
 	//if(vakken0[ID].grondHoogte - droesem < minHoogte) 
 	//	droesem = vakken0[ID].grondHoogte - minHoogte;
 
-	vakken1[ID].grondHoogte	= /*max(minHoogte,*/ vakken0[ID].grondHoogte 	- (droesem * WATERMULT); //);
+	//vakken1[ID].grondHoogte	= /*max(minHoogte,*/ vakken0[ID].grondHoogte 	- (droesem * WATERMULT) ; //);
 	vakken1[ID].droesem	 	=					 droesemAangespoeld			+ droesem ;
+
+	//if(vakken1[ID].waterHoogte <= 0.00001 && vakken1[ID].droesem > 
 	
 	//hoop doet leven
 	buurLeven  /= burenAantal;

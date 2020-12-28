@@ -35,7 +35,7 @@ void planeet::bouwPlaneet()
 	burenAlsEigenschapWijzers();
 
 	//Strijk de boel glad
-	for(size_t zoVaak = 15; zoVaak > 0; zoVaak--)
+	for(size_t zoVaak = 0; zoVaak < 3; zoVaak++)
 		browniaansLand();
 	
 	//Nu nog twee buffers toevoegen waarin ik kan gaan rekenen en als punteigenschapwijzers kan gebruiken.
@@ -106,7 +106,7 @@ void planeet::burenAlsEigenschapWijzers()
 		{
 			_vakken[0][i].waterHoogte 	= 10.0f;
 			_vakken[0][i].vocht			= 20.0f;
-			_vakken[0][i].droesem		= 0.0f;
+			_vakken[0][i].droesem		=  0.1f;
 		}
 	}	
 }

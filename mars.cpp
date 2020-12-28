@@ -33,18 +33,22 @@ int main()
 	perlinRuis ruisje0, ruisje1;
 	planeet geo(7, [&](glm::vec3 plek)
 	{
-		//plek *= 0.5f;
+		//plek *= 0.5;//0.25f;
 
-		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(07.0f)) * 0.5; 
-		 		val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.35f;
-		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(17.0f)) * 0.225f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(23.0f)) * 0.1625f; 
-				val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(03.0f)) * 0.6f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(02.0f)) * 0.8f;
+		plek *= 2;
+
+		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 1.0f)) * 0.2;// * 0.5; 
+		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 3.0f)) * 0.2;// * 0.6f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 5.0f)) * 0.2;// * 0.5f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.2;// * 0.35f;
+		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.2;// * 0.225f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.2;// * 0.1625f; 
+				
+				val *= 0.1f;
+
 				val	+= 1.0f;
-				val *= 0.5f;
 		
-		 return (val > 0.0f ? pow( val, 0.666f) * 0.1833f : 0.0f) - 0.5f; 
+		 return val;// * 0.3;//((val > 0.0f ? pow( val, 0.3333f) : 0.0f) - 0.5f) * 0.5; 
 	});
 
 	bool 		roteerMaar 		= false,
@@ -61,7 +65,7 @@ int main()
 
 	float		grondMult		= 100.0,
 				grondSchaal		= 0.3,
-				verdamping		= 0.002;
+				verdamping		= 0.00333;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -153,7 +157,7 @@ int main()
 
 		static size_t regenRot = 0;
 
-		if(regenRot ++ % 20 == 0)	
+		if(regenRot ++ % 10 == 0)	
 			regenPlek = glm::normalize(willekeurigeVec3());
 
 		
