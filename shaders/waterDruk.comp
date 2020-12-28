@@ -82,16 +82,15 @@ void main()
 	//laten we kijken of er iets veranderd moet worden aan de droesem
 	float 	helling = max(0.2, (1.0f - dot(n, berekenNormaal(ID, true))));
 			//helling	= sin(acos(helling));
-	float	droesemCapaciteit 	= max(0.0, vakken0[ID].waterHoogte * (DROESEMHEID * helling * min(1.0, length(snelheid) * VERTRAGER))), 
+	float	droesemCapaciteit 	= vakken0[ID].waterHoogte * DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER),//max(0.0, vakken0[ID].waterHoogte * (DROESEMHEID * helling)),// * min(1.0, length(snelheid) * VERTRAGER))), 
 			droesemAangespoeld 	= droesem + vakken0[ID].droesem;//* min(1.0, vakken0[ID].waterSchijn * WATERMULT); // * vakken0[ID].waterHoogte,
 	
-	droesem = droesemCapaciteit - droesemAangespoeld;
+	//droesem = droesemCapaciteit - droesemAangespoeld;
 
 				//   C > st
-	droesem *= droesem > 0 ? OPLOSHEID : BEZINKHEID;
+	//droesem *= droesem > 0 ? OPLOSHEID : BEZINKHEID;
 
 	
-	droesem =  0;//
 	//droesem = sign(droesem) * max(0.0, min(1.0, abs(droesem)));
 
 	//droesem *= ;
@@ -101,9 +100,35 @@ void main()
 	//	droesem = vakken0[ID].grondHoogte - minHoogte;
 
 	//vakken1[ID].grondHoogte	= /*max(minHoogte,*/ vakken0[ID].grondHoogte 	- (droesem * WATERMULT) ; //);
-	vakken1[ID].droesem	 	=					 droesemAangespoeld			+ droesem ;
+	//vakken1[ID].droesem	 	=					 droesemAangespoeld			+ droesem ;
 
-	//if(vakken1[ID].waterHoogte <= 0.00001 && vakken1[ID].droesem > 
+	//vakken1[ID].droesem	 =	 droesemAangespoeld;
+
+	vakken1[ID].grondHoogte = vakken0[ID].grondHoogte;
+
+	if(vakken1[ID].waterHoogte <= 0.00001)
+		droesemAangespoeld = 0;
+
+	if(isnan(droesemCapaciteit) || isinf(droesemCapaciteit))
+		droesemCapaciteit = 0;
+
+	droesem  = droesemAangespoeld - droesemCapaciteit;
+	droesem	*= BEZINKHEID;
+
+	if(isnan(droesem) || isinf(droesem))
+		droesem = droesemAangespoeld;
+
+	//if(vakken1[ID].waterHoogte <= 0.00001 && droesemAangespoeld > 0)
+	if(droesem >= 0)
+	{
+		vakken1[ID].droesem 	= droesemAangespoeld - droesem;
+		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + (droesem * WATERMULT);
+	}
+	else
+	{
+		vakken1[ID].droesem 	= droesemAangespoeld;
+		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte;
+	}
 	
 	//hoop doet leven
 	buurLeven  /= burenAantal;

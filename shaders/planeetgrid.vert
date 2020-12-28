@@ -62,7 +62,7 @@ void main()
 	tc_in.grondHoogte	= vakken0[ID].grondHoogte;
 
 	if(grondNietWater == 0)	//tc_in.kleur	= vec4(0.0, 0.0, 0.4, 0.3 + (lokaalWater * 0.5));
-		tc_in.kleur = 	vec4(vakken0[ID].droesem, length(vakken0[ID].snelheid) * VERTRAGER, 0.4, 0.3 + (lokaalWater * 0.7));
+		tc_in.kleur = 	vec4(vakken0[ID].droesem / (DROESEMHEID * vakken0[ID].waterHoogte), length(vakken0[ID].snelheid) * VERTRAGER, 0.4, 0.3 + (lokaalWater * 0.7));
 	else						tc_in.kleur = grondKleur; 
 	/*tc_in.kleur = 	vec4((1.0f - dot(vakMetas[ID].normaal.xyz, berekenNormaal(ID, true))), length(vakken0[ID].snelheid) * VERTRAGER, float(1 - grondNietWater) * 0.4, 1.0);
 	if(grondNietWater == 0)

@@ -35,7 +35,7 @@ int main()
 	{
 		//plek *= 0.5;//0.25f;
 
-		plek *= 2;
+		//plek *= 2;
 
 		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 1.0f)) * 0.2;// * 0.5; 
 		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 3.0f)) * 0.2;// * 0.6f;
@@ -52,7 +52,7 @@ int main()
 	});
 
 	bool 		roteerMaar 		= false,
-				waterStroomt	= true,
+				waterStroomt	= false,
 				waterStap		= false,
 				zonDraait		= false;
 
@@ -65,7 +65,7 @@ int main()
 
 	float		grondMult		= 100.0,
 				grondSchaal		= 0.3,
-				verdamping		= 0.00333;
+				verdamping		= 0.00;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -90,8 +90,8 @@ int main()
 		case GLFW_KEY_ENTER:					waterStap 		= true;																			break;
 		case GLFW_KEY_SEMICOLON:				grondMult 		= glm::max(1.0f, grondMult * 0.9f);												break;
 		case GLFW_KEY_APOSTROPHE:				grondMult 		= glm::max(1.0f, grondMult * 1.1f);												break;
-		case GLFW_KEY_K:						verdamping 		= glm::max(0.0f, verdamping - 0.1f);											break;
-		case GLFW_KEY_L:						verdamping 		= glm::max(0.0f, verdamping + 0.1f);											break;
+		case GLFW_KEY_K:						verdamping 		= glm::max(0.0f, verdamping - 0.002f);											break;
+		case GLFW_KEY_L:						verdamping 		= glm::max(0.0f, verdamping + 0.002f);											break;
 		}	
 	};
 

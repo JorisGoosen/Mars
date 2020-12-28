@@ -10,7 +10,7 @@
 #define PIJP_DOORSNEE 	0.5
 #define PIJP_LENGTE		1.0
 #define OPLOSHEID		0.2
-#define BEZINKHEID		0.1
+#define BEZINKHEID		0.001
 #define DROESEMHEID		1.0
 #define VERTRAGER		(1.0 / 2.0)
 
