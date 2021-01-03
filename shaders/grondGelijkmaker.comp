@@ -11,31 +11,44 @@ layout(local_size_x = 16) in;
 //Per buur kijken we naar het verschil, is het groter dan een bepaald maximum dan nemen we een gedeelte en verplaatsen het naar beneden
 //Maar dan moet natuurlijk exact dezelfde hoeveelheid bij de hogere worden weggehaald.
 
-#define MAX_GROND_VERSCHIL 	(WATERMULT * 4.0)
+#define MAX_GROND_VERSCHIL 	0.000001 //(WATERMULT * 1.0)
 #define GROND_VERZET		0.5
 
 void main()
 {
+	vakken1[ID].grondSoort  = vakken0[ID].grondSoort;
+	vakken1[ID].grondHoogte = vakken0[ID].grondHoogte;
 
-	uint 	burenAantal = vakMetas[ID].burenAantal;
-	float 	lokaal 		= vakken0[ID].grondHoogte;
+	uint 		burenAantal = vakMetas[ID].burenAantal;
+	float 		lokaal 		= vakken0[ID].grondHoogte,
+				lokaalV		= 0;
+	const bool 	isZand		= vakken0[ID].grondSoort == GS_ZAND;
 
-	if(isnan(lokaal)) lokaal = 0;
+	if(isnan(lokaal)) 
+		lokaal = MIN_GRONDHOOGTE;
 
 	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
+		if(vakken0[buurID(buur)].grondSoort == GS_ZAND)
+		{
+			float verschil = vakken0[buurID(buur)].grondHoogte;
+
+			if(isnan(verschil))
+				verschil = MIN_GRONDHOOGTE;
+
+			if(verschil > lokaal || isZand) //Alleen weghalen uit midden als het zand is.
+			{
+				verschil = verschil - lokaal;
+			
+				if(abs(verschil) > MAX_GROND_VERSCHIL)
+					lokaalV += verschil * GROND_VERZET;
+			}
+		}
+
+	if(isZand || lokaalV > 0)
 	{
-		float verschil = vakken0[buurID(buur)].grondHoogte;
+		vakken1[ID].grondHoogte = clamp(lokaal + lokaalV, MIN_GRONDHOOGTE, MAX_GRONDHOOGTE);
 
-		if(isnan(verschil))
-			verschil = 0;
-
-		verschil -= lokaal;
-
-		if(abs(verschil) > MAX_GROND_VERSCHIL)
-			lokaal += verschil * GROND_VERZET;
-	}
-
-	vakken1[ID].grondHoogte = clamp(lokaal, MIN_GRONDHOOGTE, MAX_GRONDHOOGTE);
-
-
+		if(lokaalV > TOON_SEDIMENT)
+			vakken1[ID].grondSoort = GS_ZAND;
+	}	
 }

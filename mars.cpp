@@ -193,19 +193,19 @@ int main()
 			verdraaiing -= draaisnelheid;
 
 
-		glMemoryBarrier(GL_ALL_BARRIER_BITS);
-		geo.volgendeRonde();
-		scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	
-		geo.volgendeRonde();
-		glMemoryBarrier(GL_ALL_BARRIER_BITS);
-
 		if(waterStroomt || waterStap)
 		{
 			geo.volgendeRonde();
-			scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-			scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-			scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+			scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+			scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+			scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 			waterStap = false;
 		}
+
+		geo.volgendeRonde();
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+		scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	
+		geo.volgendeRonde();
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 	}
 }

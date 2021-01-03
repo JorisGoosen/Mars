@@ -72,7 +72,7 @@ void main()
 		else if(regen < -0.99)
 			leven = max(0.00001, leven);
 	}
-	
+
 	//droesem -= droesemWeg;
 
 	//const float vertraging = 0.01;
@@ -124,7 +124,9 @@ void main()
 	{
 		vakken1[ID].droesem 	= 0;
 		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + droesemAangespoeld;
-		vakken1[ID].grondSoort  = GS_ZAND;
+
+		if(droesemAangespoeld > TOON_SEDIMENT)
+			vakken1[ID].grondSoort  = GS_ZAND;
 	}
 	else if(abs(droesem) > ZEER_KLEIN)
 	{
@@ -135,6 +137,9 @@ void main()
 
 		vakken1[ID].droesem 	= droesemAangespoeld      - droesem;
 		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + droesem;
+
+		if(droesem > TOON_SEDIMENT)
+			vakken1[ID].grondSoort  = GS_ZAND;
 	}
 	else
 	{
