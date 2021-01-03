@@ -44,8 +44,8 @@ void main()
 						and	= stroomBinnen >=  0	? buurID : ID;
 
 
-				//if(vakken0[and].waterHoogte > ZEER_KLEIN)
-					droesem		+=  sign(stroomBinnen) * clamp(abs((stroomBinnen / PIJP_LENGTE) / max(1, vakken0[and].waterHoogte)), 0., 1.) * vakken0[and].droesem;
+				if(vakken0[and].waterHoogte > MIN_WATER_SED && abs(stroomBinnen) > ZEER_KLEIN)
+					droesem		+=  sign(stroomBinnen) * clamp(abs((stroomBinnen / PIJP_LENGTE) / max(1, vakken0[and].waterHoogte)), 0., 1.) * max(0, vakken0[and].droesem);
 
 				break;
 			}
@@ -57,13 +57,6 @@ void main()
 	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdamping);
 	vakken1[ID].vocht		= min(1.0, max(0.0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte)));
 
-	//droesem -= droesemWeg;
-
-	//const float vertraging = 0.01;
-
-	//droesem 	*= vertraging;//
-	//droesemWeg 	*= PIJP_LENGTE;
-
 	if(isnan(droesem) || isinf(droesem))
 		droesem = 0;
 
@@ -73,27 +66,6 @@ void main()
 	float	droesemCapaciteit 	= max(1, vakken0[ID].waterHoogte) * DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER),// * helling,//max(0.0, vakken0[ID].waterHoogte * (DROESEMHEID * helling)),// * min(1.0, length(snelheid) * VERTRAGER))), 
 			droesemAangespoeld 	= droesem + vakken0[ID].droesem;//* min(1.0, vakken0[ID].waterSchijn * WATERMULT); // * vakken0[ID].waterHoogte,
 	
-	//droesem = droesemCapaciteit - droesemAangespoeld;
-
-				//   C > st
-	//droesem *= droesem > 0 ? OPLOSHEID : BEZINKHEID;
-
-	
-	//droesem = sign(droesem) * max(0.0, min(1.0, abs(droesem)));
-
-	//droesem *= ;
-
-	//const float minHoogte = 0.001;
-	//if(vakken0[ID].grondHoogte - droesem < minHoogte) 
-	//	droesem = vakken0[ID].grondHoogte - minHoogte;
-
-	//vakken1[ID].grondHoogte	= /*max(minHoogte,*/ vakken0[ID].grondHoogte 	- (droesem * WATERMULT) ; //);
-	//vakken1[ID].droesem	 	=					 droesemAangespoeld			+ droesem ;
-
-	//vakken1[ID].droesem	 =	 droesemAangespoeld;
-
-	//vakken1[ID].grondHoogte = vakken0[ID].grondHoogte;
-
 	if(isnan(droesemCapaciteit) || isinf(droesemCapaciteit))
 		droesemCapaciteit = 0;
 
@@ -154,7 +126,7 @@ void main()
 		//het lekker laten regenen
 		if( regen > 0.98)
 		{
-			const float minWaterErbij = MIN_WATER_SED * 0.5,
+			const float minWaterErbij = MIN_WATER_SED * 0.1,
 						minderVochtig = minWaterErbij;// vakken1[ID].vocht > minWaterErbij ? max(minWaterErbij, 0.1 * vakken1[ID].vocht) : 0;
 
 			vakken1[ID].waterHoogte += minderVochtig;
