@@ -63,7 +63,7 @@ void main()
 	//laten we kijken of er iets veranderd moet worden aan de droesem
 	float 	helling = max(0.1, (1.0f - dot(n, berekenNormaal(ID, true))));
 			//helling	= sin(acos(helling));
-	float	droesemCapaciteit 	= max(1, vakken0[ID].waterHoogte) * DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER), // * helling,
+	float	droesemCapaciteit 	= max(1, vakken0[ID].waterHoogte) * DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER) * helling,
 			droesemAangespoeld 	= droesem + vakken0[ID].droesem;
 	
 	if(isnan(droesemCapaciteit) || isinf(droesemCapaciteit))
@@ -121,18 +121,18 @@ void main()
 	float 	leven = vakken0[ID].leven,
 			regen = dot(regenPlek, n);
 
-	if(true)
+	if(length(regenPlek) > 0 && true)
 	{
 		//het lekker laten regenen
-		if( regen > 0.98)
+		if(abs(regen) > 0.98)
 		{
-			const float minWaterErbij = 0.1,
+			const float minWaterErbij = 0.03,
 						minderVochtig = minWaterErbij;// vakken1[ID].vocht > minWaterErbij ? max(minWaterErbij, 0.1 * vakken1[ID].vocht) : 0;
 
 			vakken1[ID].waterHoogte += minderVochtig;
 			vakken1[ID].vocht		-= minderVochtig;
 		}
-		else if(regen < -0.99)
+		else if(abs(regen) < 0.001)
 			leven = max(0.00001, leven);
 	}
 	

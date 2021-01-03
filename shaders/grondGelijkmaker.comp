@@ -11,7 +11,7 @@ layout(local_size_x = 16) in;
 //Per buur kijken we naar het verschil, is het groter dan een bepaald maximum dan nemen we een gedeelte en verplaatsen het naar beneden
 //Maar dan moet natuurlijk exact dezelfde hoeveelheid bij de hogere worden weggehaald.
 
-#define MAX_GROND_VERSCHIL 	1.0
+#define MAX_GROND_VERSCHIL 	0.66666
 #define GROND_VERZET		0.1
 
 void main()

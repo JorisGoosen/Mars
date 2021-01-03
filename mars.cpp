@@ -56,7 +56,7 @@ int main()
 		 return val;// * 0.3;//((val > 0.0f ? pow( val, 0.3333f) : 0.0f) - 0.5f) * 0.5; 
 	});
 
-	bool 		roteerMaar 		= false,
+	bool 		roteerMaar 		= true,
 				waterStroomt	= true,
 				waterStap		= false,
 				zonDraait		= false,
@@ -70,7 +70,7 @@ int main()
 				draaisnelheid	(0.01, 0.0)			;
 
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.004;
+				verdamping		= 0.002;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -163,9 +163,9 @@ int main()
 
 		static size_t regenRot = 0;
 
-		if(false)
-			regenPlek = glm::vec3(0, 0, 1);
-		else if(regenRot ++ % 10 == 0)	
+		if(true)
+			regenPlek = glm::vec3(0, 1, 0);
+		else if(regenRot ++ % 60 == 0)	
 			regenPlek = glm::normalize(willekeurigeVec3());
 
 		

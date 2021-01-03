@@ -15,14 +15,14 @@ uniform vec3	regenPlek;
 #define ZWAARTEKRACHT 	0.8
 #define PIJP_DOORSNEE 	0.5
 #define PIJP_LENGTE		1.0
-#define OPLOSHEID		0.8
-#define BEZINKHEID		0.1
+#define OPLOSHEID		1.0
+#define BEZINKHEID		0.05
 #define DROESEMHEID		1.0
 #define VERTRAGER		(1.0 / 3.5)
 #define ZEER_KLEIN		0.0001
 #define MIN_GRONDHOOGTE	10.0
 #define MAX_GRONDHOOGTE	200.0
-#define TOON_SEDIMENT	(BEZINKHEID * 0.15) //Boven deze waarde wordt grondSoort zand
+#define TOON_SEDIMENT	0.01 //Boven deze waarde wordt grondSoort zand
 #define MIN_WATER_SED	0.1
 
 struct vak
