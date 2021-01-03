@@ -17,6 +17,7 @@ int main()
 	scherm.maakRekenShader(	"waterDruk", 		"shaders/waterDruk.comp"											);
 	scherm.maakRekenShader(	"waterStroming", 	"shaders/waterStroming.comp"										);
 	scherm.maakRekenShader(	"waterGemiddelde", 	"shaders/waterGemiddelde.comp"										);
+	scherm.maakRekenShader(	"grondGelijkmaker", "shaders/grondGelijkmaker.comp"										);
 
 	glClearColor(0,0,0,1);
 
@@ -31,7 +32,7 @@ int main()
 //	std::uniform_real_distribution<> dis(0.0, 1.0);
 
 	perlinRuis ruisje0, ruisje1;
-	planeet geo(8, [&](glm::vec3 plek)
+	planeet geo(7, [&](glm::vec3 plek)
 	{
 		//plek *= 0.5;//0.25f;
 
@@ -54,7 +55,8 @@ int main()
 	bool 		roteerMaar 		= false,
 				waterStroomt	= false,
 				waterStap		= false,
-				zonDraait		= false;
+				zonDraait		= false,
+				tekenWater		= true;
 
 	glm::vec3 	verplaatsing	(0.0f, 0.0f, -2.0f)	,
 				kijkPlek		(0.0f)				,
@@ -77,6 +79,7 @@ int main()
 			case GLFW_KEY_SPACE:	waterStroomt 	= !waterStroomt;	break;
 			case GLFW_KEY_R:		roteerMaar 		= !roteerMaar;		break;
 			case GLFW_KEY_Z:		zonDraait 		= !zonDraait;		break;
+			case GLFW_KEY_X:		tekenWater 		= !tekenWater;		break;
 			}
 
 		switch(key)
@@ -137,7 +140,7 @@ int main()
 		kijkPlek = verplaatsing;//glm::vec3(0.0f, 0.0f, -1.0f);;//glm::mat3(scherm.modelView()) * -verplaatsing;
 
 		if(zonDraait)
-			zonRot.x += 0.013333;
+			zonRot.x += 0.01;
 
 		glm::mat4 zonRoteerder = 
 			glm::rotate(
@@ -157,9 +160,12 @@ int main()
 
 		static size_t regenRot = 0;
 
-		if(regenRot ++ % 10 == 0)	
+		if(true)
+			regenPlek = glm::vec3(0, 0, 1);
+		else if(regenRot ++ % 10 == 0)	
 			regenPlek = glm::normalize(willekeurigeVec3());
 
+		
 		
 
 		glDisable(GL_BLEND);
@@ -169,26 +175,36 @@ int main()
 		geo.tekenJezelf();
 		glErrorToConsole("geo.tekenJezelf() grond: ");
 
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		scherm.bereidRenderVoor("planeetWeergave", false);
-		glUniform1ui(	glGetUniformLocation(scherm.huidigProgramma(), "grondNietWater"), 	0);
-		grondShaderInfo();
-		geo.tekenJezelf();
-		glErrorToConsole("geo.tekenJezelf() water: ");
+		if(tekenWater)
+		{
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			scherm.bereidRenderVoor("planeetWeergave", false);
+			glUniform1ui(	glGetUniformLocation(scherm.huidigProgramma(), "grondNietWater"), 	0);
+			grondShaderInfo();
+			geo.tekenJezelf();
+			glErrorToConsole("geo.tekenJezelf() water: ");
+		}
 
 		scherm.rondRenderAf();
 		glErrorToConsole("rondRenderAf: ");
 		
 		if(roteerMaar)
-			verdraaiing += draaisnelheid;
+			verdraaiing -= draaisnelheid;
+
+
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+		geo.volgendeRonde();
+		scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	
+		geo.volgendeRonde();
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
 		if(waterStroomt || waterStap)
 		{
 			geo.volgendeRonde();
-			scherm.doeRekenVerwerker("waterStroming", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-			scherm.doeRekenVerwerker("waterDruk", 		glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-			scherm.doeRekenVerwerker("waterGemiddelde", glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+			scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+			scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+			scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 			waterStap = false;
 		}
 	}

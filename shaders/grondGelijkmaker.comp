@@ -1,0 +1,39 @@
+#version 440
+
+layout(local_size_x = 16) in;
+
+#define ID gl_GlobalInvocationID.x
+
+#include "planeetDefinities.glsl"
+
+//We hebben net van alles berekend maar de grond kan nu soms verschrikkelijk steil worden, das niet goed
+//Dus gaan we er voor zorgen dat de grond een beetje inzakt als er een te groot hoogteverschil is met een van de buren.
+//Per buur kijken we naar het verschil, is het groter dan een bepaald maximum dan nemen we een gedeelte en verplaatsen het naar beneden
+//Maar dan moet natuurlijk exact dezelfde hoeveelheid bij de hogere worden weggehaald.
+
+#define MAX_GROND_VERSCHIL 	(WATERMULT * 4.0)
+#define GROND_VERZET		0.5
+
+void main()
+{
+
+	uint 	burenAantal = vakMetas[ID].burenAantal;
+	float 	lokaal 		= vakken0[ID].grondHoogte;
+
+	if(isnan(lokaal)) lokaal = 0;
+
+	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
+	{
+		float verschil = vakken0[buurID(buur)].grondHoogte;
+
+		if(isnan(verschil))
+			verschil = 0;
+
+		verschil -= lokaal;
+
+		if(abs(verschil) > MAX_GROND_VERSCHIL)
+			lokaal += verschil * GROND_VERZET;
+	}
+
+	vakken1[ID].grondHoogte = lokaal;
+}
