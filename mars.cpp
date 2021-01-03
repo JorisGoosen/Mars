@@ -53,7 +53,7 @@ int main()
 	});
 
 	bool 		roteerMaar 		= false,
-				waterStroomt	= false,
+				waterStroomt	= true,
 				waterStap		= false,
 				zonDraait		= false,
 				tekenWater		= true;
@@ -192,7 +192,6 @@ int main()
 		if(roteerMaar)
 			verdraaiing -= draaisnelheid;
 
-
 		if(waterStroomt || waterStap)
 		{
 			geo.volgendeRonde();
@@ -200,12 +199,14 @@ int main()
 			scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 			scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 			waterStap = false;
+			
+			geo.volgendeRonde();
+			glMemoryBarrier(GL_ALL_BARRIER_BITS);
+			scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	
+			glMemoryBarrier(GL_ALL_BARRIER_BITS);
+			geo.volgendeRonde();
 		}
 
-		geo.volgendeRonde();
-		glMemoryBarrier(GL_ALL_BARRIER_BITS);
-		scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	
-		geo.volgendeRonde();
-		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
 	}
 }

@@ -57,22 +57,6 @@ void main()
 	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdamping);
 	vakken1[ID].vocht		= min(1.0, max(0.0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte)));
 
-	float 	leven = vakken0[ID].leven,
-			regen = dot(regenPlek, n);
-
-	if(false)
-	{
-		//het lekker laten regenen
-		if( regen > 0.98)
-		{
-			const float minderVocht = 0.3333;
-			vakken1[ID].waterHoogte += vakken1[ID].vocht * minderVocht;
-			vakken1[ID].vocht		*= 1.0 - minderVocht;
-		}
-		else if(regen < -0.99)
-			leven = max(0.00001, leven);
-	}
-
 	//droesem -= droesemWeg;
 
 	//const float vertraging = 0.01;
@@ -84,7 +68,7 @@ void main()
 		droesem = 0;
 
 	//laten we kijken of er iets veranderd moet worden aan de droesem
-	float 	helling = max(0.2, (1.0f - dot(n, berekenNormaal(ID, true))));
+	float 	helling = max(0.02, (1.0f - dot(n, berekenNormaal(ID, true))));
 			//helling	= sin(acos(helling));
 	float	droesemCapaciteit 	= max(1, vakken0[ID].waterHoogte) * DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER),// * helling,//max(0.0, vakken0[ID].waterHoogte * (DROESEMHEID * helling)),// * min(1.0, length(snelheid) * VERTRAGER))), 
 			droesemAangespoeld 	= droesem + vakken0[ID].droesem;//* min(1.0, vakken0[ID].waterSchijn * WATERMULT); // * vakken0[ID].waterHoogte,
@@ -132,8 +116,22 @@ void main()
 	{
 		droesem	*= droesem >= 0 ? BEZINKHEID : OPLOSHEID;
 
-		if(droesem < 0 && -droesem > vakken0[ID].grondHoogte - MIN_GRONDHOOGTE)		droesem = vakken0[ID].grondHoogte 	- MIN_GRONDHOOGTE;
-		else if(droesem > 0 && vakken0[ID].grondHoogte + droesem > MAX_GRONDHOOGTE)	droesem = MAX_GRONDHOOGTE 			- vakken0[ID].grondHoogte;
+		if(droesem < 0) // == oplossen
+		{
+			if(-droesem > vakken0[ID].grondHoogte - MIN_GRONDHOOGTE)		
+				droesem = vakken0[ID].grondHoogte 	- MIN_GRONDHOOGTE;
+
+			if(vakken1[ID].waterHoogte < MIN_WATER_SED)
+				droesem = 0;
+		}
+		else if(droesem >= 0) // == bezinken
+		{
+			if(vakken1[ID].waterHoogte < MIN_WATER_SED)
+				droesem = droesemAangespoeld * BEZINKHEID;
+
+			if(vakken0[ID].grondHoogte + droesem > MAX_GRONDHOOGTE)	
+				droesem = MAX_GRONDHOOGTE 			- vakken0[ID].grondHoogte;
+		}
 
 		vakken1[ID].droesem 	= droesemAangespoeld      - droesem;
 		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + droesem;
@@ -147,7 +145,22 @@ void main()
 		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte;
 	}
 
-	
+
+	float 	leven = vakken0[ID].leven,
+			regen = dot(regenPlek, n);
+
+	if(true)
+	{
+		//het lekker laten regenen
+		if( regen > 0.98)
+		{
+			const float minderVocht = 0.1;
+			vakken1[ID].waterHoogte += vakken1[ID].vocht * minderVocht;
+			vakken1[ID].vocht		*= 1.0 - minderVocht;
+		}
+		else if(regen < -0.99)
+			leven = max(0.00001, leven);
+	}
 	
 	//hoop doet leven
 	buurLeven  /= burenAantal;

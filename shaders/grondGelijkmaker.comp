@@ -11,13 +11,13 @@ layout(local_size_x = 16) in;
 //Per buur kijken we naar het verschil, is het groter dan een bepaald maximum dan nemen we een gedeelte en verplaatsen het naar beneden
 //Maar dan moet natuurlijk exact dezelfde hoeveelheid bij de hogere worden weggehaald.
 
-#define MAX_GROND_VERSCHIL 	0.000001 //(WATERMULT * 1.0)
-#define GROND_VERZET		0.5
+#define MAX_GROND_VERSCHIL 	0.00001 //(WATERMULT * 1.0)
+#define GROND_VERZET		0.15
 
 void main()
 {
 	vakken1[ID].grondSoort  = vakken0[ID].grondSoort;
-	vakken1[ID].grondHoogte = vakken0[ID].grondHoogte;
+	vakken1[ID].grondHoogte = clamp(vakken0[ID].grondHoogte, MIN_GRONDHOOGTE, MAX_GRONDHOOGTE);
 
 	uint 		burenAantal = vakMetas[ID].burenAantal;
 	float 		lokaal 		= vakken0[ID].grondHoogte,
