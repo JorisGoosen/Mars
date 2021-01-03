@@ -32,23 +32,21 @@ void main()
 			if(vakMetas[buurID].buren[buurBuur] == ID)
 			{
 				
-				float stroomWeg = vakken1[buurID].pijpen[buurBuur] 	- vakken1[ID].pijpen[buur];
+				float stroomBinnen = vakken1[buurID].pijpen[buurBuur] 	- vakken1[ID].pijpen[buur];
 
-				stroming  += stroomWeg;
+				stroming  += stroomBinnen;
 				buurVocht += (vakken1[buurID].vocht - mijnVocht) / 6;
 				buurLeven += vakken1[buurID].leven;
-				snelheid  += vakMetas[ID].buurRicht[buur] * stroomWeg;
+				snelheid  += vakMetas[ID].buurRicht[buur] * stroomBinnen;
 
-				//Als stroomWeg positief is gaat het dus richting de buren
-				//Zou je denken? omdat stroming + waterHoogte nieuwe is voor mij is het logischer dat:
-				// stroomWeg positief = droesem van buur komt bij mij 
-				uint 	id 	= stroomWeg >= 0 ? buurID : ID;//,
-						//weg	= stroomWeg <  0 ? buurID : ID;
-				//if(abs(stroomWeg) > 0 && vakken0[id].waterHoogte > 0 && abs(stroomWeg) < vakken0[id].waterHoogte)
-					droesem		+=  sign(stroomWeg) * clamp(abs((stroomWeg / PIJP_LENGTE) / vakken0[id].waterHoogte), 0, 1) * vakken0[id].droesem;
+				//Als stroomBinnen positief is komt het binnen
+				uint 	//id 	= stroomBinnen >= 0 ? ID 	 : buurID ,
+						and	= stroomBinnen >=  0	? buurID : ID;
 
-			//	droesem 	+= vakken0[id ].waterHoogte > stroomWeg ? ( stroomWeg / vakken0[id ].waterHoogte) * vakken0[id ].droesem : vakken0[id ].droesem;
-			//	droesemWeg	+= vakken0[weg].waterHoogte > stroomWeg ? ( stroomWeg / vakken0[weg].waterHoogte) * vakken0[weg].droesem : vakken0[weg].droesem;
+
+				//if(vakken0[and].waterHoogte > ZEER_KLEIN)
+					droesem		+=  sign(stroomBinnen) * clamp(abs((stroomBinnen / PIJP_LENGTE) / max(1, vakken0[and].waterHoogte)), 0., 1.) * vakken0[and].droesem;
+
 				break;
 			}
 	}
@@ -62,16 +60,19 @@ void main()
 	float 	leven = vakken0[ID].leven,
 			regen = dot(regenPlek, n);
 
-	//het lekker laten regenen
-	if( regen > 0.98)
+	if(false)
 	{
-		const float minderVocht = 0.3333;
-		vakken1[ID].waterHoogte += vakken1[ID].vocht * minderVocht;
-		vakken1[ID].vocht		*= 1.0 - minderVocht;
+		//het lekker laten regenen
+		if( regen > 0.98)
+		{
+			const float minderVocht = 0.3333;
+			vakken1[ID].waterHoogte += vakken1[ID].vocht * minderVocht;
+			vakken1[ID].vocht		*= 1.0 - minderVocht;
+		}
+		else if(regen < -0.99)
+			leven = max(0.00001, leven);
 	}
-	else if(regen < -0.99)
-		leven = max(0.00001, leven);
-
+	
 	//droesem -= droesemWeg;
 
 	//const float vertraging = 0.01;
@@ -79,10 +80,13 @@ void main()
 	//droesem 	*= vertraging;//
 	//droesemWeg 	*= PIJP_LENGTE;
 
+	if(isnan(droesem) || isinf(droesem))
+		droesem = 0;
+
 	//laten we kijken of er iets veranderd moet worden aan de droesem
 	float 	helling = max(0.2, (1.0f - dot(n, berekenNormaal(ID, true))));
 			//helling	= sin(acos(helling));
-	float	droesemCapaciteit 	= vakken0[ID].waterHoogte * DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER),//max(0.0, vakken0[ID].waterHoogte * (DROESEMHEID * helling)),// * min(1.0, length(snelheid) * VERTRAGER))), 
+	float	droesemCapaciteit 	= max(1, vakken0[ID].waterHoogte) * DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER),// * helling,//max(0.0, vakken0[ID].waterHoogte * (DROESEMHEID * helling)),// * min(1.0, length(snelheid) * VERTRAGER))), 
 			droesemAangespoeld 	= droesem + vakken0[ID].droesem;//* min(1.0, vakken0[ID].waterSchijn * WATERMULT); // * vakken0[ID].waterHoogte,
 	
 	//droesem = droesemCapaciteit - droesemAangespoeld;
@@ -109,28 +113,28 @@ void main()
 	if(isnan(droesemCapaciteit) || isinf(droesemCapaciteit))
 		droesemCapaciteit = 0;
 
-	if(vakken1[ID].waterHoogte <= ZEER_KLEIN)
-	{
-		droesemAangespoeld = 0;
-		droesemCapaciteit  = 0;
-	}
+	
+	//	droesemCapaciteit  = 0;
 
 	droesem  = droesemAangespoeld - droesemCapaciteit;
+
+	vakken1[ID].grondSoort  = vakken0[ID].grondSoort;
 	
-	if(isnan(droesem) || isinf(droesem))
-		droesem = droesemAangespoeld;
-
-	//if(vakken1[ID].waterHoogte <= 0.00001 && droesemAangespoeld > 0)
-	if(abs(droesem) > ZEER_KLEIN)
+	if(vakken1[ID].waterHoogte <= ZEER_KLEIN && droesemAangespoeld > ZEER_KLEIN)
 	{
-		droesem	*= droesem > 0 ? BEZINKHEID : OPLOSHEID;
+		vakken1[ID].droesem 	= 0;
+		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + droesemAangespoeld;
+		vakken1[ID].grondSoort  = GS_ZAND;
+	}
+	else if(abs(droesem) > ZEER_KLEIN)
+	{
+		droesem	*= droesem >= 0 ? BEZINKHEID : OPLOSHEID;
 
+		if(droesem < 0 && -droesem > vakken0[ID].grondHoogte - MIN_GRONDHOOGTE)		droesem = vakken0[ID].grondHoogte 	- MIN_GRONDHOOGTE;
+		else if(droesem > 0 && vakken0[ID].grondHoogte + droesem > MAX_GRONDHOOGTE)	droesem = MAX_GRONDHOOGTE 			- vakken0[ID].grondHoogte;
 
-		if(droesem * -WATERMULT > vakken0[ID].grondHoogte - MIN_GRONDHOOGTE)
-			droesem = (vakken0[ID].grondHoogte - MIN_GRONDHOOGTE) / -WATERMULT;
-
-		vakken1[ID].droesem 	= droesemAangespoeld - droesem;
-		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + (droesem * WATERMULT);
+		vakken1[ID].droesem 	= droesemAangespoeld      - droesem;
+		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + droesem;
 	}
 	else
 	{
@@ -138,8 +142,7 @@ void main()
 		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte;
 	}
 
-	if(isnan(vakken1[ID].grondHoogte))
-		vakken1[ID].grondHoogte = 0.1;
+	
 	
 	//hoop doet leven
 	buurLeven  /= burenAantal;

@@ -106,7 +106,7 @@ void planeet::burenAlsEigenschapWijzers()
 		{
 			_vakken[0][i].waterHoogte 	= 10.0f;
 			_vakken[0][i].vocht			= 50.0f;
-			_vakken[0][i].droesem		=  0.0f;
+			_vakken[0][i].droesem		=  0.001f;
 		}
 	}	
 }
@@ -219,14 +219,16 @@ void planeet::maakPingPongOpslagen()
 		float 	grondRand 	= dis(gen);
 		int 	grondSoort	= 0;
 
-		vec2	lenBrdGr	= _tex->ggvPunt2(b);
-		bool	poolIjs		= (lenBrdGr.y < _poolA && dis(gen) > (lenBrdGr.y / _poolA)) || (lenBrdGr.y > _poolB && dis(gen) < (lenBrdGr.y - _poolB) / (1.0f - _poolB));
+		grondSoort = GS_ROTS;
+
+//		vec2	lenBrdGr	= _tex->ggvPunt2(b);
+//		bool	poolIjs		= (lenBrdGr.y < _poolA && dis(gen) > (lenBrdGr.y / _poolA)) || (lenBrdGr.y > _poolB && dis(gen) < (lenBrdGr.y - _poolB) / (1.0f - _poolB));
 
 		/*if		(_vakken[0][b].grondHoogte > 0.8f || poolIjs)	grondSoort = GS_IJS;
 		else*/ if (_vakken[0][b].grondHoogte < 0.1f)				grondSoort = GS_ZAND;
 		//else if	(grondRand < 0.0)							grondSoort = GS_GROND;
-		else if (_vakken[0][b].grondHoogte < 0.6f)				grondSoort = grondRand < (_vakken[0][b].grondHoogte - 0.1f) * 2.0 ? GS_ROTS : GS_ZAND;
-		else													grondSoort = GS_ROTS;
+//		else if (_vakken[0][b].grondHoogte < 0.6f)				grondSoort = grondRand < (_vakken[0][b].grondHoogte - 0.1f) * 2.0 ? GS_ROTS : GS_ZAND;
+	//	else													grondSoort = GS_ROTS;
 	//	else if	(grondRand < 0.9)								grondSoort = GS_KLEI;
 		//else if	(grondRand < 0.2)							grondSoort = GS_IJS;
 	//	else													grondSoort = GS_LOESS;

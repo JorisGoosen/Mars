@@ -18,12 +18,13 @@ uniform vec3	regenPlek;
 #define ZWAARTEKRACHT 	0.8
 #define PIJP_DOORSNEE 	0.5
 #define PIJP_LENGTE		1.0
-#define OPLOSHEID		0.1
-#define BEZINKHEID		0.001
+#define OPLOSHEID		0.0
+#define BEZINKHEID		0.00
 #define DROESEMHEID		(10.0 * WATERMULT)
-#define VERTRAGER		(1.0 / 3.0)
+#define VERTRAGER		(1.0 / 4.0)
 #define ZEER_KLEIN		0.0001
 #define MIN_GRONDHOOGTE	0.1
+#define MAX_GRONDHOOGTE	2.0
 
 struct vak
 {

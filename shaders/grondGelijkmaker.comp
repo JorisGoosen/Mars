@@ -35,5 +35,7 @@ void main()
 			lokaal += verschil * GROND_VERZET;
 	}
 
-	vakken1[ID].grondHoogte = lokaal;
+	vakken1[ID].grondHoogte = clamp(lokaal, MIN_GRONDHOOGTE, MAX_GRONDHOOGTE);
+
+
 }

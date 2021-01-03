@@ -2,7 +2,7 @@
 
 #define KLEUR_ZAND	vec4(0.7, 	0.52, 	0.3, 	1.0)
 #define KLEUR_GROND	vec4(0.16, 	0.13, 	0.1, 	1.0)
-#define KLEUR_ROTS	vec4(0.5, 	0.4, 	0.2, 	1.0)
+#define KLEUR_ROTS	vec4(0.3, 	0.3, 	0.3, 	1.0)
 #define KLEUR_KLEI	vec4(0.416,	0.38, 	0.344, 	1.0)
 #define KLEUR_IJS	vec4(0.8, 	0.8, 	0.8, 	1.0)
 #define KLEUR_LOESS	vec4(0.78, 	0.75, 	0.74, 	1.0)
