@@ -19,12 +19,12 @@ void main()
 	uint 		burenAantal = vakMetas[ID].burenAantal,
 				zandBuren	= 0;
 	float 		lokaal 		= vakken0[ID].grondHoogte,
+				grootsteZ	= 0,
 				grootste	= 0;
-	const bool 	isZand		= true;//vakken0[ID].grondSoort == GS_ZAND;
+	const bool 	isZand		= vakken0[ID].grondSoort == GS_ZAND;
 
 
 	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
-		//if(vakken0[buurID(buur)].grondSoort == GS_ZAND)
 		{
 			float ander = vakken0[buurID(buur)].grondHoogte;
 
@@ -32,6 +32,10 @@ void main()
 
 			if(abs(ander) > abs(grootste))
 				grootste = ander;
+
+			if(vakken0[buurID(buur)].grondSoort == GS_ZAND && abs(ander) > abs(grootsteZ))
+				grootsteZ = ander;
+				
 
 			//if(ander > lokaal || isZand) //Alleen weghalen uit midden als het zand is.
 		//	{
@@ -41,18 +45,33 @@ void main()
 		}
 
 	//if(isZand || lokaalV > 0)
-	if(abs(grootste) > MAX_GROND_VERSCHIL)
+	bool zandValt = isZand && -grootste > MAX_GROND_VERSCHIL;
+
+	if(zandValt || abs(grootsteZ) > MAX_GROND_VERSCHIL)
 	{
-		float lokaalV = grootste * GROND_VERZET; //(lokaal - (buren / float(zandBuren))) * GROND_VERZET;
+		float lokaalV = (zandValt ? grootste : grootsteZ) * GROND_VERZET; //(lokaal - (buren / float(zandBuren))) * GROND_VERZET;
 
 		vakken1[ID].grondHoogte = clamp(lokaal + lokaalV, MIN_GRONDHOOGTE, MAX_GRONDHOOGTE);
 
-	//	if(lokaalV > TOON_SEDIMENT)
+		if(lokaalV > TOON_SEDIMENT)
 			vakken1[ID].grondSoort = GS_ZAND;
+		else
+			vakken1[ID].grondSoort  = vakken0[ID].grondSoort;
 	}
 	else
 	{
 		vakken1[ID].grondSoort  = vakken0[ID].grondSoort;
 		vakken1[ID].grondHoogte = clamp(vakken0[ID].grondHoogte, MIN_GRONDHOOGTE, MAX_GRONDHOOGTE);
 	}
+	
+	vakken1[ID].waterHoogte	= vakken0[ID].waterHoogte	;
+	vakken1[ID].waterSchijn	= vakken0[ID].waterSchijn	;
+	vakken1[ID].vocht		= vakken0[ID].vocht			;
+	vakken1[ID].ijs			= vakken0[ID].ijs			;
+	vakken1[ID].leven		= vakken0[ID].leven			;
+	vakken1[ID].droesem		= vakken0[ID].droesem		;
+	vakken1[ID].snelheid	= vakken0[ID].snelheid		;
+
+	for(uint i=0; i<6; i++)
+		vakken1[ID].pijpen[i] = vakken0[ID].pijpen[i];
 }

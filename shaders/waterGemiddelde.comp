@@ -14,7 +14,7 @@ void main()
 	uint 	burenAantal = vakMetas[ID].burenAantal;
 	float 	waterSchijn = vakken1[ID].waterHoogte;
 
-	if(false)
+	if(true)
 	{
 		for(uint buur=0; buur < burenAantal && buur < 6; buur++)
 			waterSchijn += vakken1[buurID(buur)].waterHoogte;

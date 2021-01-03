@@ -34,7 +34,7 @@ int main()
 	float		grondMult		= 100.0;
 
 	perlinRuis ruisje0, ruisje1;
-	planeet geo(7, [&](glm::vec3 plek)
+	planeet geo(8, [&](glm::vec3 plek)
 	{
 		//plek *= 0.5;//0.25f;
 
@@ -47,7 +47,7 @@ int main()
 		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.225f;
 				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.1625f; 
 				
-				val *= 2;
+				val *= 1;
 
 				val = glm::max(-30.0f, val);
 
@@ -199,7 +199,6 @@ int main()
 		{
 			glFlush();
 			glMemoryBarrier(GL_ALL_BARRIER_BITS);
-			geo.volgendeRonde();
 			scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	
 			glFlush();
 			glMemoryBarrier(GL_ALL_BARRIER_BITS);
