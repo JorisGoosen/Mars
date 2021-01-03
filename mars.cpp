@@ -160,7 +160,7 @@ int main()
 
 		static size_t regenRot = 0;
 
-		if(true)
+		if(false)
 			regenPlek = glm::vec3(0, 0, 1);
 		else if(regenRot ++ % 10 == 0)	
 			regenPlek = glm::normalize(willekeurigeVec3());

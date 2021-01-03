@@ -18,9 +18,9 @@ uniform vec3	regenPlek;
 #define ZWAARTEKRACHT 	0.8
 #define PIJP_DOORSNEE 	0.5
 #define PIJP_LENGTE		1.0
-#define OPLOSHEID		0.001
+#define OPLOSHEID		0.005
 #define BEZINKHEID		0.01
-#define DROESEMHEID		(1.0 * WATERMULT)
+#define DROESEMHEID		(10.0 * WATERMULT)
 #define VERTRAGER		(1.0 / 4.0)
 #define ZEER_KLEIN		0.0001
 #define MIN_GRONDHOOGTE	0.1

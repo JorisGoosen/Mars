@@ -126,7 +126,7 @@ void main()
 		//het lekker laten regenen
 		if( regen > 0.98)
 		{
-			const float minWaterErbij = MIN_WATER_SED * 0.1,
+			const float minWaterErbij = MIN_WATER_SED * 0.5,
 						minderVochtig = minWaterErbij;// vakken1[ID].vocht > minWaterErbij ? max(minWaterErbij, 0.1 * vakken1[ID].vocht) : 0;
 
 			vakken1[ID].waterHoogte += minderVochtig;
