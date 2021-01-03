@@ -154,9 +154,11 @@ void main()
 		//het lekker laten regenen
 		if( regen > 0.98)
 		{
-			const float minderVocht = 0.1;
-			vakken1[ID].waterHoogte += vakken1[ID].vocht * minderVocht;
-			vakken1[ID].vocht		*= 1.0 - minderVocht;
+			const float minWaterErbij = MIN_WATER_SED * 0.5,
+						minderVochtig = minWaterErbij;// vakken1[ID].vocht > minWaterErbij ? max(minWaterErbij, 0.1 * vakken1[ID].vocht) : 0;
+
+			vakken1[ID].waterHoogte += minderVochtig;
+			vakken1[ID].vocht		-= minderVochtig;
 		}
 		else if(regen < -0.99)
 			leven = max(0.00001, leven);
