@@ -9,7 +9,7 @@ layout(local_size_x = 16) in;
 
 float hoogteverschil(uint buurID)
 {
-	return ((grondMult * vakken0[ID].grondHoogte) + vakken0[ID].waterHoogte) - ((grondMult * vakken0[buurID].grondHoogte) + vakken0[buurID].waterHoogte);
+	return ((vakken0[ID].grondHoogte) + vakken0[ID].waterHoogte) - ((vakken0[buurID].grondHoogte) + vakken0[buurID].waterHoogte);
 }
 
 void main()

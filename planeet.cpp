@@ -104,9 +104,9 @@ void planeet::burenAlsEigenschapWijzers()
 		}
 		else
 		{
-			_vakken[0][i].waterHoogte 	=  3.0f;
-			_vakken[0][i].vocht			= 50.0f;
-			_vakken[0][i].droesem		=  0.0001f;
+			_vakken[0][i].waterHoogte 	=  0.0f;
+			_vakken[0][i].vocht			= 70.0f;
+			_vakken[0][i].droesem		=  0.0f;
 		}
 	}	
 }

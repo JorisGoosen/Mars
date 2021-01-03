@@ -61,10 +61,10 @@ void main()
 		droesem = 0;
 
 	//laten we kijken of er iets veranderd moet worden aan de droesem
-	float 	helling = max(0.02, (1.0f - dot(n, berekenNormaal(ID, true))));
+	float 	helling = max(0.1, (1.0f - dot(n, berekenNormaal(ID, true))));
 			//helling	= sin(acos(helling));
-	float	droesemCapaciteit 	= max(1, vakken0[ID].waterHoogte) * DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER),// * helling,//max(0.0, vakken0[ID].waterHoogte * (DROESEMHEID * helling)),// * min(1.0, length(snelheid) * VERTRAGER))), 
-			droesemAangespoeld 	= droesem + vakken0[ID].droesem;//* min(1.0, vakken0[ID].waterSchijn * WATERMULT); // * vakken0[ID].waterHoogte,
+	float	droesemCapaciteit 	= max(1, vakken0[ID].waterHoogte) * DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER), // * helling,
+			droesemAangespoeld 	= droesem + vakken0[ID].droesem;
 	
 	if(isnan(droesemCapaciteit) || isinf(droesemCapaciteit))
 		droesemCapaciteit = 0;
@@ -108,7 +108,7 @@ void main()
 		vakken1[ID].droesem 	= droesemAangespoeld      - droesem;
 		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + droesem;
 
-		if(droesem > TOON_SEDIMENT)
+		if(abs(droesem) > TOON_SEDIMENT)
 			vakken1[ID].grondSoort  = GS_ZAND;
 	}
 	else
@@ -126,7 +126,7 @@ void main()
 		//het lekker laten regenen
 		if( regen > 0.98)
 		{
-			const float minWaterErbij = MIN_WATER_SED * 0.5,
+			const float minWaterErbij = 0.1,
 						minderVochtig = minWaterErbij;// vakken1[ID].vocht > minWaterErbij ? max(minWaterErbij, 0.1 * vakken1[ID].vocht) : 0;
 
 			vakken1[ID].waterHoogte += minderVochtig;
@@ -139,8 +139,14 @@ void main()
 	//hoop doet leven
 	buurLeven  /= burenAantal;
 	
+	const float rotsGroei = 1.0001, 	rotsBuur = 0.003333, 
+				zandGroei = 1.01, 		zandBuur = 0.03333,
+				groei	= vakken1[ID].grondSoort == GS_ZAND ? zandGroei : rotsGroei,
+				buurG	= vakken1[ID].grondSoort == GS_ZAND ? zandBuur  : rotsBuur ;
 
-	if(vakken1[ID].waterHoogte <= 0.05)		leven = max(0.0, min(vakken1[ID].vocht, max(leven * 1.01, leven + (buurLeven * 0.03333))));
+	
+
+	if(vakken1[ID].waterHoogte <= 0.05)		leven = max(0.0, min(vakken1[ID].vocht, max(leven * groei, leven + (buurLeven * buurG))));
 	else if(vakken1[ID].waterHoogte > 2.0)	leven *= 0.85;
 	else									leven *= 0.95;
 

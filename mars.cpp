@@ -31,6 +31,8 @@ int main()
 //	std::mt19937 		bemonsteraar(willekeur()); 
 //	std::uniform_real_distribution<> dis(0.0, 1.0);
 
+	float		grondMult		= 100.0;
+
 	perlinRuis ruisje0, ruisje1;
 	planeet geo(7, [&](glm::vec3 plek)
 	{
@@ -38,16 +40,18 @@ int main()
 
 		//plek *= 2;
 
-		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 1.0f)) * 0.3;// * 0.5; 
-		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 3.0f)) * 0.3;// * 0.6f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 5.0f)) * 0.2;// * 0.5f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.1;// * 0.35f;
-		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.2;// * 0.225f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.3;// * 0.1625f; 
+		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 1.0f)) * 0.7; 
+		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 3.0f)) * 0.6f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 5.0f)) * 0.5f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.35f;
+		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.225f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.1625f; 
 				
-				val *= 0.1f;
+				val *= 2;
 
-				val	+= 1.0f;
+				val = glm::max(-30.0f, val);
+
+				val	+= grondMult;
 		
 		 return val;// * 0.3;//((val > 0.0f ? pow( val, 0.3333f) : 0.0f) - 0.5f) * 0.5; 
 	});
@@ -65,9 +69,8 @@ int main()
 	glm::vec2 	verdraaiing		(0.0f, 0.0f)		,
 				draaisnelheid	(0.01, 0.0)			;
 
-	float		grondMult		= 100.0,
-				grondSchaal		= 0.3,
-				verdamping		= 0.01;
+	float		grondSchaal		= 1.0,
+				verdamping		= 0.004;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -154,8 +157,8 @@ int main()
 				glm::vec3(1.0f, 0.0f, 0.0f)
 			);
 
-		glm::vec4 zonPosTdlk = scherm.modelView() * zonRoteerder * glm::normalize(glm::vec4(0.0, sin(zonPos.x / 365.0f), 7.0, 1.0));
-
+		
+		glm::vec4 zonPosTdlk = (zonDraait ? scherm.modelView() : glm::mat4(1.0f)) * zonRoteerder * glm::normalize(glm::vec4(0.0, sin(zonPos.x / 365.0f), 7.0, 1.0));
 		zonPos = zonPosTdlk.xyz() / zonPosTdlk.w;
 
 		static size_t regenRot = 0;
@@ -194,17 +197,21 @@ int main()
 
 		if(waterStroomt || waterStap)
 		{
+			glFlush();
+			glMemoryBarrier(GL_ALL_BARRIER_BITS);
+			geo.volgendeRonde();
+			scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	
+			glFlush();
+			glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
 			geo.volgendeRonde();
 			scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 			scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 			scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 			waterStap = false;
+
+			geo.volgendeRonde();
 			
-			geo.volgendeRonde();
-			glMemoryBarrier(GL_ALL_BARRIER_BITS);
-			scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	
-			glMemoryBarrier(GL_ALL_BARRIER_BITS);
-			geo.volgendeRonde();
 		}
 
 

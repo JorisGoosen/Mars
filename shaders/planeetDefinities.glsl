@@ -11,22 +11,19 @@ uniform float 	grondMult;
 uniform float	verdamping;
 uniform vec3	regenPlek;
 
-
-#define WATERMULT (1.0 / grondMult)
-
 #define TIJD_VERSCHIL 	0.1
 #define ZWAARTEKRACHT 	0.8
 #define PIJP_DOORSNEE 	0.5
 #define PIJP_LENGTE		1.0
-#define OPLOSHEID		0.005
-#define BEZINKHEID		0.01
-#define DROESEMHEID		(10.0 * WATERMULT)
-#define VERTRAGER		(1.0 / 4.0)
+#define OPLOSHEID		0.3
+#define BEZINKHEID		0.1
+#define DROESEMHEID		1.0
+#define VERTRAGER		(1.0 / 3.5)
 #define ZEER_KLEIN		0.0001
-#define MIN_GRONDHOOGTE	0.1
-#define MAX_GRONDHOOGTE	2.0
-#define TOON_SEDIMENT	(BEZINKHEID * 0.1) //Boven deze waarde wordt grondSoort zand
-#define MIN_WATER_SED	1.0
+#define MIN_GRONDHOOGTE	10.0
+#define MAX_GRONDHOOGTE	200.0
+#define TOON_SEDIMENT	(BEZINKHEID * 0.25) //Boven deze waarde wordt grondSoort zand
+#define MIN_WATER_SED	0.1
 
 struct vak
 {
@@ -63,7 +60,7 @@ uint buurID(uint buur)
 
 float hoogteBuur(uint id, bool water)
 {
-	return vakken0[id].grondHoogte + (!water ? 0.0f : ( vakken0[id].waterSchijn ) * WATERMULT);
+	return vakken0[id].grondHoogte + (!water ? 0.0f : ( vakken0[id].waterSchijn ));
 }
 
 float vakHoogte(uint id, bool water)

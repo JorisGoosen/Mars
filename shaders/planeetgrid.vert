@@ -55,7 +55,7 @@ void main()
 	case GS_LOESS:		grondKleur	= KLEUR_LOESS;	break;
 	};
 
-	const float waterSchaler = 0.1 * grondMult;
+	const float waterSchaler = 1.0;//0.1 * grondMult;
 
 	tc_in.tex			= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
 	float lokaalWater	= vakken0[ID].waterHoogte > waterSchaler ? 1.0 : vakken0[ID].waterHoogte / waterSchaler;
@@ -70,7 +70,7 @@ void main()
 											//grondKleur; */
 	
 	//Niet posV aanroepen zorgt er op een of andere manier voor dat de shader niet werkt...
-	vec3 	hier		= posV *  vakHoogte(ID, grondNietWater == 0);
+	vec3 	hier		= posV *  (vakHoogte(ID, grondNietWater == 0) / grondMult);
 
 	tc_in.normaal		= normalize( (modelView * vec4(berekenNormaal(ID, grondNietWater == 0), 0.0f)).xyz );
 	tc_in.leven			= vakken0[ID].leven;
