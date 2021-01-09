@@ -40,14 +40,14 @@ int main()
 	{
 		//plek *= 0.5;//0.25f;
 
-		//plek *= 2;
+		plek /= 2.0;
 
-		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 1.0f)) * 0.7; 
-		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 3.0f)) * 0.6f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 5.0f)) * 0.5f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.35f;
-		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.225f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.1625f; 
+		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.7; 
+		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.6f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.5f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(17.0f)) * 0.35f;
+		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(19.0f)) * 0.225f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(23.0f)) * 0.1625f; 
 				
 				val *= 1;
 
@@ -58,7 +58,7 @@ int main()
 		 return val;// * 0.3;//((val > 0.0f ? pow( val, 0.3333f) : 0.0f) - 0.5f) * 0.5; 
 	});
 
-	bool 		roteerMaar 		= true,
+	bool 		roteerMaar 		= false,
 				waterStroomt	= true,
 				waterStap		= false,
 				zonDraait		= false,
@@ -72,7 +72,7 @@ int main()
 				draaisnelheid	(0.01, 0.0)			;
 
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.002;
+				verdamping		= 0.001;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
