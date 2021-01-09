@@ -26,14 +26,16 @@ uniform uint grondNietWater;
 
 out NaarFrag
 {
-	out vec3 normaal;
-	out vec3 tex;
-	out vec4 kleur;
-	out float waterHoogte;
-	out float grondHoogte;
-	out vec2 snelheid;
-	out vec4 pos;
-	out float leven;
+	out vec3 	normaal;
+	out vec3	hoeks;
+	out vec3 	tex;
+	out vec4 	kleur;
+	out float 	waterHoogte;
+	out float 	grondHoogte;
+	out vec2 	snelheid;
+	out vec4 	pos;
+	out float 	leven;
+	out vec2 	plek;
 } tc_in;
 
 uniform sampler2D marsHoogte;
@@ -64,7 +66,7 @@ void main()
 	if(grondNietWater == 0)	//tc_in.kleur	= vec4(0.0, 0.0, 0.4, 0.3 + (lokaalWater * 0.5));
 		tc_in.kleur = 	vec4(vakken0[ID].droesem / (DROESEMHEID * vakken0[ID].waterHoogte), length(vakken0[ID].snelheid) * VERTRAGER, 0.4, 0.3 + (lokaalWater * 0.7));
 	else						tc_in.kleur = grondKleur; 
-	/*tc_in.kleur = 	vec4((1.0f - dot(vakMetas[ID].normaal.xyz, berekenNormaal(ID, true))), length(vakken0[ID].snelheid) * VERTRAGER, float(1 - grondNietWater) * 0.4, 1.0);
+	/*tc_in.kleur = 	vec4berekenVervormdeNormaal((1.0f - dot(vakMetas[ID].normaal.xyz, berekenNormaal(ID, true))), length(vakken0[ID].snelheid) * VERTRAGER, float(1 - grondNietWater) * 0.4, 1.0);
 	if(grondNietWater == 0)
 		tc_in.kleur.a = 0.3 + (lokaalWater * 0.5);
 											//grondKleur; */
@@ -72,9 +74,11 @@ void main()
 	//Niet posV aanroepen zorgt er op een of andere manier voor dat de shader niet werkt...
 	vec3 	hier		= posV *  (vakHoogte(ID, grondNietWater == 0) / grondMult);
 
-	tc_in.normaal		= normalize( (modelView * vec4(berekenNormaal(ID, grondNietWater == 0), 0.0f)).xyz );
+	tc_in.normaal		=		normalize( (modelView * vec4(berekenNormaal(ID, grondNietWater == 0),			0.0f)).xyz );
+	tc_in.hoeks			= cross(normalize( (modelView * vec4(vakHoogteNormaal(buurID(0), grondNietWater == 0),	0.0f)).xyz ), tc_in.normaal);
 	tc_in.leven			= vakken0[ID].leven;
 	tc_in.snelheid		= vakken0[ID].snelheid;
+	tc_in.plek			= vakken0[ID].plek - floor(vakken0[ID].plek);
 	tc_in.waterHoogte	= vakken0[ID].waterSchijn; 
 	tc_in.pos			= modelView * vec4(hier, 1.0f);
 	gl_Position			= projectie * tc_in.pos;

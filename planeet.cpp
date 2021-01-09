@@ -107,6 +107,7 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakken[0][i].waterHoogte 	=  2.0f;
 			_vakken[0][i].vocht			= 70.0f;
 			_vakken[0][i].droesem		=  0.10f;
+			_vakken[0][i].plek			= glm::vec2(0.0f);
 		}
 	}	
 }

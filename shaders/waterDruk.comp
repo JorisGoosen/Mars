@@ -54,6 +54,7 @@ void main()
 	//Dan tijd om het een ent ander weg te schrijven
 	snelheid /= burenAantal;
 	vakken1[ID].snelheid 	= snelheid;/// length(snelheid / burenAantal; //mix(vakken0[ID].snelheid, (snelheid / burenAantal), 1.0);
+	vakken1[ID].plek		= vakken0[ID].plek + snelheid;
 	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdamping);
 	vakken1[ID].vocht		= min(1.0, max(0.0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte)));
 
@@ -63,7 +64,7 @@ void main()
 	//laten we kijken of er iets veranderd moet worden aan de droesem
 	float 	helling = max(0.1, (1.0f - dot(n, berekenNormaal(ID, true))));
 			//helling	= sin(acos(helling));
-	float	droesemCapaciteit 	= max(1, vakken0[ID].waterHoogte) * DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER) * helling,
+	float	droesemCapaciteit 	= DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER) * helling,
 			droesemAangespoeld 	= droesem + vakken0[ID].droesem;
 	
 	if(isnan(droesemCapaciteit) || isinf(droesemCapaciteit))

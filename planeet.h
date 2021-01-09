@@ -24,6 +24,7 @@ struct vak
 				droesem		,
 				pijpen[6]	;
 	glm::vec2	snelheid	;
+	glm::vec2	plek		; //opgetelde snelheden, om water mee te tekenen
 };
 
 struct vakMeta

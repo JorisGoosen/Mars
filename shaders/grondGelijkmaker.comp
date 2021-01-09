@@ -11,7 +11,7 @@ layout(local_size_x = 16) in;
 //Per buur kijken we naar het verschil, is het groter dan een bepaald maximum dan nemen we een gedeelte en verplaatsen het naar beneden
 //Maar dan moet natuurlijk exact dezelfde hoeveelheid bij de hogere worden weggehaald.
 
-#define MAX_GROND_VERSCHIL 	0.66666
+#define MAX_GROND_VERSCHIL 	1.0 //0.66666
 #define GROND_VERZET		0.1
 
 void main()
@@ -71,6 +71,7 @@ void main()
 	vakken1[ID].leven		= vakken0[ID].leven			;
 	vakken1[ID].droesem		= vakken0[ID].droesem		;
 	vakken1[ID].snelheid	= vakken0[ID].snelheid		;
+	vakken1[ID].plek		= vakken0[ID].plek			;
 
 	for(uint i=0; i<6; i++)
 		vakken1[ID].pijpen[i] = vakken0[ID].pijpen[i];

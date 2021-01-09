@@ -16,7 +16,7 @@ uniform vec3	regenPlek;
 #define PIJP_DOORSNEE 	0.5
 #define PIJP_LENGTE		1.0
 #define OPLOSHEID		1.0
-#define BEZINKHEID		0.05
+#define BEZINKHEID		0.01
 #define DROESEMHEID		1.0
 #define VERTRAGER		(1.0 / 3.5)
 #define ZEER_KLEIN		0.0001
@@ -37,6 +37,7 @@ struct vak
 			droesem		,
 			pijpen[6]	;
 	vec2	snelheid	;
+	vec2	plek		;
 };
 
 struct vakMetasS

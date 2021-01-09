@@ -19,10 +19,12 @@ int main()
 	scherm.maakRekenShader(	"waterGemiddelde", 	"shaders/waterGemiddelde.comp"										);
 	scherm.maakRekenShader(	"grondGelijkmaker", "shaders/grondGelijkmaker.comp"										);
 
+	scherm.laadTextuurUitPng("plaatjes/zeewater_bump.png", "zeewater_bump");
+
 	glClearColor(0,0,0,1);
 
 	//unsigned char * MarsHoogte 	= nullptr;
-	//glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", & MarsHoogte);
+	//glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", true, false, & MarsHoogte);
 	//monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
 	//planeet geo(7, [&](glm::vec2 plek){ return MOLA(plek).x; });
@@ -121,7 +123,7 @@ int main()
 		grondShaderInfo();
 	};
 
-	glm::vec2 zonRot = glm::vec2(0.0f);
+	glm::vec2 zonRot = glm::vec2(-0.7f, 0.4);
 
 	glErrorToConsole("Voordat we beginnen: ");
 	std::cout << "Laten we beginnen..." << std::endl;
@@ -185,6 +187,7 @@ int main()
 			scherm.bereidRenderVoor("planeetWeergave", false);
 			glUniform1ui(	glGetUniformLocation(scherm.huidigProgramma(), "grondNietWater"), 	0);
 			grondShaderInfo();
+			scherm.bindTextuur("zeewater_bump", 0);
 			geo.tekenJezelf();
 			glErrorToConsole("geo.tekenJezelf() water: ");
 		}
