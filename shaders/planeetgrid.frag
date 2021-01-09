@@ -31,7 +31,7 @@ vec3 berekenVervormdeNormaal(vec3 n, vec3 hoeks, bool water, vec2 vervorming)
 
 void main()
 {
-	if(grondNietWater == 0 && fs_in.waterHoogte < 0.5) discard;
+	if(grondNietWater == 0 && fs_in.waterHoogte < 0.1) discard;
 
 	//Naadloos tex is op basis van in vertshader genoemd algoritme door Tarini
 	vec2 naadloosTex = vec2(fwidth(fs_in.tex.y) <= fwidth(fs_in.tex.z) + 0.000001 ? fs_in.tex.y : fs_in.tex.z, fs_in.tex.x);

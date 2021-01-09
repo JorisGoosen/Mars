@@ -125,15 +125,15 @@ void main()
 	if(length(regenPlek) > 0 && true)
 	{
 		//het lekker laten regenen
-		if(abs(regen) > 0.98)
+		if(regen > 0.9995)
 		{
-			const float minWaterErbij = 0.03,
+			const float minWaterErbij = min(6.0, vakken1[ID].vocht),
 						minderVochtig = minWaterErbij;// vakken1[ID].vocht > minWaterErbij ? max(minWaterErbij, 0.1 * vakken1[ID].vocht) : 0;
 
 			vakken1[ID].waterHoogte += minderVochtig;
 			vakken1[ID].vocht		-= minderVochtig;
 		}
-		else if(abs(regen) < 0.001)
+		else if(-regen > 0.98)
 			leven = max(0.00001, leven);
 	}
 	

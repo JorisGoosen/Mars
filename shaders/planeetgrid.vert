@@ -57,7 +57,7 @@ void main()
 	case GS_LOESS:		grondKleur	= KLEUR_LOESS;	break;
 	};
 
-	const float waterSchaler = 1.0;//0.1 * grondMult;
+	const float waterSchaler = 2.0;//0.1 * grondMult;
 
 	tc_in.tex			= vec3(tex.y, fract(tex.x), fract(tex.x + 0.5) - 0.5);
 	float lokaalWater	= vakken0[ID].waterHoogte > waterSchaler ? 1.0 : vakken0[ID].waterHoogte / waterSchaler;

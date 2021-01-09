@@ -123,7 +123,7 @@ int main()
 		grondShaderInfo();
 	};
 
-	glm::vec2 zonRot = glm::vec2(-0.7f, 0.4);
+	glm::vec2 zonRot = glm::vec2(-0.6f, 0.3);
 
 	glErrorToConsole("Voordat we beginnen: ");
 	std::cout << "Laten we beginnen..." << std::endl;
@@ -165,10 +165,10 @@ int main()
 
 		static size_t regenRot = 0;
 
-		if(true)
+		/*if(true)
 			regenPlek = glm::vec3(0, 1, 0);
-		else if(regenRot ++ % 60 == 0)	
-			regenPlek = glm::normalize(willekeurigeVec3());
+		else if(regenRot ++ % 10 == 0)	*/
+			regenPlek = glm::normalize(glm::vec3(1.0, 1.0, 1.0) * willekeurigeVec3());
 
 		
 		
