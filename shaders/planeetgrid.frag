@@ -17,7 +17,8 @@ in NaarFrag
 } fs_in;
 
 
-uniform sampler2D 	waterTextuur;
+layout(binding = 0)	uniform sampler2D 	waterTextuur;
+layout(binding = 1)	uniform sampler2D 	marsTextuur;
 uniform uint 		grondNietWater;
 uniform vec3 		kijkPlek;
 uniform vec3 		zonPos;
@@ -37,7 +38,7 @@ void main()
 	vec2 naadloosTex = vec2(fwidth(fs_in.tex.y) <= fwidth(fs_in.tex.z) + 0.000001 ? fs_in.tex.y : fs_in.tex.z, fs_in.tex.x);
 
 	 const vec4 marsKleur = vec4(1, 0.5, 0.5, 1);
-	// float marsHoogte = texture(marsHoogte, naadloosTex).x;// + fs_in.grondHoogte) * 0.5;
+	 float marsHoogte = texture(marsTextuur, naadloosTex).x;// + fs_in.grondHoogte) * 0.5;
 
 
 	naadloosTex += fs_in.plek * 0.001;
@@ -50,7 +51,7 @@ void main()
 
 	if(grondNietWater == 1)
 	{	
-		kleur 	= mix(fs_in.kleur, vec4(0.0, 0.35, 0.0, 1.0), clamp(fs_in.leven, 0, 1)) * max(0.2, diffuus);// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
+		kleur 	= mix(fs_in.kleur * clamp(marsHoogte * 3, 0.2, 1.0), vec4(0.0, 0.35, 0.0, 1.0), clamp(fs_in.leven, 0, 1)) * max(0.2, diffuus);// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
 	}
 	else
 	{

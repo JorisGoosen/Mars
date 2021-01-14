@@ -15,10 +15,10 @@ uniform vec3	regenPlek;
 #define ZWAARTEKRACHT 	0.8
 #define PIJP_DOORSNEE 	0.5
 #define PIJP_LENGTE		1.0
-#define OPLOSHEID		0.8
+#define OPLOSHEID		0.5
 #define BEZINKHEID		0.05
-#define DROESEMHEID		1.0
-#define VERTRAGER		(1.0 / 2.0)
+#define DROESEMHEID		0.1
+#define VERTRAGER		(1.0 / 3.0)
 #define ZEER_KLEIN		0.0001
 #define MIN_GRONDHOOGTE	10.0
 #define MAX_GRONDHOOGTE	200.0

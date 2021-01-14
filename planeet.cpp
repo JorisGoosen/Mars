@@ -35,8 +35,8 @@ void planeet::bouwPlaneet()
 	burenAlsEigenschapWijzers();
 
 	//Strijk de boel glad
-	for(size_t zoVaak = 0; zoVaak < 1; zoVaak++)
-		browniaansLand();
+	//for(size_t zoVaak = 0; zoVaak < 1; zoVaak++)
+	//	browniaansLand();
 	
 	//Nu nog twee buffers toevoegen waarin ik kan gaan rekenen en als punteigenschapwijzers kan gebruiken.
 	maakPingPongOpslagen();
@@ -104,8 +104,8 @@ void planeet::burenAlsEigenschapWijzers()
 		}
 		else
 		{
-			_vakken[0][i].waterHoogte 	=  0.0f;
-			_vakken[0][i].vocht			=  4.0f;
+			_vakken[0][i].waterHoogte 	=  0.5f;
+			_vakken[0][i].vocht			=  0.0f;
 			_vakken[0][i].leven			=  0.0001f;
 			_vakken[0][i].droesem		=  0.0f;
 			_vakken[0][i].plek			= glm::vec2(0.0f);

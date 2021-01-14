@@ -23,42 +23,48 @@ int main()
 
 	glClearColor(0,0,0,1);
 
-	//unsigned char * MarsHoogte 	= nullptr;
-	//glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", true, false, & MarsHoogte);
-	//monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
+	float			grondMult		= 100.0;
+	planeet		*	geo				= nullptr;
+	perlinRuis 		ruisje0, 
+					ruisje1;
 
-	//planeet geo(7, [&](glm::vec2 plek){ return MOLA(plek).x; });
-
-//	std::random_device 	willekeur;  //Wordt gebruikt om het zaadje te planten
-//	std::mt19937 		bemonsteraar(willekeur()); 
-//	std::uniform_real_distribution<> dis(0.0, 1.0);
-
-	float		grondMult		= 100.0;
-
-	perlinRuis ruisje0, ruisje1;
-	planeet geo(8, [&](glm::vec3 plek)
+	if(true)
 	{
-		//return grondMult * (1.0f + (0.05f * ruisje0.geefIniqoQuilesRuis(plek * 11.0f)));
+		unsigned char * MarsHoogte 	= nullptr;
+		glm::uvec2 MarsHoogteBH		= scherm.laadTextuurUitPng("MARS_Hoogte.png", "Mars", true, false, & MarsHoogte);
+		monsterPNG MOLA(MarsHoogte, MarsHoogteBH);
 
-		//plek *= 0.5;//0.25f;
+		std::function<float(glm::vec2)> hoogteMonsteraar = [&](glm::vec2 plek) -> float { return grondMult + 10 * MOLA(plek).x; };
 
-		plek /= 2.0;
-
-		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.2; 
-		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.2f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.2f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(17.0f)) * 0.1f;
-		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(19.0f)) * 0.1f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 3.0f)) * 0.3f; 
-				
-				val *= 3;
-
-				val = glm::max(-30.0f, val);
-
-				val	+= grondMult;
+		geo = new planeet(8, hoogteMonsteraar);
+	}
+	else
+	{
 		
-		 return val;// * 0.3;//((val > 0.0f ? pow( val, 0.3333f) : 0.0f) - 0.5f) * 0.5; 
-	});
+		geo = new planeet(7, [&](glm::vec3 plek)
+		{
+			//return grondMult * (1.0f + (0.05f * ruisje0.geefIniqoQuilesRuis(plek * 11.0f)));
+
+			//plek *= 0.5;//0.25f;
+
+			plek /= 2.0;
+
+			float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.2; 
+					val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.2f;
+					val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.2f;
+					val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(17.0f)) * 0.1f;
+					val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(19.0f)) * 0.1f;
+					val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 3.0f)) * 0.3f; 
+					
+					val *= 3;
+
+					val = glm::max(-30.0f, val);
+
+					val	+= grondMult;
+			
+			return val;// * 0.3;//((val > 0.0f ? pow( val, 0.3333f) : 0.0f) - 0.5f) * 0.5; 
+		});
+	}
 
 	bool 		roteerMaar 		= false,
 				waterStroomt	= true,
@@ -74,7 +80,7 @@ int main()
 				draaisnelheid	(0.01, 0.0)			;
 
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.0008;
+				verdamping		= 0.0004;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -115,13 +121,17 @@ int main()
 		glUniform3fv(	glGetUniformLocation(scherm.huidigProgramma(), "kijkPlek"		),  1, 	glm::value_ptr(kijkPlek));
 		glUniform3fv(	glGetUniformLocation(scherm.huidigProgramma(), "zonPos"			),  1, 	glm::value_ptr(zonPos)	);
 		glUniform3fv(	glGetUniformLocation(scherm.huidigProgramma(), "regenPlek"		),  1, 	glm::value_ptr(regenPlek));
+		
 		ruisje0.zetKnooppunten(3, 4);
 		ruisje0.zetKnooppunten(5, 6);
+		
+		scherm.bindTextuur("zeewater_bump", 0);
+		scherm.bindTextuur("Mars", 			1);
 	};
 
 	auto berekenShaderBinden = [&]()
 	{
-		geo.bindVrwrkrOpslagen(); 
+		geo->bindVrwrkrOpslagen(); 
 		grondShaderInfo();
 	};
 
@@ -179,8 +189,8 @@ int main()
 		scherm.bereidRenderVoor("planeetWeergave");
 		glUniform1ui(	glGetUniformLocation(scherm.huidigProgramma(), "grondNietWater"), 	1);
 		grondShaderInfo();
-		geo.tekenJezelf();
-		glErrorToConsole("geo.tekenJezelf() grond: ");
+		geo->tekenJezelf();
+		glErrorToConsole("geo->tekenJezelf() grond: ");
 
 		if(tekenWater)
 		{
@@ -189,9 +199,8 @@ int main()
 			scherm.bereidRenderVoor("planeetWeergave", false);
 			glUniform1ui(	glGetUniformLocation(scherm.huidigProgramma(), "grondNietWater"), 	0);
 			grondShaderInfo();
-			scherm.bindTextuur("zeewater_bump", 0);
-			geo.tekenJezelf();
-			glErrorToConsole("geo.tekenJezelf() water: ");
+			geo->tekenJezelf();
+			glErrorToConsole("geo->tekenJezelf() water: ");
 		}
 
 		scherm.rondRenderAf();
@@ -204,17 +213,17 @@ int main()
 		{
 			glFlush();
 			glMemoryBarrier(GL_ALL_BARRIER_BITS);
-			scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	
+			scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(geo->aantalVakjes(), 1, 1), berekenShaderBinden);	
 			glFlush();
 			glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
-			geo.volgendeRonde();
-			scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
-			scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
-			scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(geo.aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+			geo->volgendeRonde();
+			scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(geo->aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+			scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(geo->aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+			scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(geo->aantalVakjes(), 1, 1), berekenShaderBinden);	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 			waterStap = false;
 
-			geo.volgendeRonde();
+			geo->volgendeRonde();
 			
 		}
 

@@ -64,7 +64,7 @@ void main()
 	//laten we kijken of er iets veranderd moet worden aan de droesem
 	float 	helling = 1.0;//max(0.1, (1.0f - dot(n, berekenNormaal(ID, true))));
 			//helling	= sin(acos(helling));
-	float	droesemCapaciteit 	= DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER) * helling,
+	float	droesemCapaciteit 	= DROESEMHEID * clamp(length(snelheid) * VERTRAGER, 0.0, 1.0) * helling,
 			droesemAangespoeld 	= droesem + vakken0[ID].droesem;
 	
 	if(isnan(droesemCapaciteit) || isinf(droesemCapaciteit))
