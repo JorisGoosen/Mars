@@ -21,7 +21,8 @@ void main()
 	float 		lokaal 		= vakken0[ID].grondHoogte,
 				grootsteZ	= 0,
 				grootste	= 0;
-	const bool 	isZand		= vakken0[ID].grondSoort == GS_ZAND;
+	const bool 	isZand		= vakken0[ID].grondSoort == GS_ZAND || vakken0[ID].grondSoort == GS_LOESS;
+
 
 
 	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
@@ -33,9 +34,14 @@ void main()
 			if(abs(ander) > abs(grootste))
 				grootste = ander;
 
-			if(vakken0[buurID(buur)].grondSoort == GS_ZAND && abs(ander) > abs(grootsteZ))
-				grootsteZ = ander;
+			if(vakken0[buurID(buur)].grondSoort == GS_ZAND)
+			{
+				zandBuren++;
+
+				if(abs(ander) > abs(grootsteZ))
+					grootsteZ = ander;
 				
+			}
 
 			//if(ander > lokaal || isZand) //Alleen weghalen uit midden als het zand is.
 		//	{
@@ -54,7 +60,7 @@ void main()
 		vakken1[ID].grondHoogte = clamp(lokaal + lokaalV, MIN_GRONDHOOGTE, MAX_GRONDHOOGTE);
 
 		if(lokaalV > TOON_SEDIMENT)
-			vakken1[ID].grondSoort = GS_ZAND;
+			vakken1[ID].grondSoort = zandBuren > burenAantal / 2 ? GS_ZAND : GS_LOESS;
 		else
 			vakken1[ID].grondSoort  = vakken0[ID].grondSoort;
 	}

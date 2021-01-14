@@ -5,7 +5,7 @@
 #define KLEUR_ROTS	vec4(0.3, 	0.3, 	0.3, 	1.0)
 #define KLEUR_KLEI	vec4(0.416,	0.38, 	0.344, 	1.0)
 #define KLEUR_IJS	vec4(0.8, 	0.8, 	0.8, 	1.0)
-#define KLEUR_LOESS	vec4(0.78, 	0.75, 	0.74, 	1.0)
+#define KLEUR_LOESS	vec4(0.58, 	0.45, 	0.4, 	1.0)
 
 #define ID gl_VertexID
 
@@ -45,7 +45,7 @@ uniform sampler2D marsHoogte;
 void main()
 {
 	uint 	burenAantal = vakMetas[ID].burenAantal;
-	vec4 	grondKleur;
+	vec4 	grondKleur = vec4(1);
 
 	switch(vakken0[ID].grondSoort)
 	{
@@ -64,8 +64,8 @@ void main()
 	tc_in.grondHoogte	= vakken0[ID].grondHoogte;
 
 	if(grondNietWater == 0)	//tc_in.kleur	= vec4(0.0, 0.0, 0.4, 0.3 + (lokaalWater * 0.5));
-		tc_in.kleur = 	vec4(vakken0[ID].droesem / (DROESEMHEID * vakken0[ID].waterHoogte), length(vakken0[ID].snelheid) * VERTRAGER, 0.4, 0.3 + (lokaalWater * 0.7));
-	else						tc_in.kleur = grondKleur; 
+			tc_in.kleur = vec4(vakken0[ID].droesem / (DROESEMHEID * vakken0[ID].waterHoogte), length(vakken0[ID].snelheid) * VERTRAGER, 0.4, 0.3 + (lokaalWater * 0.7));
+	else	tc_in.kleur = grondKleur; 
 	/*tc_in.kleur = 	vec4berekenVervormdeNormaal((1.0f - dot(vakMetas[ID].normaal.xyz, berekenNormaal(ID, true))), length(vakken0[ID].snelheid) * VERTRAGER, float(1 - grondNietWater) * 0.4, 1.0);
 	if(grondNietWater == 0)
 		tc_in.kleur.a = 0.3 + (lokaalWater * 0.5);

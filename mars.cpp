@@ -38,18 +38,20 @@ int main()
 	perlinRuis ruisje0, ruisje1;
 	planeet geo(8, [&](glm::vec3 plek)
 	{
+		//return grondMult * (1.0f + (0.05f * ruisje0.geefIniqoQuilesRuis(plek * 11.0f)));
+
 		//plek *= 0.5;//0.25f;
 
 		plek /= 2.0;
 
-		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.7; 
-		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.6f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.5f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(17.0f)) * 0.35f;
-		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(19.0f)) * 0.225f;
-				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(23.0f)) * 0.1625f; 
+		 float	val  = ruisje0.geefIniqoQuilesRuis(plek * glm::vec3( 7.0f)) * 0.2; 
+		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(11.0f)) * 0.2f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(13.0f)) * 0.2f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3(17.0f)) * 0.1f;
+		 		val += ruisje0.geefIniqoQuilesRuis(plek * glm::vec3(19.0f)) * 0.1f;
+				val += ruisje1.geefIniqoQuilesRuis(plek * glm::vec3( 3.0f)) * 0.3f; 
 				
-				val *= 1;
+				val *= 3;
 
 				val = glm::max(-30.0f, val);
 
@@ -72,7 +74,7 @@ int main()
 				draaisnelheid	(0.01, 0.0)			;
 
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.001;
+				verdamping		= 0.0008;
 
 	weergaveScherm::keyHandlerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
@@ -98,8 +100,8 @@ int main()
 		case GLFW_KEY_ENTER:					waterStap 		= true;																			break;
 		case GLFW_KEY_SEMICOLON:				grondMult 		= glm::max(1.0f, grondMult * 0.9f);												break;
 		case GLFW_KEY_APOSTROPHE:				grondMult 		= glm::max(1.0f, grondMult * 1.1f);												break;
-		case GLFW_KEY_K:						verdamping 		= glm::max(0.0f, verdamping - 0.002f);											break;
-		case GLFW_KEY_L:						verdamping 		= glm::max(0.0f, verdamping + 0.002f);											break;
+		case GLFW_KEY_K:						verdamping 		= glm::max(0.0f, verdamping - 0.0002f);											break;
+		case GLFW_KEY_L:						verdamping 		= glm::max(0.0f, verdamping + 0.0002f);											break;
 		}	
 	};
 

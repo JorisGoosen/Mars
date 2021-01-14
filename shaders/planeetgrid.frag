@@ -50,7 +50,7 @@ void main()
 
 	if(grondNietWater == 1)
 	{	
-		kleur 	= mix(fs_in.kleur, vec4(0.0, 0.35, 0.0, 1.0), fs_in.leven) * max(0.2, diffuus);// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
+		kleur 	= mix(fs_in.kleur, vec4(0.0, 0.35, 0.0, 1.0), clamp(fs_in.leven, 0, 1)) * max(0.2, diffuus);// marsKleur * clamp(diffuus, 0.5, 1.0);// fs_in.kleur * marsKleur / 4;//vec4(marsHoogte, marsHoogte * 0.5, 0.0, 1.0);// mix(, marsKleur, lichtheid);
 	}
 	else
 	{

@@ -105,7 +105,7 @@ void planeet::burenAlsEigenschapWijzers()
 		else
 		{
 			_vakken[0][i].waterHoogte 	=  0.0f;
-			_vakken[0][i].vocht			= 70.0f;
+			_vakken[0][i].vocht			=  4.0f;
 			_vakken[0][i].leven			=  0.0001f;
 			_vakken[0][i].droesem		=  0.0f;
 			_vakken[0][i].plek			= glm::vec2(0.0f);
@@ -221,13 +221,13 @@ void planeet::maakPingPongOpslagen()
 		float 	grondRand 	= dis(gen);
 		int 	grondSoort	= 0;
 
-		grondSoort = GS_ROTS;
+		grondSoort = GS_ZAND;
 
 //		vec2	lenBrdGr	= _tex->ggvPunt2(b);
 //		bool	poolIjs		= (lenBrdGr.y < _poolA && dis(gen) > (lenBrdGr.y / _poolA)) || (lenBrdGr.y > _poolB && dis(gen) < (lenBrdGr.y - _poolB) / (1.0f - _poolB));
 
 		/*if		(_vakken[0][b].grondHoogte > 0.8f || poolIjs)	grondSoort = GS_IJS;
-		else*/ if (_vakken[0][b].grondHoogte < 0.1f)				grondSoort = GS_ZAND;
+		else*/  //if (_vakken[0][b].grondHoogte < 0.1f)				grondSoort = GS_ZAND;
 		//else if	(grondRand < 0.0)							grondSoort = GS_GROND;
 //		else if (_vakken[0][b].grondHoogte < 0.6f)				grondSoort = grondRand < (_vakken[0][b].grondHoogte - 0.1f) * 2.0 ? GS_ROTS : GS_ZAND;
 	//	else													grondSoort = GS_ROTS;

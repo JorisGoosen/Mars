@@ -45,7 +45,7 @@ void main()
 
 
 				if(vakken0[and].waterHoogte > MIN_WATER_SED && abs(stroomBinnen) > ZEER_KLEIN)
-					droesem		+=  sign(stroomBinnen) * clamp(abs((stroomBinnen / PIJP_LENGTE) / max(1, vakken0[and].waterHoogte)), 0., 1.) * max(0, vakken0[and].droesem);
+					droesem		+=  sign(stroomBinnen) * clamp(abs(stroomBinnen / PIJP_LENGTE), 0., 1.) * max(0, vakken0[and].droesem);
 
 				break;
 			}
@@ -56,13 +56,13 @@ void main()
 	vakken1[ID].snelheid 	= snelheid;/// length(snelheid / burenAantal; //mix(vakken0[ID].snelheid, (snelheid / burenAantal), 1.0);
 	vakken1[ID].plek		= vakken0[ID].plek + snelheid;
 	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdamping);
-	vakken1[ID].vocht		= min(1.0, max(0.0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte)));
+	vakken1[ID].vocht		= max(0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte));
 
 	if(isnan(droesem) || isinf(droesem))
 		droesem = 0;
 
 	//laten we kijken of er iets veranderd moet worden aan de droesem
-	float 	helling = max(0.1, (1.0f - dot(n, berekenNormaal(ID, true))));
+	float 	helling = 1.0;//max(0.1, (1.0f - dot(n, berekenNormaal(ID, true))));
 			//helling	= sin(acos(helling));
 	float	droesemCapaciteit 	= DROESEMHEID * min(1.0, length(snelheid) * VERTRAGER) * helling,
 			droesemAangespoeld 	= droesem + vakken0[ID].droesem;
@@ -83,7 +83,7 @@ void main()
 		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + droesemAangespoeld;
 
 		if(droesemAangespoeld > TOON_SEDIMENT)
-			vakken1[ID].grondSoort  = GS_ZAND;
+			vakken1[ID].grondSoort  = GS_LOESS;
 	}
 	else if(abs(droesem) > ZEER_KLEIN)
 	{
@@ -110,7 +110,7 @@ void main()
 		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + droesem;
 
 		if(abs(droesem) > TOON_SEDIMENT)
-			vakken1[ID].grondSoort  = GS_ZAND;
+			vakken1[ID].grondSoort  = GS_LOESS;
 	}
 	else
 	{
@@ -125,9 +125,9 @@ void main()
 	if(length(regenPlek) > 0 && true)
 	{
 		//het lekker laten regenen
-		if(regen > 0.999)
+		if(abs(regen) > 0.999)
 		{
-			const float minWaterErbij = vakken1[ID].vocht,
+			const float minWaterErbij = vakken1[ID].vocht * 0.3333f,//max(0,  - 0.5),
 						minderVochtig = minWaterErbij;// vakken1[ID].vocht > minWaterErbij ? max(minWaterErbij, 0.1 * vakken1[ID].vocht) : 0;
 
 			vakken1[ID].waterHoogte += minderVochtig;
@@ -139,11 +139,13 @@ void main()
 	
 	//hoop doet leven
 	buurLeven  /= burenAantal;
+
+	const bool isZand = vakken1[ID].grondSoort == GS_ZAND || vakken1[ID].grondSoort == GS_LOESS;
 	
 	const float rotsGroei = 1.0001, 	rotsBuur = 0.003333, 
 				zandGroei = 1.01, 		zandBuur = 0.03333,
-				groei	= vakken1[ID].grondSoort == GS_ZAND ? zandGroei : rotsGroei,
-				buurG	= vakken1[ID].grondSoort == GS_ZAND ? zandBuur  : rotsBuur ;
+				groei	= isZand ? zandGroei : rotsGroei,
+				buurG	= isZand ? zandBuur  : rotsBuur ;
 
 	
 
