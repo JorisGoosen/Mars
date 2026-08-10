@@ -1,4 +1,4 @@
-#version 440
+#version 410
 
 #define KLEUR_ZAND	vec4(0.7, 	0.52, 	0.3, 	1.0)
 #define KLEUR_GROND	vec4(0.16, 	0.13, 	0.1, 	1.0)
