@@ -161,7 +161,11 @@ int main()
 
 		wgpuQueueWriteBuffer(rij, rekenParBuffer, 0, &rekenPar, sizeof(rekenParameters));
 
-		//grond-pass
+		//grond-pass (achterkant-verwijdering aan)
+		weergaveInstellingen grondInstellingen;
+		grondInstellingen.cullMode = WGPUCullMode_Back;
+		scherm.zetWeergaveInstellingen(grondInstellingen);
+
 		scherm.bereidRenderVoor("planeetgridLand");
 		geo->bindVrwrkrOpslagen(scherm);
 		scherm.bindTextuur("marsHoogteTex", 0);
@@ -171,9 +175,10 @@ int main()
 		//water-pass: een blendende tweede laag over de grond heen, op hetzelfde oppervlak
 		if(tekenWater)
 		{
-			weergaveInstellingen instellingen;
-			instellingen.blenden = true;
-			scherm.zetWeergaveInstellingen(instellingen);
+			weergaveInstellingen waterInstellingen;
+			waterInstellingen.blenden 	= true;
+			waterInstellingen.cullMode 	= WGPUCullMode_Back;
+			scherm.zetWeergaveInstellingen(waterInstellingen);
 
 			scherm.bereidRenderVoor("planeetgridWater", false);
 			geo->bindVrwrkrOpslagen(scherm);
