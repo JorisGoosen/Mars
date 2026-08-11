@@ -1,6 +1,7 @@
 #include "planeet.h"
 #include <random>
 #include <iostream>
+#include <weergaveScherm.h>
 
 
 using namespace glm;
@@ -257,9 +258,10 @@ void planeet::volgendeRonde()
 	bindVrwrkrOpslagen();
 }
 
-void planeet::bindVrwrkrOpslagen()
+void planeet::bindVrwrkrOpslagen(weergaveScherm & scherm)
 {
-	_pingPongVakken[    _pingIsDit]	->zetKnooppunt(0);
-	_pingPongVakken[1 - _pingIsDit]	->zetKnooppunt(1);
-	_vakMetaOpslag					->zetKnooppunt(2);
+	//In WebGPU krijgen de opslag-buffers hun plek in het reken/weergave-schema via het scherm
+	scherm.verbindRekenBuffer(0, _pingPongVakken[    _pingIsDit]->opslag());
+	scherm.verbindRekenBuffer(1, _pingPongVakken[1 - _pingIsDit]->opslag());
+	scherm.verbindRekenBuffer(2, _vakMetaOpslag->opslag());
 }

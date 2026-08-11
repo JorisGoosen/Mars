@@ -1,160 +1,154 @@
-#version 430
+//WGSL reken-shader die de waterdruk, het vocht, de droesem en het leven bijwerkt.
+//We hebben net in waterStroming.comp naar vakken1 geschreven, dus de nieuwe
+//stromingswaardes staan daar. Maar we willen alsnog de nieuwe waterHoogte etc
+//naar vakken1 schrijven, dus opletten.
+#include "planeetDefinities.wgsl"
 
-layout(local_size_x = 16) in;
-#define ID gl_GlobalInvocationID.x
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
 
-#include "planeetDefinities.glsl"
+    let n = vakMetas[ID].normaal.xyz;
+    let burenAantal = vakMetas[ID].burenAantal;
+    var stroming = 0.0;
+    var buurVocht = 0.0;
+    let mijnVocht = vakken0[ID].vocht;
+    var buurLeven = 0.0;
+    var droesem = 0.0;
+    var snelheid = vec2f(0.0);
 
+    //Ga de buren telkens opzoeken zodat we normalen kunnen berekenen en zo veel meer
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        let buurIDv = vakMetas[ID].buren[buur];
+        let buurBuren = vakMetas[buurIDv].burenAantal;
 
+        for(var buurBuur = 0u; buurBuur < buurBuren; buurBuur++) {
+            if(vakMetas[buurIDv].buren[buurBuur] == ID) {
+                let stroomBinnen = vakken1[buurIDv].pijpen[buurBuur] - vakken1[ID].pijpen[buur];
 
-// We hebben net in waterStroming.comp naar vakken1 geschreven, dus de nieuwe stromingswaardes staan daar.
-// Maar we willen alsnog de nieuwe waterHoogte etc naar vakken1 schrijven, dus opletten.
-void main()
-{
-	vec3 	n 			= vakMetas[ID].normaal.xyz;
-	uint 	burenAantal = vakMetas[ID].burenAantal;
-	float 	stroming 	= 0.0f,
-			buurVocht	= 0.0f,
-			mijnVocht	= vakken0[ID].vocht,
-			buurLeven	= 0.0f,
-			droesem 	= 0.0f,
-			droesemWeg	= 0.0f;
-	vec2 	snelheid 	= vec2(0.0f);
-	vec3	hier		= vakHoogteNormaal(ID, false);
+                stroming += stroomBinnen;
+                buurVocht += (vakken1[buurIDv].vocht - mijnVocht) / 6.0;
+                buurLeven += vakken1[buurIDv].leven;
+                snelheid += vakMetas[ID].buurRicht[buur] * stroomBinnen;
 
-	//Ga de buur er telkens bijzoeken zodat we normalen kunnen berekenen en zo veel meer
-	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
-	{	
-		const uint 	buurID 		= vakMetas[ID].buren[buur],
-					buurBuren 	= vakMetas[buurID].burenAantal;
+                //Als stroomBinnen positief is komt het binnen
+                let andId = select(ID, buurIDv, stroomBinnen >= 0.0);
 
-		for(uint buurBuur=0; buurBuur < buurBuren; buurBuur++)
-			if(vakMetas[buurID].buren[buurBuur] == ID)
-			{
-				
-				float stroomBinnen = vakken1[buurID].pijpen[buurBuur] 	- vakken1[ID].pijpen[buur];
+                if(vakken0[andId].waterHoogte > minWaterSed && abs(stroomBinnen) > zeerKlein) {
+                    droesem += sign(stroomBinnen) * clamp(abs(stroomBinnen / pijpLengte), 0.0, 1.0) * max(0.0, vakken0[andId].droesem);
+                }
 
-				stroming  += stroomBinnen;
-				buurVocht += (vakken1[buurID].vocht - mijnVocht) / 6;
-				buurLeven += vakken1[buurID].leven;
-				snelheid  += vakMetas[ID].buurRicht[buur] * stroomBinnen;
+                break;
+            }
+        }
+    }
 
-				//Als stroomBinnen positief is komt het binnen
-				uint 	//id 	= stroomBinnen >= 0 ? ID 	 : buurID ,
-						and	= stroomBinnen >=  0	? buurID : ID;
+    //Dan tijd om het een en ander weg te schrijven
+    snelheid /= f32(burenAantal);
+    vakken1[ID].snelheid     = snelheid;
+    vakken1[ID].plek         = vakken0[ID].plek + snelheid;
+    vakken1[ID].waterHoogte  = max(0.0, (vakken0[ID].waterHoogte + (stroming / pijpLengte)) - reken.verdamping);
+    vakken1[ID].vocht        = max(0.0, mijnVocht + buurVocht + min(reken.verdamping, vakken0[ID].waterHoogte));
 
+    if(!(droesem >= -1.0e30 && droesem <= 1.0e30)) {
+        droesem = 0.0;
+    }
 
-				if(vakken0[and].waterHoogte > MIN_WATER_SED && abs(stroomBinnen) > ZEER_KLEIN)
-					droesem		+=  sign(stroomBinnen) * clamp(abs(stroomBinnen / PIJP_LENGTE), 0., 1.) * max(0, vakken0[and].droesem);
+    let helling = 1.0;
+    var droesemCapaciteit = droesemheid * clamp(length(snelheid) * vertrager, 0.0, 1.0) * helling;
 
-				break;
-			}
-	}
+    if(!(droesemCapaciteit >= -1.0e30 && droesemCapaciteit <= 1.0e30)) {
+        droesemCapaciteit = 0.0;
+    }
 
-	//Dan tijd om het een ent ander weg te schrijven
-	snelheid /= burenAantal;
-	vakken1[ID].snelheid 	= snelheid;/// length(snelheid / burenAantal; //mix(vakken0[ID].snelheid, (snelheid / burenAantal), 1.0);
-	vakken1[ID].plek		= vakken0[ID].plek + snelheid;
-	vakken1[ID].waterHoogte = max(0, (vakken0[ID].waterHoogte + (stroming / PIJP_LENGTE)) - verdamping);
-	vakken1[ID].vocht		= max(0, mijnVocht + buurVocht + min(verdamping, vakken0[ID].waterHoogte));
+    let droesemAangespoeld = droesem + vakken0[ID].droesem;
 
-	if(isnan(droesem) || isinf(droesem))
-		droesem = 0;
+    droesem = droesemAangespoeld - droesemCapaciteit;
 
-	//laten we kijken of er iets veranderd moet worden aan de droesem
-	float 	helling = 1.0;//max(0.1, (1.0f - dot(n, berekenNormaal(ID, true))));
-			//helling	= sin(acos(helling));
-	float	droesemCapaciteit 	= DROESEMHEID * clamp(length(snelheid) * VERTRAGER, 0.0, 1.0) * helling,
-			droesemAangespoeld 	= droesem + vakken0[ID].droesem;
-	
-	if(isnan(droesemCapaciteit) || isinf(droesemCapaciteit))
-		droesemCapaciteit = 0;
+    vakken1[ID].grondSoort = vakken0[ID].grondSoort;
 
-	
-	//	droesemCapaciteit  = 0;
+    if(vakken1[ID].waterHoogte <= zeerKlein && droesemAangespoeld > zeerKlein) {
+        vakken1[ID].droesem     = 0.0;
+        vakken1[ID].grondHoogte = vakken0[ID].grondHoogte + droesemAangespoeld;
 
-	droesem  = droesemAangespoeld - droesemCapaciteit;
+        if(droesemAangespoeld > toonSediment) {
+            vakken1[ID].grondSoort = i32(gsLoess);
+        }
+    }
+    else if(abs(droesem) > zeerKlein) {
+        droesem *= select(oplosheid, bezinkheid, droesem >= 0.0);
 
-	vakken1[ID].grondSoort  = vakken0[ID].grondSoort;
-	
-	if(vakken1[ID].waterHoogte <= ZEER_KLEIN && droesemAangespoeld > ZEER_KLEIN)
-	{
-		vakken1[ID].droesem 	= 0;
-		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + droesemAangespoeld;
+        if(droesem < 0.0) { //== oplossen
+            if(-droesem > vakken0[ID].grondHoogte - minGrondHoogte) {
+                droesem = vakken0[ID].grondHoogte - minGrondHoogte;
+            }
 
-		if(droesemAangespoeld > TOON_SEDIMENT)
-			vakken1[ID].grondSoort  = GS_LOESS;
-	}
-	else if(abs(droesem) > ZEER_KLEIN)
-	{
-		droesem	*= droesem >= 0 ? BEZINKHEID : OPLOSHEID;
+            if(vakken1[ID].waterHoogte < minWaterSed) {
+                droesem = 0.0;
+            }
+        }
+        else if(droesem >= 0.0) { //== bezinken
+            if(vakken1[ID].waterHoogte < minWaterSed) {
+                droesem = droesemAangespoeld * bezinkheid;
+            }
 
-		if(droesem < 0) // == oplossen
-		{
-			if(-droesem > vakken0[ID].grondHoogte - MIN_GRONDHOOGTE)		
-				droesem = vakken0[ID].grondHoogte 	- MIN_GRONDHOOGTE;
+            if(vakken0[ID].grondHoogte + droesem > maxGrondHoogte) {
+                droesem = maxGrondHoogte - vakken0[ID].grondHoogte;
+            }
+        }
 
-			if(vakken1[ID].waterHoogte < MIN_WATER_SED)
-				droesem = 0;
-		}
-		else if(droesem >= 0) // == bezinken
-		{
-			if(vakken1[ID].waterHoogte < MIN_WATER_SED)
-				droesem = droesemAangespoeld * BEZINKHEID;
+        vakken1[ID].droesem     = droesemAangespoeld - droesem;
+        vakken1[ID].grondHoogte = vakken0[ID].grondHoogte + droesem;
 
-			if(vakken0[ID].grondHoogte + droesem > MAX_GRONDHOOGTE)	
-				droesem = MAX_GRONDHOOGTE 			- vakken0[ID].grondHoogte;
-		}
+        if(abs(droesem) > toonSediment) {
+            vakken1[ID].grondSoort = i32(gsLoess);
+        }
+    }
+    else {
+        vakken1[ID].droesem     = 0.0;
+        vakken1[ID].grondHoogte = vakken0[ID].grondHoogte;
+    }
 
-		vakken1[ID].droesem 	= droesemAangespoeld      - droesem;
-		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte + droesem;
+    var leven = vakken0[ID].leven;
+    let regen = dot(reken.regenPlek.xyz, n);
 
-		if(abs(droesem) > TOON_SEDIMENT)
-			vakken1[ID].grondSoort  = GS_LOESS;
-	}
-	else
-	{
-		vakken1[ID].droesem 	= 0;
-		vakken1[ID].grondHoogte	= vakken0[ID].grondHoogte;
-	}
+    if(length(reken.regenPlek.xyz) > 0.0) {
+        //het lekker laten regenen
+        if(abs(regen) > 0.999) {
+            let minWaterErbij = vakken1[ID].vocht * 0.3333;
+            let minderVochtig = minWaterErbij;
 
+            vakken1[ID].waterHoogte += minderVochtig;
+            vakken1[ID].vocht       -= minderVochtig;
+        }
+        else if(-regen > 0.98) {
+            leven = max(0.00001, leven);
+        }
+    }
 
-	float 	leven = vakken0[ID].leven,
-			regen = dot(regenPlek, n);
+    //hoop doet leven
+    buurLeven /= f32(burenAantal);
 
-	if(length(regenPlek) > 0 && true)
-	{
-		//het lekker laten regenen
-		if(abs(regen) > 0.999)
-		{
-			const float minWaterErbij = vakken1[ID].vocht * 0.3333f,//max(0,  - 0.5),
-						minderVochtig = minWaterErbij;// vakken1[ID].vocht > minWaterErbij ? max(minWaterErbij, 0.1 * vakken1[ID].vocht) : 0;
+    let isZand = vakken1[ID].grondSoort == i32(gsZand) || vakken1[ID].grondSoort == i32(gsLoess);
 
-			vakken1[ID].waterHoogte += minderVochtig;
-			vakken1[ID].vocht		-= minderVochtig;
-		}
-		else if(-regen > 0.98)
-			leven = max(0.00001, leven);
-	}
-	
-	//hoop doet leven
-	buurLeven  /= burenAantal;
+    let rotsGroei = 1.0001;
+    let rotsBuur  = 0.003333;
+    let zandGroei = 1.01;
+    let zandBuur  = 0.03333;
+    let groei     = select(rotsGroei, zandGroei, isZand);
+    let buurG     = select(rotsBuur,  zandBuur,  isZand);
 
-	const bool isZand = vakken1[ID].grondSoort == GS_ZAND || vakken1[ID].grondSoort == GS_LOESS;
-	
-	const float rotsGroei = 1.0001, 	rotsBuur = 0.003333, 
-				zandGroei = 1.01, 		zandBuur = 0.03333,
-				groei	= isZand ? zandGroei : rotsGroei,
-				buurG	= isZand ? zandBuur  : rotsBuur ;
+    if(vakken1[ID].waterHoogte <= 0.05) {
+        leven = max(0.0, min(vakken1[ID].vocht, max(leven * groei, leven + (buurLeven * buurG))));
+    }
+    else if(vakken1[ID].waterHoogte > 2.0) {
+        leven *= 0.85;
+    }
+    else {
+        leven *= 0.95;
+    }
 
-	
-
-	if(vakken1[ID].waterHoogte <= 0.05)		leven = max(0.0, min(vakken1[ID].vocht, max(leven * groei, leven + (buurLeven * buurG))));
-	else if(vakken1[ID].waterHoogte > 2.0)	leven *= 0.85;
-	else									leven *= 0.95;
-
-	vakken1[ID].leven = leven;
-
-	//if(vakken1[ID].waterHoogte <= 0.00001) vakken1[ID].droesem = 0;
-
+    vakken1[ID].leven = leven;
 }

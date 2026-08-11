@@ -1,84 +1,25 @@
-#version 430
+//WGSL reken-shader die de grond weer een beetje bij de hand neemt:
+//de grond kan soms verschrikkelijk steil worden, dus klemmen we de hoogtes.
+#include "planeetDefinities.wgsl"
 
-layout(local_size_x = 16) in;
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
 
-#define ID gl_GlobalInvocationID.x
+    vakken1[ID].grondSoort  = vakken0[ID].grondSoort;
+    vakken1[ID].grondHoogte = clamp(vakken0[ID].grondHoogte, minGrondHoogte, maxGrondHoogte);
+    vakken1[ID].waterHoogte = vakken0[ID].waterHoogte;
+    vakken1[ID].waterSchijn = vakken0[ID].waterSchijn;
+    vakken1[ID].vocht       = vakken0[ID].vocht;
+    vakken1[ID].ijs         = vakken0[ID].ijs;
+    vakken1[ID].leven       = vakken0[ID].leven;
+    vakken1[ID].droesem     = vakken0[ID].droesem;
+    vakken1[ID].snelheid    = vakken0[ID].snelheid;
+    vakken1[ID].plek        = vakken0[ID].plek;
 
-#include "planeetDefinities.glsl"
-
-//We hebben net van alles berekend maar de grond kan nu soms verschrikkelijk steil worden, das niet goed
-//Dus gaan we er voor zorgen dat de grond een beetje inzakt als er een te groot hoogteverschil is met een van de buren.
-//Per buur kijken we naar het verschil, is het groter dan een bepaald maximum dan nemen we een gedeelte en verplaatsen het naar beneden
-//Maar dan moet natuurlijk exact dezelfde hoeveelheid bij de hogere worden weggehaald.
-
-#define MAX_GROND_VERSCHIL 	1.0 //0.66666
-#define GROND_VERZET		0.5
-
-void main()
-{
-	/*uint 		burenAantal = vakMetas[ID].burenAantal,
-				zandBuren	= 0;
-	float 		lokaal 		= vakken0[ID].grondHoogte,
-				grootsteZ	= 0,
-				grootste	= 0;
-	const bool 	isZand		= vakken0[ID].grondSoort == GS_ZAND || vakken0[ID].grondSoort == GS_LOESS;
-
-
-
-	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
-		{
-			float ander = vakken0[buurID(buur)].grondHoogte;
-
-			ander = ander - lokaal;
-
-			if(abs(ander) > abs(grootste))
-				grootste = ander;
-
-			if(vakken0[buurID(buur)].grondSoort == GS_ZAND)
-			{
-				zandBuren++;
-
-				if(abs(ander) > abs(grootsteZ))
-					grootsteZ = ander;
-				
-			}
-
-			//if(ander > lokaal || isZand) //Alleen weghalen uit midden als het zand is.
-		//	{
-		//		zandBuren++;
-		//		buren += ander;
-		//	}
-		}
-
-	//if(isZand || lokaalV > 0)
-	bool zandValt = isZand && -grootste > MAX_GROND_VERSCHIL;
-
-	if(zandValt || abs(grootsteZ) > MAX_GROND_VERSCHIL)
-	{
-		float lokaalV = (zandValt ? grootste : grootsteZ) * GROND_VERZET; //(lokaal - (buren / float(zandBuren))) * GROND_VERZET;
-
-		vakken1[ID].grondHoogte = clamp(lokaal + lokaalV, MIN_GRONDHOOGTE, MAX_GRONDHOOGTE);
-
-		if(lokaalV > TOON_SEDIMENT)
-			vakken1[ID].grondSoort = zandBuren > burenAantal / 2 ? GS_ZAND : GS_LOESS;
-		else
-			vakken1[ID].grondSoort  = vakken0[ID].grondSoort;
-	}
-	else*/
-	{
-		vakken1[ID].grondSoort  = vakken0[ID].grondSoort;
-		vakken1[ID].grondHoogte = clamp(vakken0[ID].grondHoogte, MIN_GRONDHOOGTE, MAX_GRONDHOOGTE);
-	}
-	
-	vakken1[ID].waterHoogte	= vakken0[ID].waterHoogte	;
-	vakken1[ID].waterSchijn	= vakken0[ID].waterSchijn	;
-	vakken1[ID].vocht		= vakken0[ID].vocht			;
-	vakken1[ID].ijs			= vakken0[ID].ijs			;
-	vakken1[ID].leven		= vakken0[ID].leven			;
-	vakken1[ID].droesem		= vakken0[ID].droesem		;
-	vakken1[ID].snelheid	= vakken0[ID].snelheid		;
-	vakken1[ID].plek		= vakken0[ID].plek			;
-
-	for(uint i=0; i<6; i++)
-		vakken1[ID].pijpen[i] = vakken0[ID].pijpen[i];
+    for(var i = 0u; i < maxBuren; i++) {
+        vakken1[ID].pijpen[i] = vakken0[ID].pijpen[i];
+    }
 }

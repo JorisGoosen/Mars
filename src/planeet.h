@@ -5,6 +5,8 @@
 #include <iostream>
 #include <vrwrkrOpslagDing.h>
 
+class weergaveScherm;
+
 #define GS_ZAND		0
 #define GS_GROND	1	//Ook wel humus of rijke grond
 #define GS_ROTS		2
@@ -46,7 +48,8 @@ public:
 
 	size_t 	aantalVakjes() const { return _vakken[0].size(); }
 	void	volgendeRonde();
-	void	bindVrwrkrOpslagen();
+	void	bindVrwrkrOpslagen() { }
+	void	bindVrwrkrOpslagen(weergaveScherm & scherm);
 	
 protected:
 	void bouwPlaneet();

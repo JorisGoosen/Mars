@@ -1,28 +1,22 @@
-#version 440
+//WGSL reken-shader die de "schijnbare" waterhoogte (het gemiddelde over de buren) berekent.
+//We hebben net in waterStroming.comp en waterDruk.comp naar vakken1 geschreven,
+//dus de nieuwe stromingswaardes en waterHoogtes staan daar.
+#include "planeetDefinities.wgsl"
 
-layout(local_size_x = 16) in;
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
 
-#define ID gl_GlobalInvocationID.x
+    let burenAantal = vakMetas[ID].burenAantal;
+    var waterSchijn = 0.0;
 
-#include "planeetDefinities.glsl"
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        waterSchijn += vakken1[buurID(ID, buur)].waterHoogte;
+    }
 
-// We hebben net in waterStroming.comp en waterDruk.comp naar vakken1 geschreven, dus de nieuwe stromingswaardes staan daar.
-// De zojuist berekende waterHoogtes ook. Maar waterSchijn, ofwel "gemiddelde" waterhoogte wordt hier bepaald.
-void main()
-{
+    waterSchijn /= f32(burenAantal);
 
-	uint 	burenAantal = vakMetas[ID].burenAantal;
-	float 	waterSchijn = 0;
-
-	if(true)
-	{
-		for(uint buur=0; buur < burenAantal && buur < 6; buur++)
-			waterSchijn += vakken1[buurID(buur)].waterHoogte;
-
-		waterSchijn /= burenAantal;
-
-		vakken1[ID].waterSchijn = (waterSchijn + vakken1[ID].waterHoogte) / 2;
-	}
-	else
-		vakken1[ID].waterSchijn = waterSchijn;
+    vakken1[ID].waterSchijn = (waterSchijn + vakken1[ID].waterHoogte) / 2.0;
 }

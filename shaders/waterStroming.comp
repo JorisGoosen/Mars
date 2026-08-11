@@ -1,35 +1,24 @@
-#version 430
+//WGSL reken-shader die de waterstroming (fluxen door de pijpen) berekent
+#include "planeetDefinities.wgsl"
 
-layout(local_size_x = 16) in;
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
 
-#define ID gl_GlobalInvocationID.x
+    var fluxen = 0.0;
+    let burenAantal = vakMetas[ID].burenAantal;
 
-#include "planeetDefinities.glsl"
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        let flux = max(0.0, vakken0[ID].pijpen[buur] + (tijdVerschil * pijpDoorsnee * ((zwaartekracht * hoogteverschil(ID, buurID(ID, buur))) / pijpLengte)));
+        vakken1[ID].pijpen[buur] = flux;
+        fluxen += flux;
+    }
 
+    let K = max(0.0, min(1.0, (pijpLengte * vakken0[ID].waterHoogte) / max(fluxen * tijdVerschil, zeerKlein)));
 
-float hoogteverschil(uint buurID)
-{
-	return ((vakken0[ID].grondHoogte) + vakken0[ID].waterHoogte) - ((vakken0[buurID].grondHoogte) + vakken0[buurID].waterHoogte);
-}
-
-void main()
-{
-	float	fluxen		= 0.0f;
-	uint 	burenAantal = vakMetas[ID].burenAantal;
-
-	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
-	{
-		uint 	buurID 	= vakMetas[ID].buren[buur];
-		float 	flux 	= max(0, vakken0[ID].pijpen[buur] + (TIJD_VERSCHIL * PIJP_DOORSNEE * ( ( ZWAARTEKRACHT * hoogteverschil(buurID) ) / PIJP_LENGTE ) ) );
-
-		vakken1[ID].pijpen[buur] = flux; 
-		fluxen += flux;
-	}
-
-	memoryBarrier();
-
-	float K = max(0, min(1, (PIJP_LENGTE * vakken0[ID].waterHoogte) / (fluxen * TIJD_VERSCHIL) ) );
-
-	for(uint buur=0; buur < burenAantal && buur < 6; buur++)
-		vakken1[ID].pijpen[buur] = K * vakken1[ID].pijpen[buur];
+    for(var buur2 = 0u; buur2 < burenAantal && buur2 < maxBuren; buur2++) {
+        vakken1[ID].pijpen[buur2] = K * vakken1[ID].pijpen[buur2];
+    }
 }
