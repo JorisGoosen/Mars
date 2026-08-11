@@ -13,6 +13,9 @@ struct vertexIn {
     @location(1) tex   : vec2f,
 };
 
+//Laagdikte (in terreinhogte-eenheden) waarboven de overgang zand->rots volledig is
+const overgangDikte = 4.0;
+
 struct naarFrag {
     @builtin(position) glPos          : vec4f,
     @location(0) normaal        : vec3f,
@@ -33,14 +36,14 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     let ID = vertexIndex;
 
     var grondKleur = vec4f(1.0);
-    let soort = vakken0[ID].grondSoort;
 
-    if      (soort == i32(gsZand))  { grondKleur = vec4f(0.7,  0.52, 0.3,  1.0); }
-    else if (soort == i32(gsGrond)) { grondKleur = vec4f(0.16, 0.13, 0.1,  1.0); }
-    else if (soort == i32(gsRots))  { grondKleur = vec4f(0.3,  0.3,  0.3,  1.0); }
-    else if (soort == i32(gsKlei))  { grondKleur = vec4f(0.416,0.38, 0.344,1.0); }
-    else if (soort == i32(gsIjs))   { grondKleur = vec4f(0.8,  0.8,  0.8,  1.0); }
-    else if (soort == i32(gsLoess)) { grondKleur = vec4f(0.58, 0.45, 0.4,  1.0); }
+    //Zachte overgang: waar de zand/deklaag dun wordt, gaat het oppervlak van zand
+    //geleidelijk over in de daaronder liggende Mars-rots, i.p.v. een harde knip.
+    let zandlaag  = max(0.0, vakken0[ID].grondHoogte - vakken0[ID].rotsHoogte);
+    let overgang  = clamp(zandlaag / overgangDikte, 0.0, 1.0);
+    let zandKleur = vec4f(0.7, 0.52, 0.3, 1.0);
+    let rotsKleur = vec4f(0.85, 0.35, 0.18, 1.0); //Mars-rood
+    grondKleur = mix(rotsKleur, zandKleur, overgang);
 
     //Naadloze textuur-coordinaten (zie Tarini 2012); de frag-shader kiest s0 of s1 mbv fwidth
     uit.texDraaien = vec3f(in.tex.y, fract(in.tex.x), fract(in.tex.x + 0.5) - 0.5);

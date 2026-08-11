@@ -3,15 +3,23 @@
 #include <iostream>
 #include <weergaveScherm.h>
 
+//Klemwaarden voor de terreinhoogtes, gekoppeld aan dezelfde waarden in shaders/planeetStructen.wgsl
+const float minGrondHoogte = 10.0f;
+const float maxGrondHoogte = 200.0f;
+
+//De vak-struct moet byte-gelijk zijn aan de WGSL-struct (80 bytes). Laat het
+//compileren falen als iemand straks een veld toevoegt zonder de layout te fixen.
+static_assert(sizeof(vak) == 80, "vak-struct moet 80 bytes groot zijn (gelijk aan WGSL)");
+
 
 using namespace glm;
 
-planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis) : geodesisch(onderverdelingen), _ruis(ruis), _isRuis(true)
+planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis, bool beginMetWater) : geodesisch(onderverdelingen), _ruis(ruis), _isRuis(true), _beginMetWater(beginMetWater)
 {
 	bouwPlaneet();
 }
 
-planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar) : geodesisch(onderverdelingen), _hoogteMonsteraar(hoogteMonsteraar), _isRuis(false)
+planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar, bool beginMetWater) : geodesisch(onderverdelingen), _hoogteMonsteraar(hoogteMonsteraar), _isRuis(false), _beginMetWater(beginMetWater)
 {
 	bouwPlaneet();
 }
@@ -88,6 +96,12 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakMetas[i].buren[buur++] 	= buurId;
 
 		_vakken[0][i].grondHoogte 	= _isRuis ? _ruis(_punten->ggvPunt3(i)) : _hoogteMonsteraar(_tex->ggvPunt2(i));
+
+		//De rots-ondergrond begint gelijk aan het oppervlak: de planeet start geheel als
+		//blootliggende rots. Zand ontstaat pas waar water erosie-materiaal (droesem)
+		//bezinkt; rots zelf erodeert 100x langzamer dan dat zand.
+		const float zandDeklaag = 0.0f;
+		_vakken[0][i].rotsHoogte = glm::clamp(_vakken[0][i].grondHoogte - zandDeklaag, minGrondHoogte, maxGrondHoogte);
 		
 		vec3 n = normalize(_punten->ggvPunt3(i));
 		_vakMetas[i].normaal = vec4(n, 0.0f);
@@ -105,8 +119,9 @@ void planeet::burenAlsEigenschapWijzers()
 		}
 		else
 		{
-			_vakken[0][i].waterHoogte 	=  0.5f;
-			_vakken[0][i].vocht			=  0.0f;
+			_vakken[0][i].waterHoogte 	=  _beginMetWater ? 1.0f : 0.0f;
+			_vakken[0][i].bodemVocht	=  0.0f;
+			_vakken[0][i].luchtVocht	=  0.0f;
 			_vakken[0][i].leven			=  0.0001f;
 			_vakken[0][i].droesem		=  0.0f;
 			_vakken[0][i].plek			= glm::vec2(0.0f);
@@ -222,7 +237,8 @@ void planeet::maakPingPongOpslagen()
 		float 	grondRand 	= dis(gen);
 		int 	grondSoort	= 0;
 
-		grondSoort = GS_ZAND;
+		//Het oppervlak is rots waar geen deklaag boven zit, anders zand
+		grondSoort = (_vakken[0][b].grondHoogte - _vakken[0][b].rotsHoogte > 0.0f) ? GS_ZAND : GS_ROTS;
 
 //		vec2	lenBrdGr	= _tex->ggvPunt2(b);
 //		bool	poolIjs		= (lenBrdGr.y < _poolA && dis(gen) > (lenBrdGr.y / _poolA)) || (lenBrdGr.y > _poolB && dis(gen) < (lenBrdGr.y - _poolB) / (1.0f - _poolB));

@@ -29,7 +29,7 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     let lichtRicht = normalize(extra.zonPos - mijnPlek);
     let diffuus = max(0.0, dot(lichtRicht, in.normaal));
 
-    let kleur = mix(in.kleur * clamp(marsHoogte * 3.0, 0.2, 1.0), vec4f(0.0, 0.35, 0.0, 1.0), clamp(in.leven, 0.0, 1.0)) * max(0.2, diffuus);
+    let kleur = mix(in.kleur * clamp(marsHoogte * 3.0, 0.35, 1.0), vec4f(0.0, 0.35, 0.0, 1.0), clamp(in.leven, 0.0, 1.0)) * max(0.2, diffuus);
 
     return kleur;
 }

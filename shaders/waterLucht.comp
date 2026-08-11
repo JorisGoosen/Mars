@@ -1,0 +1,83 @@
+//WGSL reken-shader die de atmosfeer bijwerkt: verdamping boven water, advectie
+//van luchtvochtigheid door de wind, orografische condensatie en regen.
+//Draait als laatste in de keten (na waterDruk en waterGemiddelde), dus vakken1
+//bevat al de verse waterhoogtes, bodemvocht etc. van deze ronde.
+#include "planeetDefinities.wgsl"
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
+
+    let hier = vakMetas[ID].normaal.xyz;
+    let burenAantal = vakMetas[ID].burenAantal;
+
+    //---- wind: draaiende circulatiecellen rond de as reken.windAs ----
+    let wAs  = normalize(reken.windAs.xyz);
+    var oost = cross(wAs, hier);              //zonale richting (oost-west)
+    if(length(oost) < zeerKlein) {
+        oost = cross(vec3f(0.0, 0.0, 1.0), hier);
+    }
+    oost = normalize(oost);
+    let mer     = cross(oost, hier);          //meridionaal, naar de evenaar
+    let breedte = dot(wAs, hier);             //-1..1 (zuid..noord)
+
+    //Tropen: aan de grond naar de evenaar (passaat), daarbuiten vooral oost-west
+    let warmteBand = clamp((1.0 - 4.0 * abs(breedte)) * 1.5, -1.0, 1.0);
+    var wind = mer * warmteBand + oost * (0.25 + 0.75 * abs(breedte));
+    if(length(wind) < zeerKlein) {
+        wind = oost;
+    }
+    wind = normalize(wind);
+    let windSterkte = clamp(reken.windAs.w, 0.0, 1.0);
+
+    //---- windrichting: welke buur is opwind (bron) en stroomaf (bestemming)? ----
+    var opId = ID;            //waar de wind vandaan komt
+    var beste = 1.0;
+    var afId = ID;            //waar de wind heen gaat
+    var besteAf = -1.0;
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        let richting = vakMetas[buurID(ID, buur)].normaal.xyz - hier;
+        let mee = dot(richting, wind);
+        if(mee < beste)   { beste = mee;   opId = buurID(ID, buur); }
+        if(mee > besteAf) { besteAf = mee; afId = buurID(ID, buur); }
+    }
+
+    //---- advectie (semi-Lagrangiaans): lucht die de cel binnenvloeit ----
+    let aangevoerd = vakken0[opId].luchtVocht;
+    let luchtVochtAangekomen = mix(vakken0[ID].luchtVocht, aangevoerd, windSterkte);
+
+    //---- condensatie & regen ----
+    let grond = vakken0[ID].grondHoogte;
+    //Verzadiging daalt met de hoogte: hoog en koud houdt minder vocht
+    let verzadiging = max(0.001, reken.condenseer.x - reken.condenseer.y * ((grond - minGrondHoogte) / (maxGrondHoogte - minGrondHoogte)));
+
+    //Orografie: stroomafwaarts stijgt de grond => de lucht wordt omhoog geduwd
+    let stijgOp = max(0.0, vakken0[afId].grondHoogte - grond);
+
+    var regen = max(0.0, luchtVochtAangekomen - verzadiging) * reken.condenseer.z
+              + stijgOp * reken.condenseer.w * luchtVochtAangekomen;
+    regen = min(regen, max(0.0, luchtVochtAangekomen));
+
+    //---- verdamping boven water (zon-afhankelijk: overdag, naar de zon toe) ----
+    let zon = select(vec3f(0.0, 1.0, 0.0), normalize(reken.zonRicht.xyz), length(reken.zonRicht.xyz) > zeerKlein);
+    let licht = max(0.0, dot(hier, zon));
+
+    var waterNieuw = vakken1[ID].waterHoogte + regen;
+    var luchtVochtNieuw = luchtVochtAangekomen - regen;
+
+    let stoom = max(0.0, min(min(reken.verdamping * licht * min(1.0, waterNieuw * 5.0), waterNieuw), max(0.0, verzadiging - luchtVochtNieuw)));
+    waterNieuw      -= stoom;
+    luchtVochtNieuw += stoom;
+
+    //---- evapotranspiratie: vochtige bodem verdroogt naar droge lucht ----
+    let verdroogt = evapotranspiratie * vakken1[ID].bodemVocht * max(0.0, verzadiging - luchtVochtNieuw);
+    if(verdroogt > zeerKlein) {
+        vakken1[ID].bodemVocht = goed(vakken1[ID].bodemVocht - verdroogt, vakken0[ID].bodemVocht, 0.0, maxWaterHoogte);
+        luchtVochtNieuw += verdroogt;
+    }
+
+    vakken1[ID].waterHoogte = goed(waterNieuw, vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
+    vakken1[ID].luchtVocht  = goed(luchtVochtNieuw, vakken0[ID].luchtVocht, 0.0, maxLuchtVocht);
+}

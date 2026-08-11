@@ -10,8 +10,32 @@ fn buurID(id : u32, buur : u32) -> u32 {
     return vakMetas[id].buren[buur];
 }
 
+//Vervangt Niet-eindige (NaN/±inf) waarden door een zinnige vervanger en klemt
+//daarna op [laag, hoog]. De extremen-hoge kleppen zijn een laatste vangnet;
+//een uitbijter wordt dus teruggezet op zijn vorige waarde i.p.v. dat een
+//NaN/inf de hele planeet besmet.
+fn goed(x : f32, vervanger : f32, laag : f32, hoog : f32) -> f32 {
+    if(!(x >= -1.0e30 && x <= 1.0e30)) {
+        return vervanger;
+    }
+    return clamp(x, laag, hoog);
+}
+
+fn goedV2(v : vec2f, vervanger : f32, laag : f32, hoog : f32) -> vec2f {
+    return vec2f(goed(v.x, vervanger, laag, hoog), goed(v.y, vervanger, laag, hoog));
+}
+
 fn hoogteverschil(id : u32, buurId : u32) -> f32 {
-    return ((vakken0[id].grondHoogte) + vakken0[id].waterHoogte) - ((vakken0[buurId].grondHoogte) + vakken0[buurId].waterHoogte);
+    //De kolom die stroomt telt het zwevende sediment mee: droesem beweegt zo met
+    //het water mee en kan bij depositie nooit boven de (water+droesem)-kolom uitkomen.
+    //Alleen het draagkracht-gedeelte (maxDichtheid x water) duwt echter de stroming;
+    //sediment boven de concentratielimiet blijft zweven maar versnelt het water niet.
+    return kolom(id) - kolom(buurId);
+}
+
+fn kolom(id : u32) -> f32 {
+    let waterHoogte = max(0.0, vakken0[id].waterHoogte);
+    return vakken0[id].grondHoogte + (waterHoogte + min(waterHoogte * maxDichtheid, vakken0[id].droesem));
 }
 
 fn hoogteBuur(id : u32, water : bool) -> f32 {

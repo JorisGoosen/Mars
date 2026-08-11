@@ -1,4 +1,4 @@
-//WGSL reken-shader die de waterdruk, het vocht, de droesem en het leven bijwerkt.
+//WGSL reken-shader die de waterdruk, het bodemvocht, de droesem en het leven bijwerkt.
 //We hebben net in waterStroming.comp naar vakken1 geschreven, dus de nieuwe
 //stromingswaardes staan daar. Maar we willen alsnog de nieuwe waterHoogte etc
 //naar vakken1 schrijven, dus opletten.
@@ -10,26 +10,33 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let aantal = arrayLength(&vakken0);
     if(ID >= aantal) { return; }
 
-    let n = vakMetas[ID].normaal.xyz;
     let burenAantal = vakMetas[ID].burenAantal;
     var stroming = 0.0;
-    var buurVocht = 0.0;
-    let mijnVocht = vakken0[ID].vocht;
+    var buurBodemVocht = 0.0;
+    let mijnBodemVocht = vakken0[ID].bodemVocht;
     var buurLeven = 0.0;
     var droesem = 0.0;
     var snelheid = vec2f(0.0);
+    var maxHelling = 0.0;
+    var laagsteBuur = 1.0e30;
 
     //Ga de buren telkens opzoeken zodat we normalen kunnen berekenen en zo veel meer
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
         let buurIDv = vakMetas[ID].buren[buur];
         let buurBuren = vakMetas[buurIDv].burenAantal;
 
+        //helling: het grootste grondhoogteverschil met een buur, genormaliseerd over de pijplengte
+        maxHelling = max(maxHelling, abs(vakken0[buurIDv].grondHoogte - vakken0[ID].grondHoogte) / pijpLengte);
+
+        //laagste buur begrenst de depositie (geen geïsoleerde heuveltjes boven de omgeving)
+        laagsteBuur = min(laagsteBuur, vakken0[buurIDv].grondHoogte);
+
         for(var buurBuur = 0u; buurBuur < buurBuren; buurBuur++) {
             if(vakMetas[buurIDv].buren[buurBuur] == ID) {
                 let stroomBinnen = vakken1[buurIDv].pijpen[buurBuur] - vakken1[ID].pijpen[buur];
 
                 stroming += stroomBinnen;
-                buurVocht += (vakken1[buurIDv].vocht - mijnVocht) / 6.0;
+                buurBodemVocht += (vakken1[buurIDv].bodemVocht - mijnBodemVocht) / 6.0;
                 buurLeven += vakken1[buurIDv].leven;
                 snelheid += vakMetas[ID].buurRicht[buur] * stroomBinnen;
 
@@ -47,16 +54,26 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //Dan tijd om het een en ander weg te schrijven
     snelheid /= f32(burenAantal);
-    vakken1[ID].snelheid     = snelheid;
-    vakken1[ID].plek         = vakken0[ID].plek + snelheid;
-    vakken1[ID].waterHoogte  = max(0.0, (vakken0[ID].waterHoogte + (stroming / pijpLengte)) - reken.verdamping);
-    vakken1[ID].vocht        = max(0.0, mijnVocht + buurVocht + min(reken.verdamping, vakken0[ID].waterHoogte));
+    vakken1[ID].snelheid     = goedV2(snelheid, 0.0, -maxSnelheid, maxSnelheid);
+    vakken1[ID].plek         = goedV2(vakken0[ID].plek + snelheid, 0.0, -1.0e30, 1.0e30);
+
+    //Verdamping gebeurt boven in de lucht (waterLucht.comp); hier vloeit het water alleen.
+    var waterHoogteVloei = max(0.0, vakken0[ID].waterHoogte + (stroming / pijpLengte));
+
+    //Bodemvocht: diffusie door de grond + infiltratie van staand water tot veldcapaciteit
+    var bodemVochtNieuw = max(0.0, mijnBodemVocht + buurBodemVocht);
+    let infil = min(infiltratie * waterHoogteVloei, max(0.0, veldCapaciteit - bodemVochtNieuw));
+    bodemVochtNieuw += infil;
+    waterHoogteVloei -= infil;
+
+    vakken1[ID].waterHoogte = goed(waterHoogteVloei, vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
+    vakken1[ID].bodemVocht  = goed(bodemVochtNieuw, vakken0[ID].bodemVocht, 0.0, maxWaterHoogte);
 
     if(!(droesem >= -1.0e30 && droesem <= 1.0e30)) {
         droesem = 0.0;
     }
 
-    let helling = 1.0;
+    let helling = 1.0 + hellingKracht * clamp(maxHelling, 0.0, 1.0);
     var droesemCapaciteit = droesemheid * clamp(length(snelheid) * vertrager, 0.0, 1.0) * helling;
 
     if(!(droesemCapaciteit >= -1.0e30 && droesemCapaciteit <= 1.0e30)) {
@@ -65,68 +82,79 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     let droesemAangespoeld = droesem + vakken0[ID].droesem;
 
-    droesem = droesemAangespoeld - droesemCapaciteit;
+    //Zwevend sediment hoort bij het water: de concentratie is begrensd en de kolom
+    //die stroomt telt het mee (zie hoogteverschil). Zo kan droesem met het water
+    //meebewegen en bij depositie nooit boven de lokale waterspiegel uitkomen.
+    let waterHoogteNieuw = vakken1[ID].waterHoogte;
+    let droesemMax       = max(0.0, waterHoogteNieuw) * maxDichtheid;
+
+    //Concentratie-cap: meer zwevend sediment dan het water kan dragen moet bezinken
+    let concentratie = max(0.0, droesemAangespoeld - droesemMax) * reken.erosie;
+
+    //Capaciteitsbalans: positief = te vol (bezinkt), negatief = water wil oplossen
+    var balans = droesemAangespoeld - droesemCapaciteit;
+
+    //--no-erosion: reken.erosie = 0 houdt het terrein volledig stil
+    balans *= reken.erosie;
 
     vakken1[ID].grondSoort = vakken0[ID].grondSoort;
+    vakken1[ID].rotsHoogte = vakken0[ID].rotsHoogte;
 
-    if(vakken1[ID].waterHoogte <= zeerKlein && droesemAangespoeld > zeerKlein) {
-        vakken1[ID].droesem     = 0.0;
-        vakken1[ID].grondHoogte = vakken0[ID].grondHoogte + droesemAangespoeld;
+    //hoe dik de zand/deklaag nu is (tussen grondOppervlak en de rots-ondergrond)
+    let zandlaag = max(0.0, vakken0[ID].grondHoogte - vakken0[ID].rotsHoogte);
 
-        if(droesemAangespoeld > toonSediment) {
-            vakken1[ID].grondSoort = i32(gsLoess);
+    //Depositie mag de grond nooit boven de lokale waterspiegel brengen; zo kunnen
+    //meren/dijken zich ophogen en ontstaan er geen zwevende sedimentwolken zonder
+    //bodemruimte. De droge tak blijft extra naar de laagste buur kijken (maxAfzetDroog).
+    let waterOppervlak = vakken0[ID].grondHoogte + vakken0[ID].waterHoogte;
+    let maxAfzetNat    = max(0.0, waterOppervlak - vakken0[ID].grondHoogte);
+    let maxAfzetDroog  = max(0.0, laagsteBuur - vakken0[ID].grondHoogte);
+
+    var afzet   = 0.0;
+    var weg     = 0.0;
+    var rotsWeg = 0.0;
+
+    if(waterHoogteNieuw <= zeerKlein) {
+        //Droge cel: al het zwevende zakt, maar vult alleen de laagste put tot de oever.
+        //Overschot blijft zwevend en wordt bij de volgende watervloed weer meegevoerd.
+        afzet = min(droesemAangespoeld, maxAfzetDroog) * reken.erosie;
+    }
+    else if(balans < -zeerKlein && waterHoogteNieuw >= minWaterSed) { //== oplossen
+        let behoefte = -balans * oplosheid;
+
+        //eerst het snelle zand: rots is pas bereikbaar als het zand weg is
+        let vanZand = min(behoefte, zandlaag);
+        weg += vanZand;
+
+        let over = behoefte - vanZand;
+        if(over > zeerKlein) {
+            //blootliggende rots erodeert rotsErosieKeer langzamer dan zand
+            let totRots = max(0.0, vakken0[ID].rotsHoogte - minGrondHoogte);
+            let vanRots = min(over, totRots) * rotsErosie;
+            weg += vanRots;
+            rotsWeg = vanRots;
         }
     }
-    else if(abs(droesem) > zeerKlein) {
-        droesem *= select(oplosheid, bezinkheid, droesem >= 0.0);
+    else { //== bezinken (of evenwicht): capaciteits- én concentratie-overschot zakt
+        let bezinkBijdrage = max(0.0, balans) * bezinkheid;
+        let afzetVoornemen = max(bezinkBijdrage, concentratie);
+        afzet = min(afzetVoornemen, maxAfzetNat);
+    }
 
-        if(droesem < 0.0) { //== oplossen
-            if(-droesem > vakken0[ID].grondHoogte - minGrondHoogte) {
-                droesem = vakken0[ID].grondHoogte - minGrondHoogte;
-            }
+    //Opgelost materiaal komt in het water, neergezakt materiaal gaat naar de bodem
+    vakken1[ID].droesem     = goed(droesemAangespoeld - afzet + weg, vakken0[ID].droesem, -maxDroesem, maxDroesem);
+    vakken1[ID].grondHoogte = vakken0[ID].grondHoogte + afzet - weg;
+    vakken1[ID].rotsHoogte  = vakken0[ID].rotsHoogte - rotsWeg;
 
-            if(vakken1[ID].waterHoogte < minWaterSed) {
-                droesem = 0.0;
-            }
-        }
-        else if(droesem >= 0.0) { //== bezinken
-            if(vakken1[ID].waterHoogte < minWaterSed) {
-                droesem = droesemAangespoeld * bezinkheid;
-            }
-
-            if(vakken0[ID].grondHoogte + droesem > maxGrondHoogte) {
-                droesem = maxGrondHoogte - vakken0[ID].grondHoogte;
-            }
-        }
-
-        vakken1[ID].droesem     = droesemAangespoeld - droesem;
-        vakken1[ID].grondHoogte = vakken0[ID].grondHoogte + droesem;
-
-        if(abs(droesem) > toonSediment) {
-            vakken1[ID].grondSoort = i32(gsLoess);
-        }
+    //het oppervlak is zand zodra er een deklaagje boven de rots ligt, anders rots
+    if(vakken1[ID].grondHoogte - vakken1[ID].rotsHoogte > zeerKlein) {
+        vakken1[ID].grondSoort = i32(gsZand);
     }
     else {
-        vakken1[ID].droesem     = 0.0;
-        vakken1[ID].grondHoogte = vakken0[ID].grondHoogte;
+        vakken1[ID].grondSoort = i32(gsRots);
     }
 
     var leven = vakken0[ID].leven;
-    let regen = dot(reken.regenPlek.xyz, n);
-
-    if(length(reken.regenPlek.xyz) > 0.0) {
-        //het lekker laten regenen
-        if(abs(regen) > 0.999) {
-            let minWaterErbij = vakken1[ID].vocht * 0.3333;
-            let minderVochtig = minWaterErbij;
-
-            vakken1[ID].waterHoogte += minderVochtig;
-            vakken1[ID].vocht       -= minderVochtig;
-        }
-        else if(-regen > 0.98) {
-            leven = max(0.00001, leven);
-        }
-    }
 
     //hoop doet leven
     buurLeven /= f32(burenAantal);
@@ -141,13 +169,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let buurG     = select(rotsBuur,  zandBuur,  isZand);
 
     if(vakken1[ID].waterHoogte <= 0.05) {
-        leven = max(0.0, min(vakken1[ID].vocht, max(leven * groei, leven + (buurLeven * buurG))));
+        leven = max(0.0, min(vakken1[ID].bodemVocht, max(leven * groei, leven + (buurLeven * buurG))));
     }
     else if(vakken1[ID].waterHoogte > 2.0) {
         leven *= 0.85;
     }
     else {
         leven *= 0.95;
+    }
+
+    //--no-life: geen plantengroei, dus leven blijft op 0 (geen groene begroeiing)
+    if(reken.levenAan <= 0.5) {
+        leven = 0.0;
     }
 
     vakken1[ID].leven = leven;

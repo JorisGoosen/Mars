@@ -18,12 +18,14 @@ struct vak
 {
 	int			grondSoort	;
 	float 		grondHoogte	,
+				rotsHoogte	,
 				waterHoogte	,
 				waterSchijn	,
-				vocht		,
+				bodemVocht	,
 				ijs			,
 				leven		,
 				droesem		,
+				luchtVocht	,
 				pijpen[6]	;
 	glm::vec2	snelheid	;
 	glm::vec2	plek		; //opgetelde snelheden, om water mee te tekenen
@@ -43,13 +45,18 @@ class planeet : public geodesisch
 public:
 	typedef std::vector<std::set<glm::uint32>> buurt;
 	
-	planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar);
-	planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis);
+	planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar, bool beginMetWater = true);
+	planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis, bool beginMetWater = true);
 
 	size_t 	aantalVakjes() const { return _vakken[0].size(); }
 	void	volgendeRonde();
 	void	bindVrwrkrOpslagen() { }
 	void	bindVrwrkrOpslagen(weergaveScherm & scherm);
+
+	//Voor het diagnose-script (--diag in mars.cpp): de storage-buffer die nu als
+	//"vakken0" (de laatste uitgerekende stand) gebonden wordt + de plek van een cel.
+	WGPUBuffer	huidigeOpslag() const { return _pingPongVakken[_pingIsDit]->opslag(); }
+	glm::vec3	punt3(size_t id) const { return _punten->ggvPunt3(id); }
 	
 protected:
 	void bouwPlaneet();
@@ -70,6 +77,7 @@ private:
 	std::function<float(glm::vec2)> 	_hoogteMonsteraar;
 	std::function<float(glm::vec3)> 	_ruis;
 	bool								_isRuis;
+	bool								_beginMetWater	= true;
 									
 										
 };

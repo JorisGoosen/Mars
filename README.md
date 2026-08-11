@@ -1,19 +1,19 @@
 # Mars - Planet Simulation
 
-Cross-platform OpenGL planet simulation with fluid dynamics.
+Cross-platform WebGPU planet simulation with fluid dynamics and erosion.
 
 ## Build Requirements
 - C++20 compiler
 - CMake 3.20+
-- OpenGL 4.6 compatible GPU (4.4 minimum for compute shaders)
-- Libraries: glfw3, glew, libpng, glm
+- A WebGPU-enabled backend (Vulkan, Metal, or D3D12) — provided by the `Gereedschap` submodule
+- Libraries (via pkg-config): glfw3, libpng
 
 ## Build Instructions
 
 ### Linux
 ```bash
-# Install dependencies (Ubuntu/Debian)
-sudo apt install libglfw3-dev libglew-dev libpng-dev libglm-dev
+# Install dependencies (Debian/Ubuntu)
+sudo apt install libglfw3-dev libpng-dev
 
 # Build
 cmake -B build
@@ -23,10 +23,10 @@ cmake --build build
 ./build/src/mars
 ```
 
-### macOS (Intel)
+### macOS
 ```bash
 # Install dependencies (via Homebrew)
-brew install glfw3 glew libpng glm
+brew install glfw libpng
 
 # Build
 cmake -B build
@@ -36,14 +36,9 @@ cmake --build build
 ./build/src/mars
 ```
 
-### macOS (Apple Silicon M1/M2/M3)
-**Note:** macOS on Apple Silicon only supports OpenGL 4.1 via the Metal wrapper. 
-The planet simulation uses OpenGL compute shaders which require 4.3+ and are not available.
-
-**Workarounds:**
-1. **Use Linux VM**: Run Linux in a VM for full features
-2. **Use Intel Mac**: Build on Intel-based Mac
-3. **Use Metal**: Requires rewriting the graphics code (not implemented)
+WebGPU vertaalt automatisch naar het onderliggende grafische backend,
+dus op Apple Silicon draait het via Metal (in tegenstelling tot OpenGL
+zijn WebGPU-compute-shaders wél beschikbaar).
 
 ## Controls
 - **Space**: Toggle water flow
@@ -58,8 +53,24 @@ The planet simulation uses OpenGL compute shaders which require 4.3+ and are not
 - **;/'**: Adjust ground height
 - **K/L**: Adjust evaporation rate
 
+## Testvlaggen
+- `--no-water`: start zonder water (`waterHoogte = 0`) — handig om de grond-rendering los te testen.
+- `--no-erosion`: houdt het terrein stil (geen erosie/depositie) zodat water gedrag bekeken kan worden zonder hoogteveranderingen.
+- `--no-life`: zet plantengroei uit (geen groene begroeiing), handig om louter het rots/zand-erfgoed te bekijken.
+
+Voorbeeld: `./build/src/mars --no-water --no-erosion --no-life`
+
+## Erosie / ondergronden
+Elke cel heeft twee lagen: een zand/sediment-deklaag boven op een diepere
+rots-ondergrond (`rotsHoogte`). De planeet start geheel als blootliggende rots;
+zand ontstaat pas waar water erosie-materiaal (droesem) neerlegt. Zand erodeert
+snel (×1) en beschermt de rots daaronder; zodra het zand is weggespoeld erodeert
+de rots zelf 100× langzamer. Zowel erosie van zand als van rots vormt droesem in
+het water, en waar water droesem neerlegt wordt het altijd zand. Op het
+oppervlak zie je een zachte overgang van Mars-rode rots naar zand naarmate
+de zandlaag dikker wordt.
+
 ## Supported Platforms
-- ✅ Linux (Intel/ARM)
-- ✅ macOS Intel
-- ⚠️ macOS Apple Silicon (OpenGL 4.1 only, compute shaders not available)
-- ❓ Windows (untested)
+- ✅ Linux (Vulkan)
+- ✅ macOS Intel & Apple Silicon (Metal)
+- ❓ Windows (D3D12, untested)
