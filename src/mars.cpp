@@ -178,9 +178,10 @@ int main()
 		if(tekenWater)
 		{
 			weergaveInstellingen waterInstellingen;
-			waterInstellingen.blenden 		= true;
-			waterInstellingen.cullMode 		= WGPUCullMode_Back;
-			waterInstellingen.diepteSchrijven = false;
+			waterInstellingen.blenden 			= true;
+			waterInstellingen.cullMode 			= WGPUCullMode_Back;
+			waterInstellingen.diepteSchrijven 	= false;
+			waterInstellingen.diepteVergelijk 	= WGPUCompareFunction_LessEqual; //ook water exact op de grondhoogte
 			scherm.zetWeergaveInstellingen(waterInstellingen);
 
 			scherm.bereidRenderVoor("planeetgridWater", false);
