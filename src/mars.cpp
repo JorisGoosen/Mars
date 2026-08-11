@@ -172,12 +172,15 @@ int main()
 		geo->tekenJezelf();
 		scherm.pasRondRenderAf();
 
-		//water-pass: een blendende tweede laag over de grond heen, op hetzelfde oppervlak
+		//water-pass: een blendende tweede laag over de grond heen, op hetzelfde oppervlak.
+		//Het water doet wél een diepte-test (alleen waar het vóór de grond ligt) maar schrijft
+		//géén diepte (blenden en diepte-schrijven samen geven anders doorlopende donkere vlakken).
 		if(tekenWater)
 		{
 			weergaveInstellingen waterInstellingen;
-			waterInstellingen.blenden 	= true;
-			waterInstellingen.cullMode 	= WGPUCullMode_Back;
+			waterInstellingen.blenden 		= true;
+			waterInstellingen.cullMode 		= WGPUCullMode_Back;
+			waterInstellingen.diepteSchrijven = false;
 			scherm.zetWeergaveInstellingen(waterInstellingen);
 
 			scherm.bereidRenderVoor("planeetgridWater", false);
