@@ -97,10 +97,10 @@ void planeet::burenAlsEigenschapWijzers()
 
 		_vakken[0][i].grondHoogte 	= _isRuis ? _ruis(_punten->ggvPunt3(i)) : _hoogteMonsteraar(_tex->ggvPunt2(i));
 
-		//De rots-ondergrond begint gelijk aan het oppervlak: de planeet start geheel als
-		//blootliggende rots. Zand ontstaat pas waar water erosie-materiaal (droesem)
-		//bezinkt; rots zelf erodeert 100x langzamer dan dat zand.
-		const float zandDeklaag = 0.0f;
+		//De planeet begint met een zanddeksel: een deklaag zand boven op de rots.
+		//Waar die laag ligt is het oppervlak zand (maakPingPongOpslagen zet dat als
+		//grondSoort); diepere ondergrond is rots, die 100x langzamer erodeert.
+		const float zandDeklaag = 0.75f;
 		_vakken[0][i].rotsHoogte = glm::clamp(_vakken[0][i].grondHoogte - zandDeklaag, minGrondHoogte, maxGrondHoogte);
 		
 		vec3 n = normalize(_punten->ggvPunt3(i));
@@ -119,7 +119,7 @@ void planeet::burenAlsEigenschapWijzers()
 		}
 		else
 		{
-			_vakken[0][i].waterHoogte 	=  _beginMetWater ? 1.0f : 0.0f;
+			_vakken[0][i].waterHoogte 	=  _beginMetWater ? 0.5f : 0.0f;
 			_vakken[0][i].bodemVocht	=  0.0f;
 			_vakken[0][i].luchtVocht	=  0.0f;
 			_vakken[0][i].leven			=  0.0001f;

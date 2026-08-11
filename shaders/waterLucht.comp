@@ -50,15 +50,25 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //---- condensatie & regen ----
     let grond = vakken0[ID].grondHoogte;
-    //Verzadiging daalt met de hoogte: hoog en koud houdt minder vocht
-    let verzadiging = max(0.001, reken.condenseer.x - reken.condenseer.y * ((grond - minGrondHoogte) / (maxGrondHoogte - minGrondHoogte)));
+    //De lucht zit BOVEN het oppervlak: grond én water. Een diepe zee ligt dus laag
+    //(warm, veel vocht kan de lucht houden), een hoge berg hoger (koud, drukt de
+    //verzadiging). Luchtdruk/temperatuur volgen dus grond+water, niet grond alleen.
+    let oppervlak = grond + vakken0[ID].waterHoogte;
+    let hoogteFrac = clamp((oppervlak - minGrondHoogte) / (maxGrondHoogte - minGrondHoogte), 0.0, 1.0);
+    let verzadiging = max(0.001, reken.condenseer.x - reken.condenseer.y * hoogteFrac);
 
-    //Orografie: stroomafwaarts stijgt de grond => de lucht wordt omhoog geduwd
-    let stijgOp = max(0.0, vakken0[afId].grondHoogte - grond);
+    //Orografie: stroomafwaarts stijgt het oppervlak => de lucht wordt omhoog geduwd.
+    //Een meer/oceaan telt ook mee; over vlak water geen valse bergen van de zeebodem.
+    //Lijzijde droogt vanzelf uit: de regen gebruikt luchtvochtigheid die elders al
+    //is uitgeregend. De helling is verzadigd boven ~1 eenheid, zodat een klif niet
+    //de hele luchtvochtigheid in één ronde leegstort (dat gaf overstromings-spiezen).
+    let oppervlakAf = vakken0[afId].grondHoogte + vakken0[afId].waterHoogte;
+    let stijgOp = max(0.0, min(oppervlakAf - oppervlak, 1.0));
 
     var regen = max(0.0, luchtVochtAangekomen - verzadiging) * reken.condenseer.z
               + stijgOp * reken.condenseer.w * luchtVochtAangekomen;
     regen = min(regen, max(0.0, luchtVochtAangekomen));
+    regen = min(regen, maxRegenPerRonde);
 
     //---- verdamping boven water (zon-afhankelijk: overdag, naar de zon toe) ----
     let zon = select(vec3f(0.0, 1.0, 0.0), normalize(reken.zonRicht.xyz), length(reken.zonRicht.xyz) > zeerKlein);

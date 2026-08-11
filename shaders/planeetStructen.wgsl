@@ -46,6 +46,7 @@ const maxLuchtVocht  = 1.0e12;
 const veldCapaciteit    = 0.5; //max. bodemvocht dat een cel kan vasthouden
 const infiltratie       = 0.03; //fractie staand water dat per ronde de grond in zakt
 const evapotranspiratie = 0.05; //hoe snel vochtige grond verdroogt naar droge lucht
+const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekbegrenzer)
 
 const maxBuren = 6u;
 

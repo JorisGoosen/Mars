@@ -18,7 +18,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     var droesem = 0.0;
     var snelheid = vec2f(0.0);
     var maxHelling = 0.0;
-    var laagsteBuur = 1.0e30;
+    var hoogsteBuur = -1.0e30;
 
     //Ga de buren telkens opzoeken zodat we normalen kunnen berekenen en zo veel meer
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
@@ -28,8 +28,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         //helling: het grootste grondhoogteverschil met een buur, genormaliseerd over de pijplengte
         maxHelling = max(maxHelling, abs(vakken0[buurIDv].grondHoogte - vakken0[ID].grondHoogte) / pijpLengte);
 
-        //laagste buur begrenst de depositie (geen geïsoleerde heuveltjes boven de omgeving)
-        laagsteBuur = min(laagsteBuur, vakken0[buurIDv].grondHoogte);
+        //hoogste buur begrenst de depositie: sediment kan de grond ophogen
+        //tot maximaal het niveau van het omringende hoogste land
+        hoogsteBuur = max(hoogsteBuur, vakken0[buurIDv].grondHoogte);
 
         for(var buurBuur = 0u; buurBuur < buurBuren; buurBuur++) {
             if(vakMetas[buurIDv].buren[buurBuur] == ID) {
@@ -43,8 +44,14 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
                 //Als stroomBinnen positief is komt het binnen
                 let andId = select(ID, buurIDv, stroomBinnen >= 0.0);
 
-                if(vakken0[andId].waterHoogte > minWaterSed && abs(stroomBinnen) > zeerKlein) {
-                    droesem += sign(stroomBinnen) * clamp(abs(stroomBinnen / pijpLengte), 0.0, 1.0) * max(0.0, vakken0[andId].droesem);
+                //Zwevend sediment rijdt MEe met het water: zolang er door deze buis
+                //stroomt en de bron iéts droesem heeft, verhuist het mee (ook als de
+                //bron al bijna droog is). Zo loopt een leegstromende cel zijn
+                //overtollige slib vanzelf door naar de volgende natte cel en hoopt
+                //zich nergens een suspensie op die bij een latere watervloed in één
+                //keer als piek wordt weggespoeld.
+                if(abs(stroomBinnen) > zeerKlein && vakken0[andId].droesem > zeerKlein) {
+                    droesem += sign(stroomBinnen) * clamp(abs(stroomBinnen / pijpLengte), 0.0, 1.0) * vakken0[andId].droesem;
                 }
 
                 break;
@@ -103,21 +110,20 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //hoe dik de zand/deklaag nu is (tussen grondOppervlak en de rots-ondergrond)
     let zandlaag = max(0.0, vakken0[ID].grondHoogte - vakken0[ID].rotsHoogte);
 
-    //Depositie mag de grond nooit boven de lokale waterspiegel brengen; zo kunnen
-    //meren/dijken zich ophogen en ontstaan er geen zwevende sedimentwolken zonder
-    //bodemruimte. De droge tak blijft extra naar de laagste buur kijken (maxAfzetDroog).
-    let waterOppervlak = vakken0[ID].grondHoogte + vakken0[ID].waterHoogte;
-    let maxAfzetNat    = max(0.0, waterOppervlak - vakken0[ID].grondHoogte);
-    let maxAfzetDroog  = max(0.0, laagsteBuur - vakken0[ID].grondHoogte);
+    //Depositie mag de grond nooit onbeperkt laten groeien: per ronde kan de grond
+    //maximaal op het niveau van de hoogste buur uitkomen. Zo vult sediment dalletjes
+    //op tot het omringende land en ontstaan er geen 1-cel-piramides.
+    let maxAfzet = max(0.0, hoogsteBuur - vakken0[ID].grondHoogte);
 
     var afzet   = 0.0;
     var weg     = 0.0;
     var rotsWeg = 0.0;
 
     if(waterHoogteNieuw <= zeerKlein) {
-        //Droge cel: al het zwevende zakt, maar vult alleen de laagste put tot de oever.
-        //Overschot blijft zwevend en wordt bij de volgende watervloed weer meegevoerd.
-        afzet = min(droesemAangespoeld, maxAfzetDroog) * reken.erosie;
+        //Droge cel: al het zwevende zakt, maar vult alleen tot het hoogste omringende land.
+        //Overschot blijft in suspensie en rijdt met de laatste uitstroom verder naar de
+        //volgende natte cel (zie het slibtransport in de buur-loop). Nooit negatieve afzet.
+        afzet = min(max(0.0, droesemAangespoeld), maxAfzet) * reken.erosie;
     }
     else if(balans < -zeerKlein && waterHoogteNieuw >= minWaterSed) { //== oplossen
         let behoefte = -balans * oplosheid;
@@ -138,11 +144,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     else { //== bezinken (of evenwicht): capaciteits- én concentratie-overschot zakt
         let bezinkBijdrage = max(0.0, balans) * bezinkheid;
         let afzetVoornemen = max(bezinkBijdrage, concentratie);
-        afzet = min(afzetVoornemen, maxAfzetNat);
+        afzet = min(afzetVoornemen, maxAfzet);
     }
 
-    //Opgelost materiaal komt in het water, neergezakt materiaal gaat naar de bodem
-    vakken1[ID].droesem     = goed(droesemAangespoeld - afzet + weg, vakken0[ID].droesem, -maxDroesem, maxDroesem);
+    //Opgelost materiaal komt in het water, neergezakt materiaal gaat naar de bodem.
+    //Hard vangnet: in suspensie kan nooit meer slib hangen dan het water dragen kan
+    //(droesemMax) plus wat de grond nog kan opvangen (maxAfzet). Zo kan een kom die
+    //vol ligt (grond op hoogsteBuur, maxAfzet~0) de pijpkolom niet opblazen met
+    //onbeperkt zwevend slib; het overschot verlaat de cel met de stroom i.p.v. dat
+    //het als een piek ophoopt (zie --diag: droesem klapte naar de 1e12-cap, waarna
+    //hoogteverschil en het water zelf volgden).
+    let droesemCap = droesemMax + maxAfzet;
+    vakken1[ID].droesem     = goed(min(droesemAangespoeld - afzet + weg, droesemCap), vakken0[ID].droesem, 0.0, maxDroesem);
     vakken1[ID].grondHoogte = vakken0[ID].grondHoogte + afzet - weg;
     vakken1[ID].rotsHoogte  = vakken0[ID].rotsHoogte - rotsWeg;
 

@@ -42,7 +42,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     let zandlaag  = max(0.0, vakken0[ID].grondHoogte - vakken0[ID].rotsHoogte);
     let overgang  = clamp(zandlaag / overgangDikte, 0.0, 1.0);
     let zandKleur = vec4f(0.7, 0.52, 0.3, 1.0);
-    let rotsKleur = vec4f(0.85, 0.35, 0.18, 1.0); //Mars-rood
+    let rotsKleur = vec4f(0.95, 0.2, 0.05, 1.0); //Mars-rood
     grondKleur = mix(rotsKleur, zandKleur, overgang);
 
     //Naadloze textuur-coordinaten (zie Tarini 2012); de frag-shader kiest s0 of s1 mbv fwidth

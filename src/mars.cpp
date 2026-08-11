@@ -189,12 +189,12 @@ int main(int argc, char ** argv)
 	glm::vec3	kijkPlek		(0.0f)				,
 				zonPos			(0.0f)				;
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.02f;
+				verdamping		= 0.01f;
 	float		windSterkte		= 0.4f;
-	float		basisVerzadiging= 0.5f,
+	float		basisVerzadiging= 0.25f,
 				hoogteKoel		= 0.4f,
-				neerslagFactor	= 0.5f,
-				orografieFactor	= 0.5f;
+				neerslagFactor	= 0.3f,
+				orografieFactor	= 0.4f;
 
 	weergaveScherm::toetsVerwerkerFunc toetsenbord = [&](int key, int scancode, int action, int mods)
 	{
