@@ -1,0 +1,111 @@
+//WGSL reken-shader die de atmosferische dynamica bijwerkt: een enkellaagse
+//(barotrope-achtige) circulatie met temperatuur, druk en een opgeslagen windveld.
+//Dit vervangt de oude synthetische wind die elke frame uit een draaiende as werd
+//verzonnen: hier evolueren T/P/wind écht, aangedreven door zonne-verwarming
+//(dag/nacht + breedte), Coriolis (planeetrotatie), drukgradiënten, wrijving en
+//diffusie. Straalstromen/banden ontstaan vanzelf.
+//
+//Voor numerieke stabiliteit op de onregelmatige geodesische grid is de wind zwaar
+//gedempt (Rayleigh), begrensd op maxWindsnel en gladgestreken; de druk reageert
+//zacht op divergentie en warmte en wordt sterker gediffundeerd.
+//
+//Draait ná waterGemiddelde en vóór waterLucht. Leest T/P/wind uit vakken0,
+//schrijft de nieuwe waarden naar vakken1.
+#include "planeetDefinities.wgsl"
+
+const winddemping  = 0.22;   //fractie wind die per ronde door wrijving remt (groot = stabiel)
+const maxWindsnel  = 2.5;    //abs. windsnelheidsgrens
+const drukGevolg   = 0.04;   //hoe sterk wind-divergentie de druk verandert
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
+
+    let hier = vakMetas[ID].normaal.xyz;
+    let burenAantal = vakMetas[ID].burenAantal;
+    let n = f32(burenAantal);
+
+    //Masterschakelaar: zonkracht (reken.atmosfeer.x) > 0 zet de circulatie aan.
+    //Met 0 blijft de lucht volledig stil (handig als --no-atmosfeer-parachute).
+    let luchtAan = select(0.0, 1.0, reken.atmosfeer.x > 0.0);
+
+    let opp = vakken0[ID].grondHoogte + vakken0[ID].waterHoogte;
+    let hoogteFrac = clamp((opp - minGrondHoogte) / (maxGrondHoogte - minGrondHoogte), 0.0, 1.0);
+
+    let T0 = vakken0[ID].temperatuur;
+    let P0 = vakken0[ID].luchtdruk;
+    let V0 = vakken0[ID].wind;
+
+    //---- zonne-verwarming (zon vast in modelruimte; de planeet draait) ----
+    let zon     = normalize(reken.zonRicht.xyz);
+    let ins     = max(0.0, dot(hier, zon));          //dagzijde = boven de horizon
+    let noord   = vec3f(0.0, 1.0, 0.0);              //vaste geografische rotatie-as
+    let breedte = clamp(dot(hier, noord), -1.0, 1.0); //+1 = noordpool
+
+    //Stralingsevenwichtstemperatuur: overdag warm, evenaar warm, hoog koud.
+    let T_eq = luchtBaseTemp
+             + luchtAan * (reken.atmosfeer.x * (ins * (0.5 + 0.5 * (1.0 - abs(breedte))))
+                         - evenaarWarm * abs(breedte)
+                         - lapseKoeling * hoogteFrac);
+
+    //---- advectie van T en P met de huidige wind (upwind, donor-cel) ----
+    let opId        = opwaartseBuur(ID, V0);
+    let windSterkte = clamp(length(V0) * tijdVerschil, 0.0, 0.35);
+    let T_adv = advecteerWaarde(ID, V0, windSterkte, T0, vakken0[opId].temperatuur);
+    let P_adv = advecteerWaarde(ID, V0, windSterkte, P0, vakken0[opId].luchtdruk);
+
+    //---- Newton-relaxatie van T naar het stralingsevenwicht ----
+    let verwarm = luchtAan * (1.0 - exp(-tijdVerschil / max(reken.fasen.x, 0.001)));
+    let T1 = T_adv + verwarm * (T_eq - T_adv);
+
+    //---- wind: drukgradiënt + Coriolis + wrijving + diffusie ----
+    var somW     = vec2f(0.0);
+    var gradiënt = vec2f(0.0);
+    var somP     = 0.0;
+    var somT     = 0.0;
+    var div      = 0.0;
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        let buurId = buurID(ID, buur);
+        let richt  = vakMetas[ID].buurRicht[buur];
+        somW     += vakken0[buurId].wind;
+        gradiënt += (vakken0[buurId].luchtdruk - P0) * richt;
+        somP     += vakken0[buurId].luchtdruk;
+        somT     += vakken0[buurId].temperatuur;
+        div      += dot(V0, richt);
+    }
+    somW     /= n;
+    gradiënt /= n;
+    somP     /= n;
+    somT     /= n;
+    div      /= n;
+
+    //Coriolis: f = 2 Omega * breedte; 90°-draaiing in het raakvlak.
+    let fgeo = 2.0 * reken.atmosfeer.y * breedte;
+    let cor  = vec2f(V0.x, -V0.y) * fgeo;
+
+    var V1 = V0
+           - drukKracht * gradiënt                     //drukgradiëntkracht
+           + tijdVerschil * cor                          //coriolis (zwak, via tijdstap)
+           - winddemping * V0                             //Rayleigh-wrijving (sterk)
+           + reken.atmosfeer.w * (somW - V0);            //diffusie
+
+    //abs. begrenzing van de wind
+    let lV = length(V1);
+    if(lV > maxWindsnel) {
+        V1 *= maxWindsnel / max(lV, zeerKlein);
+    }
+
+    //---- druk: thermische bron (warm = lage luchtdruk) + continuïteit + diffusie ----
+    //Warme lucht zet uit en verlaagt de oppervlaktedruk t.o.v. het omringende;
+    //dat onderhoudt voortdurend het drukgradiënt dat de circulatie in stand houdt.
+    let thermKracht = 0.008;  //P-verlaging per K dat een cel warmer is dan zijn omgeving
+    let P_doel = P0 * (1.0 - luchtAan * thermKracht * (T1 - somT));
+    var P1 = P_adv + drukRelax * (P_doel - P_adv) - drukGevolg * div;
+    P1 += drukDiffusie * (somP - P1);
+
+    vakken1[ID].temperatuur = goed(T1, T0, 120.0, 2000.0);
+    vakken1[ID].luchtdruk   = goed(clamp(P1, minLuchtdruk, maxLuchtdruk), P0, minLuchtdruk, maxLuchtdruk);
+    vakken1[ID].wind        = goedV2(V1, 0.0, -maxWindsnel, maxWindsnel);
+}

@@ -1,8 +1,19 @@
-//WGSL reken-shader die de atmosfeer bijwerkt: verdamping boven water, advectie
-//van luchtvochtigheid door de wind, orografische condensatie en regen.
-//Draait als laatste in de keten (na waterDruk en waterGemiddelde), dus vakken1
-//bevat al de verse waterhoogtes, bodemvocht etc. van deze ronde.
+//WGSL reken-shader die de vochtcyclus bijwerkt in twee fasen:
+//  damp (luchtVocht)  <->  wolken (gecondenseerd wolkwater)  <->  regen.
+//De damp-capaciteit volgt de temperatuur; als er te veel damp is condenseert
+//het tot wolkwater, en wolkwater regent uit (regen valt UITSCHLUITEND uit wolken).
+//Wolken geven hun water ook af door terug te verdampen naar damp in droge lucht.
+//
+//Draait als laatste in de keten (na luchtStroming), dus vakken1 bevat al de
+//verse wind, temperatuur, waterHoogte en bodemVocht van deze ronde.
 #include "planeetDefinities.wgsl"
+
+//Verzadigingsdampdruk, temperatuur-afhankelijk (lineaire benadering van
+//Clausius-Clapeyron in het kleine werkbereik). Warme lucht houdt meer damp.
+fn sat_temp(T : f32) -> f32 {
+    let q = reken.condenseer.x * (1.0 + 0.08 * (T - 270.0));
+    return max(0.0001, q);
+}
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid : vec3u) {
@@ -12,82 +23,84 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     let hier = vakMetas[ID].normaal.xyz;
     let burenAantal = vakMetas[ID].burenAantal;
+    let n = f32(burenAantal);
 
-    //---- wind: draaiende circulatiecellen rond de as reken.windAs ----
-    let wAs  = normalize(reken.windAs.xyz);
-    var oost = cross(wAs, hier);              //zonale richting (oost-west)
-    if(length(oost) < zeerKlein) {
-        oost = cross(vec3f(0.0, 0.0, 1.0), hier);
-    }
-    oost = normalize(oost);
-    let mer     = cross(oost, hier);          //meridionaal, naar de evenaar
-    let breedte = dot(wAs, hier);             //-1..1 (zuid..noord)
+    //Masterschakelaar: zonder atmosfeer (zonkracht reken.atmosfeer.x = 0) is er
+    //geen wind, geen verdamping en geen neerslag; het water stroomt alleen nog.
+    let luchtAan = select(0.0, 1.0, reken.atmosfeer.x > 0.0);
 
-    //Tropen: aan de grond naar de evenaar (passaat), daarbuiten vooral oost-west
-    let warmteBand = clamp((1.0 - 4.0 * abs(breedte)) * 1.5, -1.0, 1.0);
-    var wind = mer * warmteBand + oost * (0.25 + 0.75 * abs(breedte));
-    if(length(wind) < zeerKlein) {
-        wind = oost;
-    }
-    wind = normalize(wind);
-    let windSterkte = clamp(reken.windAs.w, 0.0, 1.0);
+    //---- de verse wind en temperatuur van deze ronde (uit luchtStroming) ----
+    let wind = vakken1[ID].wind;
+    let windSterkte = clamp(length(wind), 0.0, 0.5);
+    let T = vakken1[ID].temperatuur;
 
-    //---- windrichting: welke buur is opwind (bron) en stroomaf (bestemming)? ----
-    var opId = ID;            //waar de wind vandaan komt
-    var beste = 1.0;
-    var afId = ID;            //waar de wind heen gaat
+    //---- advectie van damp en wolkwater met de wind (upwind, donor-cel) ----
+    let opId = opwaartseBuur(ID, wind);
+    let dampAan = advecteerWaarde(ID, wind, windSterkte, vakken0[ID].luchtVocht, vakken0[opId].luchtVocht);
+    let wolkAan = advecteerWaarde(ID, wind, windSterkte, vakken0[ID].wolken,     vakken0[opId].wolken);
+
+    //---- verzadiging uit de temperatuur (+ hoogte + orografie) ----
+    let oppervlak = vakken0[ID].grondHoogte + vakken0[ID].waterHoogte;
+    let hoogteFrac = clamp((oppervlak - minGrondHoogte) / (maxGrondHoogte - minGrondHoogte), 0.0, 1.0);
+
+    //Stroomafwaartse buur (waar de wind heen gaat) voor orografische stijging.
+    var afId = ID;
     var besteAf = -1.0;
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
-        let richting = vakMetas[buurID(ID, buur)].normaal.xyz - hier;
-        let mee = dot(richting, wind);
-        if(mee < beste)   { beste = mee;   opId = buurID(ID, buur); }
-        if(mee > besteAf) { besteAf = mee; afId = buurID(ID, buur); }
+        let mee = dot(vakMetas[ID].buurRicht[buur], wind);
+        if(mee > besteAf) { besteAf = mee; afId = vakMetas[ID].buren[buur]; }
     }
 
-    //---- advectie (semi-Lagrangiaans): lucht die de cel binnenvloeit ----
-    let aangevoerd = vakken0[opId].luchtVocht;
-    let luchtVochtAangekomen = mix(vakken0[ID].luchtVocht, aangevoerd, windSterkte);
+    //Orografische stijging: stroomafwaarts stijgt het oppervlak => de lucht wordt
+    //omhooggeduwd, koelt en kan minder damp houden (lagere verzadiging).
+    let oppervlakAf = vakken1[afId].grondHoogte + vakken1[afId].waterHoogte;
+    let stijgOp     = max(0.0, min(oppervlakAf - oppervlak, 1.0));
+    let stijgTerm   = clamp(reken.condenseer.w * stijgOp, 0.0, 0.9);
 
-    //---- condensatie & regen ----
-    let grond = vakken0[ID].grondHoogte;
-    //De lucht zit BOVEN het oppervlak: grond én water. Een diepe zee ligt dus laag
-    //(warm, veel vocht kan de lucht houden), een hoge berg hoger (koud, drukt de
-    //verzadiging). Luchtdruk/temperatuur volgen dus grond+water, niet grond alleen.
-    let oppervlak = grond + vakken0[ID].waterHoogte;
-    let hoogteFrac = clamp((oppervlak - minGrondHoogte) / (maxGrondHoogte - minGrondHoogte), 0.0, 1.0);
-    let verzadiging = max(0.001, reken.condenseer.x - reken.condenseer.y * hoogteFrac);
+    var verzadiging = sat_temp(T) * (1.0 - stijgTerm) - reken.condenseer.y * hoogteFrac;
+    verzadiging = max(0.0001, verzadiging);
 
-    //Orografie: stroomafwaarts stijgt het oppervlak => de lucht wordt omhoog geduwd.
-    //Een meer/oceaan telt ook mee; over vlak water geen valse bergen van de zeebodem.
-    //Lijzijde droogt vanzelf uit: de regen gebruikt luchtvochtigheid die elders al
-    //is uitgeregend. De helling is verzadigd boven ~1 eenheid, zodat een klif niet
-    //de hele luchtvochtigheid in één ronde leegstort (dat gaf overstromings-spiezen).
-    let oppervlakAf = vakken0[afId].grondHoogte + vakken0[afId].waterHoogte;
-    let stijgOp = max(0.0, min(oppervlakAf - oppervlak, 1.0));
+    //---- condensatie: oververzadigde damp wordt wolkwater ----
+    var damp = dampAan;
+    var wolk = wolkAan;
+    if(luchtAan > 0.0 && damp > verzadiging + zeerKlein) {
+        let overschot = (damp - verzadiging) * condensTempo;
+        wolk += overschot;
+        damp -= overschot;
+    }
 
-    var regen = max(0.0, luchtVochtAangekomen - verzadiging) * reken.condenseer.z
-              + stijgOp * reken.condenseer.w * luchtVochtAangekomen;
-    regen = min(regen, max(0.0, luchtVochtAangekomen));
-    regen = min(regen, maxRegenPerRonde);
+    //---- wolkverdamping: in droge lucht geeft wolkwater vocht terug aan de lucht
+    if(luchtAan > 0.0 && damp < verzadiging - zeerKlein && wolk > zeerKlein) {
+        let tekort  = verzadiging - damp;
+        let afdamp  = min(min(wolk * wolkVerdamp, tekort * 0.1), wolk);
+        damp += afdamp;
+        wolk -= afdamp;
+    }
 
-    //---- verdamping boven water (zon-afhankelijk: overdag, naar de zon toe) ----
+    //---- regen uitsluitend uit wolken (boven de draagkracht valt het uit) ----
+    var regen = max(0.0, wolk - wolkDraagKracht) * regenTempo * luchtAan;
+    regen = min(regen, max(0.0, wolk));
+    wolk -= regen;
+
+    //---- oppervlakte-verdamping boven water (zon-afhankelijk) ----
     let zon = select(vec3f(0.0, 1.0, 0.0), normalize(reken.zonRicht.xyz), length(reken.zonRicht.xyz) > zeerKlein);
     let licht = max(0.0, dot(hier, zon));
 
     var waterNieuw = vakken1[ID].waterHoogte + regen;
-    var luchtVochtNieuw = luchtVochtAangekomen - regen;
-
-    let stoom = max(0.0, min(min(reken.verdamping * licht * min(1.0, waterNieuw * 5.0), waterNieuw), max(0.0, verzadiging - luchtVochtNieuw)));
-    waterNieuw      -= stoom;
-    luchtVochtNieuw += stoom;
+    let stoom = luchtAan * max(0.0, min(min(reken.verdamping * licht * min(1.0, waterNieuw * 5.0), waterNieuw), max(0.0, verzadiging - damp)));
+    waterNieuw -= stoom;
+    damp += stoom;
 
     //---- evapotranspiratie: vochtige bodem verdroogt naar droge lucht ----
-    let verdroogt = evapotranspiratie * vakken1[ID].bodemVocht * max(0.0, verzadiging - luchtVochtNieuw);
+    let verdroogt = luchtAan * evapotranspiratie * vakken1[ID].bodemVocht * max(0.0, verzadiging - damp);
+    var bodemVochtNieuw = vakken1[ID].bodemVocht;
     if(verdroogt > zeerKlein) {
-        vakken1[ID].bodemVocht = goed(vakken1[ID].bodemVocht - verdroogt, vakken0[ID].bodemVocht, 0.0, maxWaterHoogte);
-        luchtVochtNieuw += verdroogt;
+        bodemVochtNieuw = max(0.0, bodemVochtNieuw - verdroogt);
+        damp += verdroogt;
     }
 
-    vakken1[ID].waterHoogte = goed(waterNieuw, vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
-    vakken1[ID].luchtVocht  = goed(luchtVochtNieuw, vakken0[ID].luchtVocht, 0.0, maxLuchtVocht);
+    vakken1[ID].waterHoogte = goed(waterNieuw,  vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
+    vakken1[ID].bodemVocht  = goed(bodemVochtNieuw, vakken0[ID].bodemVocht, 0.0, maxWaterHoogte);
+    vakken1[ID].luchtVocht  = goed(damp, vakken0[ID].luchtVocht, 0.0, maxLuchtVocht);
+    vakken1[ID].wolken      = goed(wolk, vakken0[ID].wolken, 0.0, maxLuchtVocht);
 }

@@ -42,6 +42,31 @@ fn hoogteBuur(id : u32, water : bool) -> f32 {
     return vakken0[id].grondHoogte + select(0.0, vakken0[id].waterSchijn, water);
 }
 
+//De buur waar de wind vandaan komt (stroomopwaarts), gezocht in het lokale
+//raakvlak: wind is een vec2 (west, noord) en buurRicht[buur] is de richting
+//naar de buur in dezelfde basis. De buur die het meeste TEGEN de wind in ligt
+//is de donor-cel (eerste-orde upwind / semi-Lagrangiaans).
+fn opwaartseBuur(id : u32, wind : vec2f) -> u32 {
+    let n = vakMetas[id].burenAantal;
+    var beste = id;
+    var besteScore = 1.0e30;
+    for(var buur = 0u; buur < n && buur < maxBuren; buur++) {
+        let score = dot(vakMetas[id].buurRicht[buur], wind);
+        if(score < besteScore) {
+            besteScore = score;
+            beste = vakMetas[id].buren[buur];
+        }
+    }
+    return beste;
+}
+
+//Advecteer een scalar met de wind: meng de eigen waarde met die van de
+//stroomopwaartse donor-cel, evenredig aan de windkracht (monotoon, niet-negatief).
+fn advecteerWaarde(id : u32, wind : vec2f, sterkte : f32, eigen : f32, op : f32) -> f32 {
+    let k = clamp(sterkte, 0.0, 1.0);
+    return mix(eigen, op, k);
+}
+
 fn vakHoogte(id : u32, water : bool) -> f32 {
     return max(0.001, 1.0 + (hoogteBuur(id, water) * reken.grondSchaal));
 }

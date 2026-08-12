@@ -7,9 +7,9 @@
 const float minGrondHoogte = 10.0f;
 const float maxGrondHoogte = 200.0f;
 
-//De vak-struct moet byte-gelijk zijn aan de WGSL-struct (80 bytes). Laat het
+//De vak-struct moet byte-gelijk zijn aan de WGSL-struct (104 bytes). Laat het
 //compileren falen als iemand straks een veld toevoegt zonder de layout te fixen.
-static_assert(sizeof(vak) == 80, "vak-struct moet 80 bytes groot zijn (gelijk aan WGSL)");
+static_assert(sizeof(vak) == 104, "vak-struct moet 104 bytes groot zijn (gelijk aan WGSL)");
 
 
 using namespace glm;
@@ -125,6 +125,16 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakken[0][i].leven			=  0.0001f;
 			_vakken[0][i].droesem		=  0.0f;
 			_vakken[0][i].plek			= glm::vec2(0.0f);
+
+			//Luchttoestand: evenwichtstemperatuur naar breedte (palen koud, evenaar
+			//warm) en hoogte (lapse-rate), neutrale druk, stilstaande wind, geen wolken.
+			glm::vec3 wijst = glm::normalize(_punten->ggvPunt3(i));
+			float breedte  = glm::clamp(wijst.y, -1.0f, 1.0f); //noordpool=+1
+			float hoogteF  = glm::clamp((_vakken[0][i].grondHoogte - 10.0f) / (200.0f - 10.0f), 0.0f, 1.0f);
+			_vakken[0][i].temperatuur = 260.0f + 40.0f * (1.0f - glm::abs(breedte)) - 30.0f * hoogteF;
+			_vakken[0][i].luchtdruk   = 1.0f;
+			_vakken[0][i].wind        = glm::vec2(0.0f);
+			_vakken[0][i].wolken      = 0.0f;
 		}
 	}	
 }

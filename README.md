@@ -43,8 +43,8 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 ## Controls
 - **Space**: Toggle water flow
 - **R**: Toggle rotation
-- **Z**: Toggle sun rotation
 - **X**: Toggle water visibility
+- **C**: Toggle cloud visibility
 - **W/S**: Move camera forward/backward
 - **A/D**: Move camera left/right
 - **Q/E**: Move camera up/down
@@ -52,13 +52,45 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - **Enter**: Single water simulation step
 - **;/'**: Adjust ground height
 - **K/L**: Adjust evaporation rate
+- **[ / ]**: Adjust planet rotation speed (Ω → Coriolis / daglengte)
+- **U/I**: Adjust solar heating strength
+- **O/P**: Adjust friction (demping)
+- **./,**: Adjust precipitation factor
 
 ## Testvlaggen
 - `--no-water`: start zonder water (`waterHoogte = 0`) — handig om de grond-rendering los te testen.
 - `--no-erosion`: houdt het terrein stil (geen erosie/depositie) zodat water gedrag bekeken kan worden zonder hoogteveranderingen.
 - `--no-life`: zet plantengroei uit (geen groene begroeiing), handig om louter het rots/zand-erfgoed te bekijken.
+- `--no-atmosfeer`: houdt de lucht volledig stil (geen wind, verdamping of neerslag); het water stroomt nog.
+- `--procedural`: genereert het terrein met ruis i.p.v. de MOLA-hoogtekaart (geen PNG nodig). Ideaal voor snelle, kleine grids.
+- `--subdiv <n>`: icosahedron-onderverdelingsniveau (standaard **5**; hoger = fijner, maar trager).
+- `--diag`: print elke 25 frames de extremen van de reken-stand terug (water, bodem/luchtvocht, droesem, temperatuur, luchtdruk, wind, wolken) en meldt niet-eindige cellen.
+- `--diagCsv <bestand>`: dumpt de **hele** planeet naar een CSV (één rij per cel) zodat de berekening extern geanalyseerd kan worden. Bedoeld voor kleine grids (laag `--subdiv`); `--diagCsvElkeFrames <n>` zet het interval (standaard 25).
+- `--headless`: draait zonder venster (geen aqua/display nodig), bijv. `--headless --procedural --subdiv 4 --stappen 3000 --diagCsv uit.csv`.
+- `--stappen <n>`: stop na n rondes (samen met `--headless`).
 
 Voorbeeld: `./build/src/mars --no-water --no-erosion --no-life`
+Analyse-voorbeeld: `./build/src/mars --procedural --headless --subdiv 4 --stappen 3000 --diagCsv uit.csv`
+
+## Atmosferische circulatie
+De oude synthetische wind (elke frame verzonnen uit een draaiende as) is vervangen
+door een **echt, opgeslagen** atmosfeerveld met drie vragen:
+- `temperatuur`: stralingsevenwicht (dag/nacht + breedte + hoogte), geadvecteerd
+  met de wind en versoepeld naar het evenwicht (Newton-relaxatie).
+- `luchtdruk`: thermische bron (warme lucht = lage oppervlaktedruk) + continuïteit
+  (divergentie) + diffusie → onderhoudt het drukgradiënt dat de wind aandrijft.
+- `wind`: drukgradiëntkracht + Coriolis (Ω × breedte) + wrijving + diffusie.
+
+Straalstromen/banden ontstaan zo vanzelf. Dag/nacht volgt uit een zon die om de
+geografische noordpool draait (de planeet draait t.o.v. de zon); Coriolis gebruikt
+dezelfde rotatie.
+
+## Vochtcyclus in twee fasen
+`luchtVocht` is damp (de capaciteit volgt de temperatuur); `wolken` is het
+gecondenseerde wolkwater. Oververzadigde damp condenseert tot wolken; wolken geven
+hun water af door terug te verdampen én door **regen die uitsluitend uit wolken
+valt**. Zowel damp als wolken worden met het windveld geadvecteerd.
+
 
 ## Erosie / ondergronden
 Elke cel heeft twee lagen: een zand/sediment-deklaag boven op een diepere
