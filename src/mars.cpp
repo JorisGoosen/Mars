@@ -200,6 +200,28 @@ static void shotVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 	((shotToestandje *)gebruiker1)->klaar = true;
 }
 
+//Blokkeert tot alle al verzonden GPU-werk op de rij klaar is. Voorkomt dat de CPU
+//verder rent en per-frame uniform/opslag-buffers overschrijft terwijl de GPU die
+//nog aan het lezen is (dat gaf sim-afhankelijke, prestatie-gebonden flikkering).
+struct rijSyncje { bool klaar = false; };
+static void rijSyncVerwerker(WGPUQueueWorkDoneStatus status, WGPUStringView, void * gebruiker1, void * gebruiker2)
+{
+	(void)status; (void)gebruiker2;
+	((rijSyncje *)gebruiker1)->klaar = true;
+}
+static void wachtOpRij(const WGPUQueue rij, WGPUInstance instantie)
+{
+	rijSyncje sync;
+	WGPUQueueWorkDoneCallbackInfo info = WGPU_QUEUE_WORK_DONE_CALLBACK_INFO_INIT;
+	info.mode 		= WGPUCallbackMode_AllowSpontaneous;
+	info.callback 	= rijSyncVerwerker;
+	info.userdata1 	= &sync;
+	WGPUFuture toekomst = wgpuQueueOnSubmittedWorkDone(rij, info);
+	while(!sync.klaar)
+		wgpuInstanceProcessEvents(instantie);
+	(void)toekomst;
+}
+
 static void toonHelp()
 {
 	std::cout <<
@@ -797,6 +819,12 @@ int main(int argc, char ** argv)
 		}
 
 		frameNummer++;
+
+		//De CPU mag pas verder zodra de GPU de vorige frame (render + reken-passen)
+		//heeft afgerond; anders overschrijft hij uniform/opslag-buffers die de GPU
+		//nog leest -> prestatie-afhankelijke flikkering (vooral op hoge --diepte).
+		if(!hoofdloos)
+			wachtOpRij(rij, scherm.instantie());
 
 		wgpFoutControle("Frame: ");
 	}
