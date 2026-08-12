@@ -42,7 +42,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //---- de verse wind en temperatuur van deze ronde (uit luchtStroming) ----
     let wind = vakken1[ID].wind;
-    let windSterkte = clamp(length(wind), 0.0, 0.5);
+    //Echte advectie i.p.v. willekeurige menging: sterkte geschaald met de tijdstap,
+    //zodat vocht met de wind meereist i.p.v. elke stap met de buur te versmeren.
+    let windSterkte = clamp(length(wind) * tijdVerschil, 0.0, 0.2);
     let T = vakken1[ID].temperatuur;
 
     //---- advectie van damp en wolkwater met de wind (upwind, donor-cel) ----
@@ -102,10 +104,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     regen = min(regen, max(0.0, wolk));
     wolk -= regen;
 
-    //---- wolkendek onder de grond: al het vocht valt als water uit ----
-    //Wanneer het lokale wolkendek (bepaald uit temperatuur en damp, net als in de
-    //weergave) onder de grond ligt, kan de lucht haar vocht op dit niveau niet
-    //vasthouden: al het damp én wolkwater slaat neer als regen/lopend water.
+    //---- wolkendek onder de grond: wolkwater dat niet meer boven de grond kan
+    //hangen slaat als regen neer (bergtoppen steken boven het dek uit). Droge damp
+    //laat we ongemoeid, anders zou alle vocht elke stap weggeregend worden.
     let maxGrond = max(reken.fasen.y, 1.0);
     let grondMult = max(reken.fasen.z, 0.0001);
     let rMax      = (1.0 + maxGrond * reken.grondSchaal) / grondMult;
@@ -114,18 +115,21 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let dekFract  = clamp(1.0 - depressie / 60.0, 0.0, 1.0);
     let rWolk     = 1.0 + dekFract * (rPlafond - 1.0);
     let grondR    = (1.0 + vakken0[ID].grondHoogte * reken.grondSchaal) / grondMult;
-    if(luchtAan > 0.0 && grondR >= rWolk && (damp > zeerKlein || wolk > zeerKlein)) {
-        regen += wolk + damp;
-        wolk  = 0.0;
-        damp  = 0.0;
+    if(luchtAan > 0.0 && grondR >= rWolk && wolk > 0.3) {
+        regen += wolk - 0.3;
+        wolk  = 0.3;
     }
 
     //---- oppervlakte-verdamping boven water (zon-afhankelijk) ----
+    //Bevroren water verdampt niet: onder het vriespunt staat de stoom-productie uit.
+    //Zonder verzadigings-plafond kan damp de verzadiging overschrijden, waarna de
+    //condensatie er wolkwater van maakt i.p.v. dat het vocht in de lucht blijft hangen.
     let zon = select(vec3f(0.0, 1.0, 0.0), normalize(reken.zonRicht.xyz), length(reken.zonRicht.xyz) > zeerKlein);
     let licht = max(0.0, dot(hier, zon));
+    let vriest = select(0.0, 1.0, T < vriespuntK);
 
     var waterNieuw = vakken1[ID].waterHoogte + regen;
-    let stoom = luchtAan * max(0.0, min(min(reken.verdamping * licht * min(1.0, waterNieuw * 5.0), waterNieuw), max(0.0, verzadiging - damp)));
+    let stoom = luchtAan * (1.0 - vriest) * min(reken.verdamping * licht * min(1.0, waterNieuw * 5.0), waterNieuw);
     waterNieuw -= stoom;
     damp += stoom;
 

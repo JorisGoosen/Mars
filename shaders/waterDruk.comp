@@ -81,21 +81,26 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //water stroomt eroverheen. Eerder bevroren water zit in `ijs`, niet in
     //waterHoogte, dus minder water kan weglopen/verdampt worden zolang het koud is.
     let T_cel = vakken0[ID].temperatuur;
-    var waterMetaal = vakken1[ID].waterHoogte;
-    var ijsNieuw    = vakken0[ID].ijs;
-    if(T_cel < vriespuntK && waterMetaal > zeerKlein) {
-        let groei = min(ijsTempo * (vriespuntK - T_cel) * waterMetaal, waterMetaal);
+    var waterNaVries = vakken1[ID].waterHoogte;
+    var ijsNieuw     = vakken0[ID].ijs;
+    if(T_cel < vriespuntK && waterNaVries > zeerKlein) {
+        let groei = min(ijsTempo * (vriespuntK - T_cel) * waterNaVries, waterNaVries);
         ijsNieuw   += groei;
-        waterMetaal -= groei;
+        waterNaVries -= groei;
     }
     else if(T_cel > vriespuntK && ijsNieuw > zeerKlein) {
         let dooi = min(ijsTempo * (T_cel - vriespuntK) * ijsNieuw, ijsNieuw);
         ijsNieuw   -= dooi;
-        waterMetaal += dooi;
+        waterNaVries += dooi;
     }
 
-    vakken1[ID].waterHoogte = goed(waterMetaal, vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
-    vakken1[ID].ijs         = goed(ijsNieuw,    vakken0[ID].ijs,        0.0, maxWaterHoogte);
+    vakken1[ID].waterHoogte = goed(waterNaVries, vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
+    vakken1[ID].ijs         = goed(ijsNieuw,     vakken0[ID].ijs,        0.0, maxWaterHoogte);
+
+    //Bevroren fractie van de waterkolom: dezelfde fractie van het zwevende slib
+    //(droesem) slaat neer in het ijs. ijs=10 en water=10 -> de helft zakt.
+    let waterTotaal = waterNaVries + ijsNieuw;
+    let vriesFractie = select(0.0, ijsNieuw / max(waterTotaal, zeerKlein), waterTotaal > zeerKlein);
 
     if(!(droesem >= -1.0e30 && droesem <= 1.0e30)) {
         droesem = 0.0;
@@ -166,6 +171,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         let bezinkBijdrage = max(0.0, balans) * bezinkheid;
         let afzetVoornemen = max(bezinkBijdrage, concentratie);
         afzet = min(afzetVoornemen, maxAfzet);
+    }
+
+    //Bevroren slib: de bevroren fractie van de waterkolom neemt evenredig veel
+    //zwevend sediment mee de grond in (ijs=10, water=10 -> de helft zakt).
+    if(vriesFractie > 0.0) {
+        let afzetVries = min(droesemAangespoeld * vriesFractie, maxAfzet);
+        afzet = min(afzet + afzetVries, maxAfzet);
     }
 
     //Opgelost materiaal komt in het water, neergezakt materiaal gaat naar de bodem.

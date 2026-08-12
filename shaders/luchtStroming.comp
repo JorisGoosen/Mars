@@ -14,7 +14,7 @@
 #include "planeetDefinities.wgsl"
 
 const winddemping  = 0.10;   //fractie wind die per ronde door wrijving remt (klein = levendig)
-const maxWindsnel  = 8.0;    //abs. windsnelheidsgrens (boven evenwicht, zodat er snelheidscontrast overblijft)
+const maxWindsnel  = 3.0;    //abs. windsnelheidsgrens (boven evenwicht, zodat er snelheidscontrast overblijft)
 const drukGevolg   = 0.04;   //hoe sterk wind-divergentie de druk verandert
 const coriolisKracht = 1.0; //schaal van de Coriolis-afbuiging (naast de rotatie-Ω)
 const terrainKracht  = 0.4; //schaal van de terrein-forcering (wervels rond bergen)
@@ -74,14 +74,6 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let T_adv = advecteerWaarde(ID, V0, windSterkte, T0, vakken0[opId].temperatuur);
     let P_adv = advecteerWaarde(ID, V0, windSterkte, P0, vakken0[opId].luchtdruk);
 
-    //---- temperatuur-update: warmte erbij (zon) en af (uitstraling), stapsgewijs ----
-    //Zonder atmosfeer (reken.atmosfeer.x = 0) blijft de temperatuur stil.
-    let T1 = select(T_adv,
-        T_adv
-        + opnameTempo * zonWarmte * tijdVerschil
-        - afkoelen * (T_adv - ruimteEffectief) * tijdVerschil,
-        luchtAan > 0.0);
-
     //---- wind: drukgradiënt + Coriolis + wrijving + diffusie + terrein ----
     var somW     = vec2f(0.0);
     var gradiënt = vec2f(0.0);
@@ -105,6 +97,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     somT     /= n;
     div      /= n;
     terreinGrad /= n;
+
+    //---- temperatuur-update: warmte erbij (zon), af (uitstraling) + diffusie ----
+    //Zonder atmosfeer (reken.atmosfeer.x = 0) blijft de temperatuur stil.
+    //Diffusie (somT - T_adv) verdeelt de warmte over de buren: zonder dit blijft
+    //de dagzijde te heet en te droog en de nachtzijde te koud, waardoor damp nooit
+    //in de buurt van verzadiging komt en er geen wolken ontstaan.
+    let T1 = select(T_adv,
+        T_adv
+        + opnameTempo * zonWarmte * tijdVerschil
+        - afkoelen * (T_adv - ruimteEffectief) * tijdVerschil
+        + tempDiffusie * (somT - T_adv),
+        luchtAan > 0.0);
 
     //Coriolis: f = 2 Omega * breedte; 90°-draaiing in het raakvlak.
     //Eigen coëfficiënt (coriolisKracht) zodat de Coriolis-kromming zichtbaar wordt
