@@ -561,7 +561,7 @@ int main(int argc, char ** argv)
 		geo->tekenJezelf();
 		scherm.pasRondRenderAf();
 
-		//water-pass
+		//water-pass (blendt over de grond, deelt dezelfde diepte-buffer)
 		if(tekenWater)
 		{
 			weergaveInstellingen waterInstellingen;
@@ -575,30 +575,31 @@ int main(int argc, char ** argv)
 			geo->bindVrwrkrOpslagen(scherm);
 			scherm.bindTextuur("waterBumpTex", 0);
 			geo->tekenJezelf();
-
-			scherm.rondRenderAf();
-			scherm.zetWeergaveInstellingen(weergaveInstellingen());
+			scherm.pasRondRenderAf();
 		}
-		else
-			scherm.rondRenderAf();
 
-		//wolk-pass (boven het water)
+		//wolk-pass (boven het water; STRENGE diepte-test zodat verste wolken die
+		//net achter de planeet staan niet door het maanoppervlak heen schijnen).
 		if(tekenWolken)
 		{
 			weergaveInstellingen wolkInstellingen;
 			wolkInstellingen.blenden 			= true;
 			wolkInstellingen.cullMode 			= WGPUCullMode_Back;
 			wolkInstellingen.diepteSchrijven 	= false;
-			wolkInstellingen.diepteVergelijk 	= WGPUCompareFunction_LessEqual;
+			wolkInstellingen.diepteVergelijk 	= WGPUCompareFunction_Less;
 			scherm.zetWeergaveInstellingen(wolkInstellingen);
 
 			scherm.bereidRenderVoor("planeetgridWolk", false);
 			geo->bindVrwrkrOpslagen(scherm);
 			geo->tekenJezelf();
-
-			scherm.rondRenderAf();
-			scherm.zetWeergaveInstellingen(weergaveInstellingen());
+			scherm.pasRondRenderAf();
 		}
+
+		//één enkele submit voor grond+water+wolken, zodat de diepte-buffer van de
+		//grond-pass behouden blijft (hergebruik i.p.v. opnieuw wissen!) en de
+		//wolk-pass écht tegen die diepte test.
+		scherm.rondRenderAf();
+		scherm.zetWeergaveInstellingen(weergaveInstellingen());
 
 		scherm.ontkoppelRekenBuffers();
 	};
@@ -654,6 +655,7 @@ int main(int argc, char ** argv)
 	const uint32_t rekenGroepen = (uint32_t)((geo->aantalVakjes() + 63) / 64);
 
 	size_t frameNummer = 0;
+	auto loopStart = std::chrono::steady_clock::now(); //frametijd-meting
 
 	//In loopconditie: in niet-hoofdloze modus stoppen we op vensterslot; in hoofdloze
 	//modus op het aantal stappen (of nooit).
@@ -825,6 +827,18 @@ int main(int argc, char ** argv)
 		//nog leest -> prestatie-afhankelijke flikkering (vooral op hoge --diepte).
 		if(!hoofdloos)
 			wachtOpRij(rij, scherm.instantie());
+
+		//Frametijd meten: regelmatig het lopende gemiddelde melden zodat we kunnen
+		//zien of de tijd per frame stabiel is (of juist schommelt -> flikker/hikken).
+		if(frameNummer % 120 == 0)
+		{
+			auto nu = std::chrono::steady_clock::now();
+			double ms = std::chrono::duration<double, std::milli>(nu - loopStart).count();
+			double gemPerFrame = ms / (double)(frameNummer == 0 ? 1 : frameNummer);
+			std::cerr << "[tijd] frame " << frameNummer << ": gemiddeld " << gemPerFrame
+					  << " ms/frame (" << (1000.0 / (gemPerFrame > 0.0 ? gemPerFrame : 1.0)) << " fps)\n";
+			loopStart = nu;
+		}
 
 		wgpFoutControle("Frame: ");
 	}
