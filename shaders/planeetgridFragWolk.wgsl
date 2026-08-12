@@ -21,7 +21,9 @@ struct naarFrag {
 
 @fragment
 fn main(in : naarFrag) -> @location(0) vec4f {
-    if(in.wolken < 0.003) {
+    //Alleen dikkere wolken tellen als wolken; een dunne nevel (onder 0.1)
+    //wordt niet getoond, zodat de planeet niet overal wit is.
+    if(in.wolken < 0.1) {
         discard;
     }
 
@@ -37,9 +39,9 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     //Lichte golfjes voor wat volume/wisp in de wolken
     let wolkenWaas = in.wolken * (0.8 + 0.2 * sin(in.pos.x * 4.0 + in.pos.y * 3.0 + in.pos.z * 2.0));
 
-    let bewolkt = smoothstep(0.003, 0.06, in.wolken);
-    var a = bewolkt * clamp(wolkenWaas * 14.0, 0.0, 1.0);
-    a = clamp(a, 0.0, 0.88);
+    let bewolkt = smoothstep(0.1, 0.35, in.wolken);
+    var a = bewolkt * clamp(wolkenWaas * 3.0, 0.0, 1.0);
+    a = clamp(a, 0.0, 0.85);
 
     let helderheid = clamp(0.25 + 0.75 * diffuus, 0.0, 1.0);
     let kleur = mix(vec3f(0.6, 0.63, 0.70), vec3f(1.0, 0.99, 0.96), clamp(diffuus * 1.5, 0.0, 1.0));
