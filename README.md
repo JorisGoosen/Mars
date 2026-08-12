@@ -58,19 +58,20 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - **./,**: Adjust precipitation factor
 
 ## Testvlaggen
-- `--no-water`: start zonder water (`waterHoogte = 0`) — handig om de grond-rendering los te testen.
-- `--no-erosion`: houdt het terrein stil (geen erosie/depositie) zodat water gedrag bekeken kan worden zonder hoogteveranderingen.
-- `--no-life`: zet plantengroei uit (geen groene begroeiing), handig om louter het rots/zand-erfgoed te bekijken.
-- `--no-atmosfeer`: houdt de lucht volledig stil (geen wind, verdamping of neerslag); het water stroomt nog.
-- `--procedural`: genereert het terrein met ruis i.p.v. de MOLA-hoogtekaart (geen PNG nodig). Ideaal voor snelle, kleine grids.
-- `--subdiv <n>`: icosahedron-onderverdelingsniveau (standaard **5**; hoger = fijner, maar trager).
-- `--diag`: print elke 25 frames de extremen van de reken-stand terug (water, bodem/luchtvocht, droesem, temperatuur, luchtdruk, wind, wolken) en meldt niet-eindige cellen.
-- `--diagCsv <bestand>`: dumpt de **hele** planeet naar een CSV (één rij per cel) zodat de berekening extern geanalyseerd kan worden. Bedoeld voor kleine grids (laag `--subdiv`); `--diagCsvElkeFrames <n>` zet het interval (standaard 25).
-- `--headless`: draait zonder venster (geen aqua/display nodig), bijv. `--headless --procedural --subdiv 4 --stappen 3000 --diagCsv uit.csv`.
-- `--stappen <n>`: stop na n rondes (samen met `--headless`).
+- `--help` / `-h`: toon een overzicht van alle vlaggetjes (ook bij een foutieve vlag).
+- `--zonder-water`: start zonder water (`waterHoogte = 0`) — handig om de grond-rendering los te testen.
+- `--zonder-erosie`: houdt het terrein stil (geen erosie/depositie) zodat water gedrag bekeken kan worden zonder hoogteveranderingen.
+- `--zonder-leven`: zet plantengroei uit (geen groene begroeiing), handig om louter het rots/zand-erfgoed te bekijken.
+- `--zonder-atmosfeer`: houdt de lucht volledig stil (geen wind, verdamping of neerslag); het water stroomt nog.
+- `--procedureel`: genereert het terrein met ruis i.p.v. de MOLA-hoogtekaart (geen PNG nodig). Ideaal voor snelle, kleine grids.
+- `--diepte <n>`: icosahedron-onderverdelingsniveau (standaard **5**; hoger = fijner, maar trager).
+- `--diagnose`: print elke 25 frames de extremen van de reken-stand terug (water, bodem/luchtvocht, droesem, temperatuur, luchtdruk, wind, wolken) en meldt niet-eindige cellen.
+- `--diagnoseCsv <bestand>`: dumpt de **hele** planeet naar een CSV (één rij per cel) zodat de berekening extern geanalyseerd kan worden. Bedoeld voor kleine grids (laag `--diepte`); `--diagnoseCsvFrames <n>` zet het interval (standaard 25).
+- `--hoofdloos`: draait zonder venster (geen aqua/display nodig), bijv. `--hoofdloos --procedureel --diepte 4 --stappen 3000 --diagnoseCsv uit.csv`.
+- `--stappen <n>`: stop na n rondes (samen met `--hoofdloos`).
 
-Voorbeeld: `./build/src/mars --no-water --no-erosion --no-life`
-Analyse-voorbeeld: `./build/src/mars --procedural --headless --subdiv 4 --stappen 3000 --diagCsv uit.csv`
+Voorbeeld: `./build/src/mars --zonder-water --zonder-erosie --zonder-leven`
+Analyse-voorbeeld: `./build/src/mars --procedureel --hoofdloos --diepte 4 --stappen 3000 --diagnoseCsv uit.csv`
 
 ## Atmosferische circulatie
 De oude synthetische wind (elke frame verzonnen uit een draaiende as) is vervangen

@@ -24,7 +24,7 @@ struct rekenParameters
 };
 static_assert(sizeof(rekenParameters) == 80, "rekenParameters moet 80 bytes zijn (gelijk aan WGSL)");
 
-//Diagnose (--diag): leest elke zoveel frames de laatste reken-stand terug van de
+//Diagnose (--diagnose): leest elke zoveel frames de laatste reken-stand terug van de
 //GPU en meldt de extremen + de eerste Niet-eindige (NaN/inf) cel.
 struct diagToestandje
 {
@@ -119,9 +119,9 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 	wgpuBufferUnmap(t->buffer);
 }
 
-//Diagnose voor de hele planeet (--diagCsv <bestand>): schrijft álles weg naar een
+//Diagnose voor de hele planeet (--diagnoseCsv <bestand>): schrijft álles weg naar een
 //CSV (één rij per cel) zodat de berekening extern geanalyseerd kan worden. Bedoeld
-//voor kleine grids (laag --subdiv), waar --procedural voor zorgt.
+//voor kleine grids (laag --diepte), waar --procedureel voor zorgt.
 struct csvToestandje
 {
 	WGPUBuffer	buffer	= nullptr;
@@ -141,7 +141,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 
 	if(status != WGPUMapAsyncStatus_Success)
 	{
-		std::cerr << "[diagCsv] lezen mislukt (status " << (uint32_t)status << ")" << std::endl;
+		std::cerr << "[diagnoseCsv] lezen mislukt (status " << (uint32_t)status << ")" << std::endl;
 		return;
 	}
 
@@ -169,14 +169,35 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 	wgpuBufferUnmap(t->buffer);
 }
 
+static void toonHelp()
+{
+	std::cout <<
+"Gebruik: mars [vlaggetjes]\n\n"
+"  --zonder-water        start zonder water (waterHoogte = 0)\n"
+"  --zonder-erosie       houdt het terrein stil (geen erosie/depositie)\n"
+"  --zonder-leven        zet plantengroei uit\n"
+"  --zonder-atmosfeer    houdt de lucht volledig stil (geen wind/verdamping/neerslag)\n"
+"  --procedureel         genereer het terrein met ruis i.p.v. de MOLA-hoogtekaart\n"
+"  --diepte <n>          icosahedron-onderverdelingsniveau (standaard 5)\n"
+"  --diagnose            print elke 25 frames de extremen van de reken-stand\n"
+"  --diagnoseCsv <bestand>  dump de hele planeet naar een CSV\n"
+"  --diagnoseCsvFrames <n>  interval voor het CSV-dumpen (standaard 25)\n"
+"  --hoofdloos           draai zonder venster (geen display/aqua nodig)\n"
+"  --stappen <n>         stop na n rondes (samen met --hoofdloos)\n"
+"  --help, -h            toon deze hulp\n"
+"\n"
+"Voorbeeld (headless analyse):\n"
+"  mars --procedureel --hoofdloos --diepte 4 --stappen 3000 --diagnoseCsv uit.csv\n";
+}
+
 int main(int argc, char ** argv)
 {
-	//Testvlaggen: --no-water start zonder water, --no-erosion houdt het terrein
-	//stil, --no-life schakelt plantengroei uit, --no-atmosfeer houdt de lucht stil,
-	//--procedural genereert het terrein met ruis i.p.v. de MOLA-hoogtekaart,
-	//--subdiv <n> zet het icosahedron-onderverdelingsniveau (standaard 5),
-	//--diag print elke zoveel frames de extremen, --diagCsv <bestand> dumpt de hele
-	//planeet naar een CSV, --headless draait zonder venster, --stappen <n> stopt na n stappen.
+	//Testvlaggen: --zonder-water start zonder water, --zonder-erosie houdt het terrein
+	//stil, --zonder-leven schakelt plantengroei uit, --zonder-atmosfeer houdt de lucht stil,
+	//--procedureel genereert het terrein met ruis i.p.v. de MOLA-hoogtekaart,
+	//--diepte <n> zet het icosahedron-onderverdelingsniveau (standaard 5),
+	//--diagnose print elke zoveel frames de extremen, --diagnoseCsv <bestand> dumpt de hele
+	//planeet naar een CSV, --hoofdloos draait zonder venster, --stappen <n> stopt na n stappen.
 	bool beginMetWater = true;
 	bool erosieAan = true;
 	bool levenAan = true;
@@ -192,19 +213,24 @@ int main(int argc, char ** argv)
 	for(int a = 1; a < argc; a++)
 	{
 		std::string vlag = argv[a];
-		if(vlag == "--no-water")          beginMetWater = false;
-		else if(vlag == "--no-erosion")   erosieAan = false;
-		else if(vlag == "--no-life")      levenAan = false;
-		else if(vlag == "--no-atmosfeer") atmosfeerAan = false;
-		else if(vlag == "--procedural")   procedural = true;
-		else if(vlag == "--diag")         diagAan = true;
-		else if(vlag == "--headless")     hoofdloos = true;
-		else if(vlag == "--diagCsv")
+		if(vlag == "--help" || vlag == "-h")
+		{
+			toonHelp();
+			return 0;
+		}
+		else if(vlag == "--zonder-water")          beginMetWater = false;
+		else if(vlag == "--zonder-erosie")   erosieAan = false;
+		else if(vlag == "--zonder-leven")      levenAan = false;
+		else if(vlag == "--zonder-atmosfeer") atmosfeerAan = false;
+		else if(vlag == "--procedureel")   procedural = true;
+		else if(vlag == "--diagnose")         diagAan = true;
+		else if(vlag == "--hoofdloos")     hoofdloos = true;
+		else if(vlag == "--diagnoseCsv")
 		{
 			if(a + 1 < argc) csvBestand = argv[++a];
-			else std::cerr << "--diagCsv verwacht een bestandsnaam (bijv. --diagCsv uit.csv)" << std::endl;
+			else std::cerr << "--diagnoseCsv verwacht een bestandsnaam (bijv. --diagnoseCsv uit.csv)" << std::endl;
 		}
-		else if(vlag == "--diagCsvElkeFrames")
+		else if(vlag == "--diagnoseCsvFrames")
 		{
 			if(a + 1 < argc) csvElkeFrames = (size_t)std::max(1, std::atoi(argv[++a]));
 		}
@@ -212,17 +238,22 @@ int main(int argc, char ** argv)
 		{
 			if(a + 1 < argc) stappenTotaal = (size_t)std::max(0, std::atoi(argv[++a]));
 		}
-		else if(vlag == "--subdiv")
+		else if(vlag == "--diepte")
 		{
 			if(a + 1 < argc) subdiv = std::max(1, std::atoi(argv[++a]));
-			else std::cerr << "--subdiv verwacht een getal (bijv. --subdiv 6)" << std::endl;
+			else std::cerr << "--diepte verwacht een getal (bijv. --diepte 6)" << std::endl;
 		}
-		else std::cerr << "Onbekende vlag: " << vlag << std::endl;
+		else
+		{
+			std::cerr << "Onbekende vlag: " << vlag << "\n\n";
+			toonHelp();
+			return 1;
+		}
 	}
 
 	//Headless zonder stappen is zinloos; geef een kleine standaard-waarschuwing.
 	if(hoofdloos && stappenTotaal == 0 && csvBestand.empty())
-		std::cerr << "Let op: --headless zonder --stappen of --diagCsv is een no-op.\n";
+		std::cerr << "Let op: --hoofdloos zonder --stappen of --diagnoseCsv is een no-op.\n";
 
 	weergaveSchermPerspectief scherm("Planeet", 1280, 720, 8, hoofdloos);
 
@@ -251,7 +282,7 @@ int main(int argc, char ** argv)
 		size_t w, h, kanalen;
 		MarsHoogte = laadPNG("MARS_Hoogte.png", w, h, kanalen);
 		if(!MarsHoogte)
-			throw std::runtime_error("Kon MARS_Hoogte.png niet laden (of gebruik --procedural)!");
+			throw std::runtime_error("Kon MARS_Hoogte.png niet laden (of gebruik --procedureel)!");
 		MarsHoogteBH = glm::uvec2(w, h);
 	}
 
@@ -398,7 +429,7 @@ int main(int argc, char ** argv)
 	{
 		csvUit.open(csvBestand, std::ios::trunc);
 		if(!csvUit.is_open())
-			std::cerr << "Kon " << csvBestand << " niet openen voor --diagCsv!" << std::endl;
+			std::cerr << "Kon " << csvBestand << " niet openen voor --diagnoseCsv!" << std::endl;
 	}
 
 	auto berekenShaderBinden = [&]()
@@ -616,7 +647,7 @@ int main(int argc, char ** argv)
 		{
 			//een compacte regel per 25 stappen in hoofdloze modus voor vinger-aan-de-polS
 			std::vector<vak> cellen(geo->aantalVakjes());
-			//(bewust leeg: teruglezen in hoofdloze modus gaat via --diagCsv)
+			//(bewust leeg: teruglezen in hoofdloze modus gaat via --diagnoseCsv)
 			(void)cellen;
 			std::cerr << "[stap " << frameNummer << "]" << std::endl;
 		}
