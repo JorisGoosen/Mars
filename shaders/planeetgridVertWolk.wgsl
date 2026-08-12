@@ -29,12 +29,6 @@ struct naarFrag {
     @location(4) pos            : vec4f,
 };
 
-//Verzadigingsdampconcentratie (dauwpunt) via een exponentiële Clausius-Clapeyron-
-//benadering, goed gedefinieerd over het hele werkgebied van de sim (180-300 K).
-const satTempRef = 250.0;  //referentie-temperatuur (K) van de exponentiële fit
-const satDicht   = 0.05;   //verzadigingsdampconcentratie bij satTempRef
-const satGamma   = 0.09;   //exponentcoëfficiënt (≈1/schaalhoogte)
-
 @vertex
 fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     var uit : naarFrag;
@@ -43,15 +37,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     uit.texDraaien = vec3f(in.tex.y, fract(in.tex.x), fract(in.tex.x + 0.5) - 0.5);
     uit.grondHoogte = vakken0[ID].grondHoogte;
 
-    let T    = vakken0[ID].temperatuur;
-    let P    = vakken0[ID].luchtdruk;
-    let damp = max(0.0, vakken0[ID].luchtVocht);
-
-    //Dauwpunt: de temperatuur waarbij de damp precies de draagkracht vult.
-    var Td = satTempRef - 200.0;
-    if(damp > 1.0e-6) {
-        Td = satTempRef + (log(damp / satDicht) / satGamma);
-    }
+    let T = vakken0[ID].temperatuur;
 
     //Hoogste terreinpunt (bij het laden bepaald) in dezelfde hoogte-eenheden als
     //het terrein; de bijbehorende straal rMax. Sealevel = straal 1.0 (radius 1).
@@ -62,10 +48,11 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     //dus in de atmosfeerlaag, boven sealevel maar onder de hoogste piek.
     let rPlafond = 1.0 + 0.9 * (rMax - 1.0);
 
-    //Dekhoogte uit dauwpuntdepressie: vochtige lucht (RN~1) condenseert laag (laag
-    //dek), droge lucht hoog. Uitgedrukt als fractie van het plafond-parcours.
-    let depressie = clamp(T - Td, 0.0, 60.0);
-    let dekFract = clamp(1.0 - depressie / 60.0, 0.0, 1.0);
+    //Dekhoogte uit de temperatuur: warme lucht houdt de damp hoger vast (hoger
+    //dek), koude lucht laat het dek zakken. Soepel en stabiel (niet afhankelijk
+    //van de huidige damp, anders versterkt het wegdrainen zichzelf). Het dek
+    //zweeft hoog zodat alleen hoge bergtoppen erbovenuit steken.
+    let dekFract = clamp(0.75 + 0.15 * clamp((T - 255.0) / 30.0, -1.0, 1.0), 0.6, 0.9);
 
     //Absolute straal: sealevel (1.0) + fractie van het parcours tot het plafond.
     let rWolk = 1.0 + dekFract * (rPlafond - 1.0);

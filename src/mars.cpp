@@ -809,7 +809,6 @@ int main(int argc, char ** argv)
 		rekenPar.fasen[0] 		= verwarmtijd;
 		rekenPar.fasen[1] 		= geo->hoogsteGrond();
 		rekenPar.fasen[2] 		= grondMult;
-		rekenPar.fasen[2] 		= 0.0f;
 		rekenPar.fasen[3] 		= 0.0f;
 
 		wgpuQueueWriteBuffer(rij, rekenParBuffer, 0, &rekenPar, sizeof(rekenParameters));
