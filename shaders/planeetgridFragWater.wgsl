@@ -1,6 +1,12 @@
 //WGSL fragment-shader voor de water-pass van de planeet.
 #include "planeetStructen.wgsl"
 
+struct matricesDaar {
+    projectie  : mat4x4f,
+    modelZicht : mat4x4f,
+    transInvMV : mat4x4f,
+};
+@group(0) @binding(1) var<uniform> matrices : matricesDaar;
 @group(0) @binding(2) var<uniform> extra : extraParameters;
 @group(1) @binding(0) var waterBumpTex : texture_2d<f32>;
 @group(1) @binding(1) var waterBumpSmp : sampler;
@@ -41,15 +47,19 @@ fn main(in : naarFrag) -> @location(0) vec4f {
         vervormdN = berekenVervormdeNormaal(in.normaal, in.hoeks, vervorming);
     }
 
-    let mijnPlek    = in.pos.xyz / max(in.pos.w, 0.0001);
-    let lichtRicht  = normalize(extra.zonPos - mijnPlek);
-    let lichtSpiegel = reflect(lichtRicht, vervormdN);
-    let diffuus     = max(0.0, dot(lichtRicht, vervormdN));
+    //Richtingslicht van de zon (modelruimte -> view-ruimte) + oog richting de camera
+    let zonModel = normalize(extra.zonPos.xyz);
+    let zonView  = normalize((matrices.transInvMV * vec4f(zonModel, 0.0)).xyz);
+
+    let mijnPlek = in.pos.xyz / max(in.pos.w, 0.0001);
+    let oogRicht = normalize(-mijnPlek);           //camera zit in view-ruimte in de oorsprong
+    let lichtSpiegel = reflect(zonView, vervormdN);
+    let diffuus     = max(0.0, dot(zonView, vervormdN));
 
     var lichtheid = 0.0;
 
-    if(diffuus > 0.0 && dot(lichtRicht, normalize(mijnPlek)) < 0.0) {
-        lichtheid = pow(max(0.0, dot(lichtSpiegel, normalize(extra.kijkPlek - mijnPlek))), 200.0) * 0.8;
+    if(diffuus > 0.0) {
+        lichtheid = pow(max(0.0, dot(lichtSpiegel, oogRicht)), 200.0) * 0.8;
     }
 
     var kleur = mix(vec4f(in.kleur.xyz * max(0.2, diffuus), in.kleur.a), vec4f(vec3f(1.0), in.kleur.a), lichtheid);

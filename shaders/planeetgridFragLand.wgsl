@@ -1,6 +1,12 @@
 //WGSL fragment-shader voor de grond-pass van de planeet.
 #include "planeetStructen.wgsl"
 
+struct matricesDaar {
+    projectie  : mat4x4f,
+    modelZicht : mat4x4f,
+    transInvMV : mat4x4f,
+};
+@group(0) @binding(1) var<uniform> matrices : matricesDaar;
 @group(0) @binding(2) var<uniform> extra : extraParameters;
 @group(1) @binding(0) var marsHoogteTex : texture_2d<f32>;
 @group(1) @binding(1) var marsHoogteSmp : sampler;
@@ -25,9 +31,12 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     let naadloosTex = vec2f(select(in.texDraaien.z, in.texDraaien.y, fwidth(in.texDraaien.y) <= fwidth(in.texDraaien.z) + 0.000001), in.texDraaien.x);
     let marsHoogte = textureSampleLevel(marsHoogteTex, marsHoogteSmp, naadloosTex, 0.0).r;
 
-    let mijnPlek  = in.pos.xyz / max(in.pos.w, 0.0001);
-    let lichtRicht = normalize(extra.zonPos - mijnPlek);
-    let diffuus = max(0.0, dot(lichtRicht, in.normaal));
+    //De zon is een richtingslicht op oneindig: de richting in modelruimte wordt
+    //naar de view-ruimte gebracht, zodat de belichting consistent is met de
+    //normaal (= na modelZicht). Geen 'puntbron' op de planeet meer.
+    let zonModel = normalize(extra.zonPos.xyz);
+    let zonView  = normalize((matrices.transInvMV * vec4f(zonModel, 0.0)).xyz);
+    let diffuus = max(0.0, dot(zonView, in.normaal));
 
     let kleur = mix(in.kleur * clamp(marsHoogte * 3.0, 0.35, 1.0), vec4f(0.0, 0.35, 0.0, 1.0), clamp(in.leven, 0.0, 1.0)) * max(0.2, diffuus);
 

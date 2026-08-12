@@ -8,6 +8,8 @@
 #include <string>
 #include <fstream>
 #include <chrono>
+#include <vector>
+#include <cstring>
 
 //De parameters voor de reken-shaders (bind-groep 0, binding 3). Layout moet matchen
 //met het rekenParameters-struct in shaders/planeetStructen.wgsl (80 bytes).
@@ -169,6 +171,35 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 	wgpuBufferUnmap(t->buffer);
 }
 
+//Schrijft RGBA-pixels (8 bit/component) weg naar een PNG-bestand (via libpng).
+//Mogelijk gemaakt zodat --hoofdloos --schermafbeelding kan renderen naar een
+//off-screen framebuffer en die zonder display kan bewaren/controleren.
+static bool bewaarPNG(const std::string & bestand, int breedte, int hoogte, const std::vector<unsigned char> & rgba)
+{	png_image beeld;
+	memset(&beeld, 0, sizeof(beeld));
+	beeld.version = PNG_IMAGE_VERSION;
+	beeld.width  = breedte;
+	beeld.height = hoogte;
+	beeld.format = PNG_FORMAT_RGBA;
+	if(png_image_write_to_file(&beeld, bestand.c_str(), 0, rgba.data(), 0, nullptr) == 0)
+	{
+		std::cerr << "bewaarPNG: " << beeld.message << std::endl;
+		return false;
+	}
+	return true;
+}
+
+struct shotToestandje
+{
+	bool klaar = false;
+};
+
+static void shotVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebruiker1, void * gebruiker2)
+{
+	(void)status; (void)gebruiker2;
+	((shotToestandje *)gebruiker1)->klaar = true;
+}
+
 static void toonHelp()
 {
 	std::cout <<
@@ -184,6 +215,7 @@ static void toonHelp()
 "  --diagnoseCsvFrames <n>  interval voor het CSV-dumpen (standaard 25)\n"
 "  --hoofdloos           draai zonder venster (geen display/aqua nodig)\n"
 "  --stappen <n>         stop na n rondes (samen met --hoofdloos)\n"
+"  --schermafbeelding <bestand>  render een beeld naar een PNG (handig bij --hoofdloos)\n"
 "  --help, -h            toon deze hulp\n"
 "\n"
 "Voorbeeld (headless analyse):\n"
@@ -209,6 +241,7 @@ int main(int argc, char ** argv)
 	size_t stappenTotaal = 0; //0 = oneindig (interactief)
 	size_t csvElkeFrames = 25;
 	std::string csvBestand;
+	std::string schermafbeeldingBestand;
 
 	for(int a = 1; a < argc; a++)
 	{
@@ -238,6 +271,11 @@ int main(int argc, char ** argv)
 		{
 			if(a + 1 < argc) stappenTotaal = (size_t)std::max(0, std::atoi(argv[++a]));
 		}
+		else if(vlag == "--schermafbeelding")
+		{
+			if(a + 1 < argc) schermafbeeldingBestand = argv[++a];
+			else std::cerr << "--schermafbeelding verwacht een bestandsnaam (bijv. --schermafbeelding beeld.png)" << std::endl;
+		}
 		else if(vlag == "--diepte")
 		{
 			if(a + 1 < argc) subdiv = std::max(1, std::atoi(argv[++a]));
@@ -257,7 +295,11 @@ int main(int argc, char ** argv)
 
 	weergaveSchermPerspectief scherm("Planeet", 1280, 720, 8, hoofdloos);
 
-	if(!hoofdloos)
+	//Render-assets zijn nodig in venstermodus óf voor een --schermafbeelding
+	//(off-screen framebuffer, ook in --hoofdloos).
+	const bool heeftRender = !hoofdloos || !schermafbeeldingBestand.empty();
+
+	if(heeftRender)
 	{
 		scherm.maakShader(		"planeetgridLand", 	"shaders/planeetgridVertLand.wgsl", 	"shaders/planeetgridFragLand.wgsl"	);
 		scherm.maakShader(		"planeetgridWater", "shaders/planeetgridVertWater.wgsl",	"shaders/planeetgridFragWater.wgsl"	);
@@ -291,7 +333,7 @@ int main(int argc, char ** argv)
 	{
 		MOLA = new monsterPNG(MarsHoogte, MarsHoogteBH);
 
-		if(!hoofdloos)
+		if(heeftRender)
 		{
 			scherm.maakTextuur("marsHoogteTex", MarsHoogteBH.x, MarsHoogteBH.y, true, false, false, GL_RGBA8, MarsHoogte, GL_RGBA, GL_UNSIGNED_BYTE);
 		}
@@ -304,7 +346,7 @@ int main(int argc, char ** argv)
 	png_byte * bumpData = laadPNG("plaatjes/zeewater_bump.png", wb, hb, kanalenB);
 	if(!bumpData)
 		throw std::runtime_error("Kon zeewater_bump.png niet laden!");
-	if(!hoofdloos)
+	if(heeftRender)
 	{
 		scherm.maakTextuur("waterBumpTex", wb, hb, true, true, false, GL_RGBA8, bumpData, GL_RGBA, GL_UNSIGNED_BYTE);
 	}
@@ -432,15 +474,100 @@ int main(int argc, char ** argv)
 			std::cerr << "Kon " << csvBestand << " niet openen voor --diagnoseCsv!" << std::endl;
 	}
 
+	//de weergave-parameters (bind-groep 0, binding 2): layout volgens extraParameters in de WGSL
+	float extra[16] = { 0.0f };
+
 	auto berekenShaderBinden = [&]()
 	{
 		geo->bindVrwrkrOpslagen(scherm);
 		scherm.verbindRekenBuffer(3, rekenParBuffer);
 	};
 
-	//de weergave-parameters (bind-groep 0, binding 2): layout volgens extraParameters in de WGSL
-	float extra[16] = { 0.0f };
+	//Off-screen framebuffer voor --schermafbeelding (renderen zonder venster)
+	const int  shotBreedte = 960, shotHoogte = 960;
+	WGPUTexture offScreen = nullptr;
+	WGPUBuffer   shotLees = nullptr;
+	if(!schermafbeeldingBestand.empty() && hoofdloos)
+	{
+		WGPUTextureDescriptor td = WGPU_TEXTURE_DESCRIPTOR_INIT;
+		td.usage      = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+		td.dimension  = WGPUTextureDimension_2D;
+		td.size       = { (uint32_t)shotBreedte, (uint32_t)shotHoogte, 1u };
+		td.format     = WGPUTextureFormat_RGBA8Unorm;
+		td.mipLevelCount = 1;
+		td.sampleCount   = 1;
+		offScreen = wgpuDeviceCreateTexture(apparaat, &td);
+		scherm.zetWeergaveDoel(offScreen, glm::uvec2(shotBreedte, shotHoogte));
 
+		WGPUBufferDescriptor rb = WGPU_BUFFER_DESCRIPTOR_INIT;
+		rb.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
+		rb.size  = (uint64_t)shotBreedte * shotHoogte * 4;
+		shotLees = wgpuDeviceCreateBuffer(apparaat, &rb);
+	}
+
+	//De drie weergave-passen (grond, water, wolken) plus het klaarzetten van de
+	//weergave-parameters. Draait elke frame in venstermodus en één keer aan het
+	//einde in --hoofdloos + --schermafbeelding.
+	auto doeRenderPassen = [&]()
+	{
+		kijkPlek = glm::vec3(glm::inverse(scherm.modelZicht())[3]);
+		scherm.zetExtraFloats(extra, 16);
+
+		//grond-pass (achterkant-verwijdering aan)
+		weergaveInstellingen grondInstellingen;
+		grondInstellingen.cullMode = WGPUCullMode_Back;
+		scherm.zetWeergaveInstellingen(grondInstellingen);
+
+		scherm.bereidRenderVoor("planeetgridLand");
+		geo->bindVrwrkrOpslagen(scherm);
+		if(!procedural)
+			scherm.bindTextuur("marsHoogteTex", 0);
+		geo->tekenJezelf();
+		scherm.pasRondRenderAf();
+
+		//water-pass
+		if(tekenWater)
+		{
+			weergaveInstellingen waterInstellingen;
+			waterInstellingen.blenden 			= true;
+			waterInstellingen.cullMode 			= WGPUCullMode_Back;
+			waterInstellingen.diepteSchrijven 	= false;
+			waterInstellingen.diepteVergelijk 	= WGPUCompareFunction_LessEqual;
+			scherm.zetWeergaveInstellingen(waterInstellingen);
+
+			scherm.bereidRenderVoor("planeetgridWater", false);
+			geo->bindVrwrkrOpslagen(scherm);
+			scherm.bindTextuur("waterBumpTex", 0);
+			geo->tekenJezelf();
+
+			scherm.rondRenderAf();
+			scherm.zetWeergaveInstellingen(weergaveInstellingen());
+		}
+		else
+			scherm.rondRenderAf();
+
+		//wolk-pass (boven het water)
+		if(tekenWolken)
+		{
+			weergaveInstellingen wolkInstellingen;
+			wolkInstellingen.blenden 			= true;
+			wolkInstellingen.cullMode 			= WGPUCullMode_Back;
+			wolkInstellingen.diepteSchrijven 	= false;
+			wolkInstellingen.diepteVergelijk 	= WGPUCompareFunction_LessEqual;
+			scherm.zetWeergaveInstellingen(wolkInstellingen);
+
+			scherm.bereidRenderVoor("planeetgridWolk", false);
+			geo->bindVrwrkrOpslagen(scherm);
+			geo->tekenJezelf();
+
+			scherm.rondRenderAf();
+			scherm.zetWeergaveInstellingen(weergaveInstellingen());
+		}
+
+		scherm.ontkoppelRekenBuffers();
+	};
+
+	//parameters voor de reken-shaders
 	rekenParameters rekenPar = {};
 
 	const uint32_t rekenGroepen = (uint32_t)((geo->aantalVakjes() + 63) / 64);
@@ -466,8 +593,6 @@ int main(int argc, char ** argv)
 				scherm.wachtOpGebeurtenissen();
 				continue;
 			}
-
-			kijkPlek = glm::vec3(glm::inverse(scherm.modelZicht())[3]);
 		}
 
 		//---- rotatie-planeet <-> zon ----
@@ -475,6 +600,7 @@ int main(int argc, char ** argv)
 		//hoeksnelheid = rotatieOmega; de dagzijde is dot(normaal, zonRicht)>0. Dat is
 		//equivalent aan een planeet die om haar noord-as draait. Obliquity blijft vast.
 		dagHoek += rotatieOmega;
+		dagHoek = glm::mod(dagHoek, 6.28318530718f); //houd de hoek klein (geen precisie-jitter)
 		glm::mat4 zonRoteerder =
 			glm::rotate(
 				glm::rotate(
@@ -498,9 +624,6 @@ int main(int argc, char ** argv)
 		extra[4] 	= kijkPlek.x;	extra[5] = kijkPlek.y;	extra[6] = kijkPlek.z;
 		extra[8] 	= zonPos.x;		extra[9] = zonPos.y;	extra[10] = zonPos.z;
 
-		if(!hoofdloos)
-			scherm.zetExtraFloats(extra, 16);
-
 		//parameters voor de reken-shaders
 		rekenPar.grondSchaal 	= grondSchaal;
 		rekenPar.verdamping 	= verdamping;
@@ -523,60 +646,7 @@ int main(int argc, char ** argv)
 		wgpuQueueWriteBuffer(rij, rekenParBuffer, 0, &rekenPar, sizeof(rekenParameters));
 
 		if(!hoofdloos)
-		{
-			//grond-pass (achterkant-verwijdering aan)
-			weergaveInstellingen grondInstellingen;
-			grondInstellingen.cullMode = WGPUCullMode_Back;
-			scherm.zetWeergaveInstellingen(grondInstellingen);
-
-			scherm.bereidRenderVoor("planeetgridLand");
-			geo->bindVrwrkrOpslagen(scherm);
-			if(!procedural)
-				scherm.bindTextuur("marsHoogteTex", 0);
-			geo->tekenJezelf();
-			scherm.pasRondRenderAf();
-
-			//water-pass
-			if(tekenWater)
-			{
-				weergaveInstellingen waterInstellingen;
-				waterInstellingen.blenden 			= true;
-				waterInstellingen.cullMode 			= WGPUCullMode_Back;
-				waterInstellingen.diepteSchrijven 	= false;
-				waterInstellingen.diepteVergelijk 	= WGPUCompareFunction_LessEqual;
-				scherm.zetWeergaveInstellingen(waterInstellingen);
-
-				scherm.bereidRenderVoor("planeetgridWater", false);
-				geo->bindVrwrkrOpslagen(scherm);
-				scherm.bindTextuur("waterBumpTex", 0);
-				geo->tekenJezelf();
-
-				scherm.rondRenderAf();
-				scherm.zetWeergaveInstellingen(weergaveInstellingen());
-			}
-			else
-				scherm.rondRenderAf();
-
-			//wolk-pass (boven het water)
-			if(tekenWolken)
-			{
-				weergaveInstellingen wolkInstellingen;
-				wolkInstellingen.blenden 			= true;
-				wolkInstellingen.cullMode 			= WGPUCullMode_Back;
-				wolkInstellingen.diepteSchrijven 	= false;
-				wolkInstellingen.diepteVergelijk 	= WGPUCompareFunction_LessEqual;
-				scherm.zetWeergaveInstellingen(wolkInstellingen);
-
-				scherm.bereidRenderVoor("planeetgridWolk", false);
-				geo->bindVrwrkrOpslagen(scherm);
-				geo->tekenJezelf();
-
-				scherm.rondRenderAf();
-				scherm.zetWeergaveInstellingen(weergaveInstellingen());
-			}
-
-			scherm.ontkoppelRekenBuffers();
-		}
+			doeRenderPassen();
 
 		if(waterStroomt || waterStap || hoofdloos)
 		{
@@ -657,10 +727,58 @@ int main(int argc, char ** argv)
 		wgpFoutControle("Frame: ");
 	}
 
+	//--schermafbeelding in --hoofdloos: render één frame naar het off-screen
+	//framebuffer en bewaar die als PNG (zonder display/aqua nodig).
+	if(hoofdloos && !schermafbeeldingBestand.empty() && offScreen && shotLees)
+	{
+		std::cout << "Render schermafbeelding naar " << schermafbeeldingBestand << "..." << std::endl;
+		doeRenderPassen();
+
+		const uint64_t shotBytes = (uint64_t)shotBreedte * shotHoogte * 4;
+		WGPUTexelCopyTextureInfo bron = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
+		bron.texture  = offScreen;
+		bron.mipLevel = 0;
+		bron.aspect   = WGPUTextureAspect_All;
+
+		WGPUTexelCopyBufferInfo bestemming = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
+		bestemming.buffer = shotLees;
+		bestemming.layout.offset      = 0;
+		bestemming.layout.bytesPerRow = (uint32_t)(shotBreedte * 4);
+		bestemming.layout.rowsPerImage= (uint32_t)shotHoogte;
+
+		WGPUExtent3D omvang = { (uint32_t)shotBreedte, (uint32_t)shotHoogte, 1u };
+
+		WGPUCommandEncoder leesEncoder = wgpuDeviceCreateCommandEncoder(apparaat, nullptr);
+		wgpuCommandEncoderCopyTextureToBuffer(leesEncoder, &bron, &bestemming, &omvang);
+		WGPUCommandBuffer leesCommando = wgpuCommandEncoderFinish(leesEncoder, nullptr);
+		wgpuQueueSubmit(rij, 1, &leesCommando);
+		wgpuCommandBufferRelease(leesCommando);
+		wgpuCommandEncoderRelease(leesEncoder);
+
+		shotToestandje toestand;
+		WGPUBufferMapCallbackInfo leesInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+		leesInfo.mode 		= WGPUCallbackMode_AllowSpontaneous;
+		leesInfo.callback 	= shotVerwerker;
+		leesInfo.userdata1 	= &toestand;
+		wgpuBufferMapAsync(shotLees, WGPUMapMode_Read, 0, shotBytes, leesInfo);
+		while(!toestand.klaar)
+			wgpuInstanceProcessEvents(scherm.instantie());
+
+		const unsigned char * pixels = (const unsigned char *)wgpuBufferGetMappedRange(shotLees, 0, shotBytes);
+		std::vector<unsigned char> kopie(pixels, pixels + shotBytes);
+		wgpuBufferUnmap(shotLees);
+
+		bewaarPNG(schermafbeeldingBestand, shotBreedte, shotHoogte, kopie);
+	}
+
 	if(csvUit.is_open())
 		csvUit.close();
 	if(diagLees)
 		wgpuBufferRelease(diagLees);
+	if(shotLees)
+		wgpuBufferRelease(shotLees);
+	if(offScreen)
+		wgpuTextureRelease(offScreen);
 	wgpuBufferRelease(rekenParBuffer);
 
 	delete geo;

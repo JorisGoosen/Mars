@@ -69,6 +69,7 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - `--diagnoseCsv <bestand>`: dumpt de **hele** planeet naar een CSV (één rij per cel) zodat de berekening extern geanalyseerd kan worden. Bedoeld voor kleine grids (laag `--diepte`); `--diagnoseCsvFrames <n>` zet het interval (standaard 25).
 - `--hoofdloos`: draait zonder venster (geen aqua/display nodig), bijv. `--hoofdloos --procedureel --diepte 4 --stappen 3000 --diagnoseCsv uit.csv`.
 - `--stappen <n>`: stop na n rondes (samen met `--hoofdloos`).
+- `--schermafbeelding <bestand>`: render (ook met `--hoofdloos`) naar een off-screen framebuffer en bewaar die als PNG, bijv. `--hoofdloos --procedureel --diepte 3 --stappen 300 --schermafbeelding beeld.png`.
 
 Voorbeeld: `./build/src/mars --zonder-water --zonder-erosie --zonder-leven`
 Analyse-voorbeeld: `./build/src/mars --procedureel --hoofdloos --diepte 4 --stappen 3000 --diagnoseCsv uit.csv`
