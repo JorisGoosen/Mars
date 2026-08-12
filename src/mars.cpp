@@ -216,6 +216,8 @@ static void toonHelp()
 "  --hoofdloos           draai zonder venster (geen display/aqua nodig)\n"
 "  --stappen <n>         stop na n rondes (samen met --hoofdloos)\n"
 "  --schermafbeelding <bestand>  render een beeld naar een PNG (handig bij --hoofdloos)\n"
+"  --schermafbeeldingElkeFrames <n>  maak om de n frames een schermafbeelding\n"
+"  --stil               bevries alles vanaf het begin (sim, zon- en modelrotatie)\n"
 "  --help, -h            toon deze hulp\n"
 "\n"
 "Voorbeeld (headless analyse):\n"
@@ -242,6 +244,9 @@ int main(int argc, char ** argv)
 	size_t csvElkeFrames = 25;
 	std::string csvBestand;
 	std::string schermafbeeldingBestand;
+	size_t schermElkeFrames = 0; //0 = alleen de eind-screenshot
+	bool bevroren = false;      //bevriest sim + zonrotatie + modelrotatie
+	bool zonRoteert = true;     //of de bezonning (dag/nacht) vooruitloopt
 
 	for(int a = 1; a < argc; a++)
 	{
@@ -275,6 +280,14 @@ int main(int argc, char ** argv)
 		{
 			if(a + 1 < argc) schermafbeeldingBestand = argv[++a];
 			else std::cerr << "--schermafbeelding verwacht een bestandsnaam (bijv. --schermafbeelding beeld.png)" << std::endl;
+		}
+		else if(vlag == "--schermafbeeldingElkeFrames")
+		{
+			if(a + 1 < argc) schermElkeFrames = (size_t)std::max(1, std::atoi(argv[++a]));
+		}
+		else if(vlag == "--stil")
+		{
+			bevroren = true;  //bevriest vanaf de start (handig voor --hoofdloos bisectie)
 		}
 		else if(vlag == "--diepte")
 		{
@@ -405,7 +418,7 @@ int main(int argc, char ** argv)
 	float		grondSchaal		= 1.0,
 				verdamping		= 0.01f;
 	float		zonKracht		= 60.0f,
-				rotatieOmega	= 0.01f,
+				rotatieOmega	= 0.003f,   //dag/nacht langzaam (minder zonne-flikker)
 				wrijving		= 0.05f,
 				diffusie		= 0.02f,
 				verwarmtijd		= 0.5f;
@@ -424,7 +437,8 @@ int main(int argc, char ** argv)
 			if(action == GLFW_PRESS)
 				switch(key)
 				{
-				case GLFW_KEY_SPACE:		waterStroomt 	= !waterStroomt;	break;
+				case GLFW_KEY_SPACE:		bevroren 		= !bevroren;		break;
+				case GLFW_KEY_B:			zonRoteert 		= !zonRoteert;		break;
 				case GLFW_KEY_R:			roteerMaar 		= !roteerMaar;		break;
 				case GLFW_KEY_X:			tekenWater 		= !tekenWater;		break;
 				case GLFW_KEY_C:			tekenWolken 	= !tekenWolken;		break;
@@ -567,6 +581,51 @@ int main(int argc, char ** argv)
 		scherm.ontkoppelRekenBuffers();
 	};
 
+	//Rendert naar het off-screen framebuffer en bewaart die als PNG.
+	auto slaScreenshot = [&](const std::string & pad)
+	{
+		if(!offScreen || !shotLees)
+			return;
+		doeRenderPassen();
+		const uint64_t shotBytes = (uint64_t)shotBreedte * shotHoogte * 4;
+
+		WGPUTexelCopyTextureInfo bron = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
+		bron.texture  = offScreen;
+		bron.mipLevel = 0;
+		bron.aspect   = WGPUTextureAspect_All;
+
+		WGPUTexelCopyBufferInfo bestemming = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
+		bestemming.buffer = shotLees;
+		bestemming.layout.offset      = 0;
+		bestemming.layout.bytesPerRow = (uint32_t)(shotBreedte * 4);
+		bestemming.layout.rowsPerImage= (uint32_t)shotHoogte;
+
+		WGPUExtent3D omvang = { (uint32_t)shotBreedte, (uint32_t)shotHoogte, 1u };
+
+		WGPUCommandEncoder leesEncoder = wgpuDeviceCreateCommandEncoder(apparaat, nullptr);
+		wgpuCommandEncoderCopyTextureToBuffer(leesEncoder, &bron, &bestemming, &omvang);
+		WGPUCommandBuffer leesCommando = wgpuCommandEncoderFinish(leesEncoder, nullptr);
+		wgpuQueueSubmit(rij, 1, &leesCommando);
+		wgpuCommandBufferRelease(leesCommando);
+		wgpuCommandEncoderRelease(leesEncoder);
+
+		shotToestandje toestand;
+		WGPUBufferMapCallbackInfo leesInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+		leesInfo.mode 		= WGPUCallbackMode_AllowSpontaneous;
+		leesInfo.callback 	= shotVerwerker;
+		leesInfo.userdata1 	= &toestand;
+		wgpuBufferMapAsync(shotLees, WGPUMapMode_Read, 0, shotBytes, leesInfo);
+		while(!toestand.klaar)
+			wgpuInstanceProcessEvents(scherm.instantie());
+
+		const unsigned char * pixels = (const unsigned char *)wgpuBufferGetMappedRange(shotLees, 0, shotBytes);
+		std::vector<unsigned char> kopie(pixels, pixels + shotBytes);
+		wgpuBufferUnmap(shotLees);
+
+		std::cout << "schermafbeelding -> " << pad << std::endl;
+		bewaarPNG(pad, shotBreedte, shotHoogte, kopie);
+	};
+
 	//parameters voor de reken-shaders
 	rekenParameters rekenPar = {};
 
@@ -599,7 +658,9 @@ int main(int argc, char ** argv)
 		//De zon draait om de geografische noordpool (vast in modelruimte) met een
 		//hoeksnelheid = rotatieOmega; de dagzijde is dot(normaal, zonRicht)>0. Dat is
 		//equivalent aan een planeet die om haar noord-as draait. Obliquity blijft vast.
-		dagHoek += rotatieOmega;
+		//Bevroren (Space) of zonRoteert uit (B) houdt de bezonning stil.
+		if(!bevroren && zonRoteert)
+			dagHoek += rotatieOmega;
 		dagHoek = glm::mod(dagHoek, 6.28318530718f); //houd de hoek klein (geen precisie-jitter)
 		glm::mat4 zonRoteerder =
 			glm::rotate(
@@ -615,7 +676,7 @@ int main(int argc, char ** argv)
 		glm::vec3 zonRichtV = glm::normalize(glm::vec3(zonRicht4));
 		zonPos = zonRichtV;
 
-		if(roteerMaar)
+		if(!bevroren && roteerMaar)
 			scherm.zetModelZicht(glm::rotate(scherm.modelZicht(), 0.01f, glm::vec3(0.0f, 1.0f, 0.0f)));
 
 		//weergave-parameters in de extra-buffer schrijven
@@ -648,7 +709,7 @@ int main(int argc, char ** argv)
 		if(!hoofdloos)
 			doeRenderPassen();
 
-		if(waterStroomt || waterStap || hoofdloos)
+		if(!bevroren && (waterStroomt || waterStap || hoofdloos))
 		{
 			scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 			scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
@@ -658,6 +719,19 @@ int main(int argc, char ** argv)
 			waterStap = false;
 
 			geo->volgendeRonde();
+		}
+
+		//Periodieke schermafbeeldingen (--schermafbeeldingElkeFrames)
+		if(hoofdloos && !schermafbeeldingBestand.empty() && schermElkeFrames > 0 &&
+		   frameNummer > 0 && frameNummer % schermElkeFrames == 0)
+		{
+			std::string pad = schermafbeeldingBestand;
+			size_t stip = pad.find_last_of('.');
+			if(stip == std::string::npos)
+				pad += "_" + std::to_string(frameNummer);
+			else
+				pad.insert(stip, "_" + std::to_string(frameNummer));
+			slaScreenshot(pad);
 		}
 
 		if(diagAan && !hoofdloos && diagLees && frameNummer % 25 == 0)
@@ -727,49 +801,10 @@ int main(int argc, char ** argv)
 		wgpFoutControle("Frame: ");
 	}
 
-	//--schermafbeelding in --hoofdloos: render één frame naar het off-screen
+	//--schermafbeelding in --hoofdloos: render het eind-frame naar het off-screen
 	//framebuffer en bewaar die als PNG (zonder display/aqua nodig).
 	if(hoofdloos && !schermafbeeldingBestand.empty() && offScreen && shotLees)
-	{
-		std::cout << "Render schermafbeelding naar " << schermafbeeldingBestand << "..." << std::endl;
-		doeRenderPassen();
-
-		const uint64_t shotBytes = (uint64_t)shotBreedte * shotHoogte * 4;
-		WGPUTexelCopyTextureInfo bron = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
-		bron.texture  = offScreen;
-		bron.mipLevel = 0;
-		bron.aspect   = WGPUTextureAspect_All;
-
-		WGPUTexelCopyBufferInfo bestemming = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
-		bestemming.buffer = shotLees;
-		bestemming.layout.offset      = 0;
-		bestemming.layout.bytesPerRow = (uint32_t)(shotBreedte * 4);
-		bestemming.layout.rowsPerImage= (uint32_t)shotHoogte;
-
-		WGPUExtent3D omvang = { (uint32_t)shotBreedte, (uint32_t)shotHoogte, 1u };
-
-		WGPUCommandEncoder leesEncoder = wgpuDeviceCreateCommandEncoder(apparaat, nullptr);
-		wgpuCommandEncoderCopyTextureToBuffer(leesEncoder, &bron, &bestemming, &omvang);
-		WGPUCommandBuffer leesCommando = wgpuCommandEncoderFinish(leesEncoder, nullptr);
-		wgpuQueueSubmit(rij, 1, &leesCommando);
-		wgpuCommandBufferRelease(leesCommando);
-		wgpuCommandEncoderRelease(leesEncoder);
-
-		shotToestandje toestand;
-		WGPUBufferMapCallbackInfo leesInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
-		leesInfo.mode 		= WGPUCallbackMode_AllowSpontaneous;
-		leesInfo.callback 	= shotVerwerker;
-		leesInfo.userdata1 	= &toestand;
-		wgpuBufferMapAsync(shotLees, WGPUMapMode_Read, 0, shotBytes, leesInfo);
-		while(!toestand.klaar)
-			wgpuInstanceProcessEvents(scherm.instantie());
-
-		const unsigned char * pixels = (const unsigned char *)wgpuBufferGetMappedRange(shotLees, 0, shotBytes);
-		std::vector<unsigned char> kopie(pixels, pixels + shotBytes);
-		wgpuBufferUnmap(shotLees);
-
-		bewaarPNG(schermafbeeldingBestand, shotBreedte, shotHoogte, kopie);
-	}
+		slaScreenshot(schermafbeeldingBestand);
 
 	if(csvUit.is_open())
 		csvUit.close();

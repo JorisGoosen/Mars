@@ -41,8 +41,9 @@ dus op Apple Silicon draait het via Metal (in tegenstelling tot OpenGL
 zijn WebGPU-compute-shaders wél beschikbaar).
 
 ## Controls
-- **Space**: Toggle water flow
-- **R**: Toggle rotation
+- **Space**: Bevries/ontvries alles (watersim + zonrotatie + modelrotatie)
+- **B**: Toggle de zon (dag/nacht) wel/niet laten voortlopen
+- **R**: Toggle planet rotation
 - **X**: Toggle water visibility
 - **C**: Toggle cloud visibility
 - **W/S**: Move camera forward/backward
@@ -70,6 +71,7 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - `--hoofdloos`: draait zonder venster (geen aqua/display nodig), bijv. `--hoofdloos --procedureel --diepte 4 --stappen 3000 --diagnoseCsv uit.csv`.
 - `--stappen <n>`: stop na n rondes (samen met `--hoofdloos`).
 - `--schermafbeelding <bestand>`: render (ook met `--hoofdloos`) naar een off-screen framebuffer en bewaar die als PNG, bijv. `--hoofdloos --procedureel --diepte 3 --stappen 300 --schermafbeelding beeld.png`.
+- `--stil`: bevries alles vanaf het begin (sim, zon- en modelrotatie). Handig met `--hoofdloos --schermafbeeldingElkeFrames 1` om te controleren dat opeenvolgende beelden identiek zijn (geen flikker).
 
 Voorbeeld: `./build/src/mars --zonder-water --zonder-erosie --zonder-leven`
 Analyse-voorbeeld: `./build/src/mars --procedureel --hoofdloos --diepte 4 --stappen 3000 --diagnoseCsv uit.csv`
