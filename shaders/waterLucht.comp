@@ -16,6 +16,16 @@ fn sat_temp(T : f32) -> f32 {
     return max(0.0001, q);
 }
 
+//Dauwpunt via dezelfde exponentiële Clausius-Clapeyron-benadering als het
+//wolkendek in planeetgridVertWolk.wgsl, zodat dit reken-shader hetzelfde bepaalt.
+const satTempRef   = 250.0;
+const satDicht     = 0.05;
+const satGamma     = 0.09;
+fn dauwpunt(damp : f32) -> f32 {
+    let g = satTempRef + (log(max(damp, 1.0e-6) / satDicht) / satGamma);
+    return g;
+}
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid : vec3u) {
     let ID = gid.x;
@@ -91,6 +101,24 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     var regen = max(0.0, wolk - wolkDraagKracht) * regenTempo * luchtAan;
     regen = min(regen, max(0.0, wolk));
     wolk -= regen;
+
+    //---- wolkendek onder de grond: al het vocht valt als water uit ----
+    //Wanneer het lokale wolkendek (bepaald uit temperatuur en damp, net als in de
+    //weergave) onder de grond ligt, kan de lucht haar vocht op dit niveau niet
+    //vasthouden: al het damp én wolkwater slaat neer als regen/lopend water.
+    let maxGrond = max(reken.fasen.y, 1.0);
+    let grondMult = max(reken.fasen.z, 0.0001);
+    let rMax      = (1.0 + maxGrond * reken.grondSchaal) / grondMult;
+    let rPlafond  = 1.0 + 0.9 * (rMax - 1.0);
+    let depressie = clamp(T - dauwpunt(dampAan), 0.0, 60.0);
+    let dekFract  = clamp(1.0 - depressie / 60.0, 0.0, 1.0);
+    let rWolk     = 1.0 + dekFract * (rPlafond - 1.0);
+    let grondR    = (1.0 + vakken0[ID].grondHoogte * reken.grondSchaal) / grondMult;
+    if(luchtAan > 0.0 && grondR >= rWolk && (damp > zeerKlein || wolk > zeerKlein)) {
+        regen += wolk + damp;
+        wolk  = 0.0;
+        damp  = 0.0;
+    }
 
     //---- oppervlakte-verdamping boven water (zon-afhankelijk) ----
     let zon = select(vec3f(0.0, 1.0, 0.0), normalize(reken.zonRicht.xyz), length(reken.zonRicht.xyz) > zeerKlein);

@@ -48,19 +48,36 @@ const infiltratie       = 0.03; //fractie staand water dat per ronde de grond in
 const evapotranspiratie = 0.05; //hoe snel vochtige grond verdroogt naar droge lucht
 const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekbegrenzer)
 
+//IJsvorming (zie waterDruk.comp): onder 273 K bevriest water tot ijs, daarboven
+//dooit het terug. Hoe kouder, hoe sneller. IJs telt als grond voor de stroming.
+const vriespuntK    = 273.0;  //0 °C in Kelvin
+const ijsTempo      = 0.005;  //fractie water dat per ronde per Kelvin onder het vriespunt bevriest
+const miniJs        = 0.01;   //onder deze ijsdikte heet een cel ijsloos (render-drempel)
+
 const maxBuren = 6u;
 
 //Atmosferische dynamica (zie luchtStroming.comp): barotrope-achtige circulatie.
 //De eigenlijke sterkte van de effecten komt uit reken.atmosfeer (zonkracht,
 //rotatie-omega, wrijving, diffusie); onderstaande zijn de fysische constanten.
-const luchtBaseTemp   = 250.0;  //referentietemperatuur (K)
-const lapseKoeling    = 35.0;   //koeling per genormaliseerde hoogtelaag
-const evenaarWarm     = 45.0;   //K die de evenaar warmer is dan de polen
+const luchtBaseTemp   = 250.0;  //start/referentietemperatuur (K) van de lucht
+const lapseKoeling    = 15.0;   //gematigde koeling per genormaliseerde hoogtelaag
+const opnameTempo     = 0.10;   //hoe snel zonne-energie de lucht opwarmt
+const stralingKracht  = 0.11;   //hoe snel de planeet afkoelt naar het omringende
+const ruimteK         = 180.0;  //effectieve hemeltemperatuur (K) zonder broeikas
+const broeikasK       = 96.0;   //CO2-groeikaseffect: verhoogt de effectieve hemel-T
 const drukKracht     = 0.8;    //drukgradiëntkracht-coëfficiënt (wind versnelling)
 const drukRelax      = 0.05;   //hoe snel de druk naar het thermische evenwicht zakt
 const drukDiffusie   = 0.04;   //extra gladstrijken van de druk (klein = scherpere banden)
 const minLuchtdruk   = 0.2;    //klemmen op de druk zodat P>0 blijft
 const maxLuchtdruk   = 5.0;
+
+//Albedo's van het oppervlak/weer (moduleren hoe veel zonnestraling wordt geabsorbeerd).
+const albedoIJs     = 0.60;
+const albedoWolken  = 0.55;
+const albedoWater   = 0.08;
+const albedoGrond   = 0.30;
+const albedoBegroei = 0.18;   //donkerder door leven (groen)
+const wolkIsolatie  = 0.55;   //hoe sterk het wolkendek de uitstraling tegenhoudt
 
 //Twee-fasen vocht (zie waterLucht.comp): damp <-> wolk <-> regen.
 //luchtVocht is de damp (capaciteit volgt de temperatuur), wolken is het
@@ -109,7 +126,7 @@ struct rekenParameters {
     atmosfeer   : vec4f, //(zonkracht, rotatieOmega, wrijving, diffusie)
     zonRicht    : vec4f, //zonrichting (dagzijde; vast in modelruimte, de planeet draait)
     condenseer  : vec4f, //(basisVerzadiging, hoogteKoel, neerslagFactor, orografieFactor)
-    fasen       : vec4f, //(verwarmtijdconstante, wolkEvapSchaal, ongebruikt, ongebruikt)
+    fasen       : vec4f, //(verwarmtijdconstante, maxGrondHoogte, grondMult, ongebruikt)
 };
 
 //Parameters voor de weergave-shaders (bind-groep 0, binding 2)
@@ -123,5 +140,5 @@ struct extraParameters {
     zonPos      : vec3f,
     _padD       : f32,
     maxGrondHoogte : f32, //hoogste terreinpunt (bepaald bij het laden); basis voor het wolkendek
-    _padE       : f32,    //(align-vulling om het uniform netjes op de glsl-struct te laten passen)
+    toonTemperatuur : f32, //1 = temperatuuroverlay aan (toets T)
 };

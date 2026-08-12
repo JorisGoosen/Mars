@@ -35,7 +35,9 @@ fn hoogteverschil(id : u32, buurId : u32) -> f32 {
 
 fn kolom(id : u32) -> f32 {
     let waterHoogte = max(0.0, vakken0[id].waterHoogte);
-    return vakken0[id].grondHoogte + (waterHoogte + min(waterHoogte * maxDichtheid, vakken0[id].droesem));
+    //IJs telt als grond: het ligt "onder" het water, dus verhoogt de bodem waarover
+    //het water stroomt (watert stroomt over ijs zoals over terrein).
+    return vakken0[id].grondHoogte + vakken0[id].ijs + (waterHoogte + min(waterHoogte * maxDichtheid, vakken0[id].droesem));
 }
 
 fn hoogteBuur(id : u32, water : bool) -> f32 {

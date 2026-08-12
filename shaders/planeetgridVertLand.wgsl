@@ -28,6 +28,7 @@ struct naarFrag {
     @location(7) leven          : f32,
     @location(8) plek           : vec2f,
     @location(9) pos            : vec4f,
+    @location(10) temperatuur   : f32,
 };
 
 @vertex
@@ -49,6 +50,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     uit.texDraaien = vec3f(in.tex.y, fract(in.tex.x), fract(in.tex.x + 0.5) - 0.5);
     uit.grondHoogte = vakken0[ID].grondHoogte;
     uit.kleur = grondKleur;
+    uit.temperatuur = vakken0[ID].temperatuur;
     uit.waterHoogte = vakken0[ID].waterSchijn;
     uit.snelheid = vakken0[ID].snelheid;
     uit.leven = vakken0[ID].leven;

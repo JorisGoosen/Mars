@@ -76,6 +76,27 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     vakken1[ID].waterHoogte = goed(waterHoogteVloei, vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
     vakken1[ID].bodemVocht  = goed(bodemVochtNieuw, vakken0[ID].bodemVocht, 0.0, maxWaterHoogte);
 
+    //---- ijs: onder het vriespunt wordt water ijs, daarboven dooit het terug ----
+    //IJs telt als grond voor de stroming (zie kolom() in planeetDefinities), dus
+    //water stroomt eroverheen. Eerder bevroren water zit in `ijs`, niet in
+    //waterHoogte, dus minder water kan weglopen/verdampt worden zolang het koud is.
+    let T_cel = vakken0[ID].temperatuur;
+    var waterMetaal = vakken1[ID].waterHoogte;
+    var ijsNieuw    = vakken0[ID].ijs;
+    if(T_cel < vriespuntK && waterMetaal > zeerKlein) {
+        let groei = min(ijsTempo * (vriespuntK - T_cel) * waterMetaal, waterMetaal);
+        ijsNieuw   += groei;
+        waterMetaal -= groei;
+    }
+    else if(T_cel > vriespuntK && ijsNieuw > zeerKlein) {
+        let dooi = min(ijsTempo * (T_cel - vriespuntK) * ijsNieuw, ijsNieuw);
+        ijsNieuw   -= dooi;
+        waterMetaal += dooi;
+    }
+
+    vakken1[ID].waterHoogte = goed(waterMetaal, vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
+    vakken1[ID].ijs         = goed(ijsNieuw,    vakken0[ID].ijs,        0.0, maxWaterHoogte);
+
     if(!(droesem >= -1.0e30 && droesem <= 1.0e30)) {
         droesem = 0.0;
     }

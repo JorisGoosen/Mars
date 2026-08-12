@@ -46,11 +46,27 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let noord   = vec3f(0.0, 1.0, 0.0);              //vaste geografische rotatie-as
     let breedte = clamp(dot(hier, noord), -1.0, 1.0); //+1 = noordpool
 
-    //Stralingsevenwichtstemperatuur: overdag warm, evenaar warm, hoog koud.
-    let T_eq = luchtBaseTemp
-             + luchtAan * (reken.atmosfeer.x * (ins * (0.5 + 0.5 * (1.0 - abs(breedte))))
-                         - evenaarWarm * abs(breedte)
-                         - lapseKoeling * hoogteFrac);
+    //Echte energiebalans (geen breedte-verzonnen evenwicht meer):
+    // 1) zoninstraling met invalshoek (ins = cos van de zonhoogte; scherende
+    //    straling valt over meer oppervlak -> minder warmte per cel),
+    // 2) gemoduleerd door het albedo van de getoonde oppervlakte (ijs/wolk/water/grond/leven),
+    // 3) uitstraling naar de ruimte, afgeremd door het wolkendek,
+    // 4) CO2-broeikaseffect zodat niet de hele planeet bevriest.
+    //De lucht-T telt door van de vorige stap en wordt advecteerd met de wind.
+    let lokaalAlbedo = select(albedoIJs, select(albedoWolken, select(albedoWater, albedoGrond,
+                          vakken0[ID].waterHoogte > 0.5), vakken0[ID].wolken > 0.003),
+                          vakken0[ID].ijs > 0.01);
+    let albedo = mix(lokaalAlbedo, albedoBegroei, clamp(vakken0[ID].leven, 0.0, 1.0));
+
+    let zonWarmte = reken.atmosfeer.x * (1.0 - albedo) * ins;
+
+    //Wolkendek houdt de uitstraling deels tegen (atmosfeer wordt 'dikker' waar bewolkt)
+    let wolkBedekking = clamp(vakken0[ID].wolken * 10.0, 0.0, 1.0);
+    let afkoelen = stralingKracht * (1.0 - wolkIsolatie * wolkBedekking);
+
+    //Effectieve hemeltemperatuur door CO2-broeikaseffect, met hoogte-koeling
+    //(lapse rate) ingebouwd in het stralingsevenwicht: hoger -> kouder doel.
+    let ruimteEffectief = ruimteK + broeikasK - lapseKoeling * hoogteFrac;
 
     //---- advectie van T en P met de huidige wind (upwind, donor-cel) ----
     let opId        = opwaartseBuur(ID, V0);
@@ -58,9 +74,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let T_adv = advecteerWaarde(ID, V0, windSterkte, T0, vakken0[opId].temperatuur);
     let P_adv = advecteerWaarde(ID, V0, windSterkte, P0, vakken0[opId].luchtdruk);
 
-    //---- Newton-relaxatie van T naar het stralingsevenwicht ----
-    let verwarm = luchtAan * (1.0 - exp(-tijdVerschil / max(reken.fasen.x, 0.001)));
-    let T1 = T_adv + verwarm * (T_eq - T_adv);
+    //---- temperatuur-update: warmte erbij (zon) en af (uitstraling), stapsgewijs ----
+    //Zonder atmosfeer (reken.atmosfeer.x = 0) blijft de temperatuur stil.
+    let T1 = select(T_adv,
+        T_adv
+        + opnameTempo * zonWarmte * tijdVerschil
+        - afkoelen * (T_adv - ruimteEffectief) * tijdVerschil,
+        luchtAan > 0.0);
 
     //---- wind: drukgradiënt + Coriolis + wrijving + diffusie + terrein ----
     var somW     = vec2f(0.0);

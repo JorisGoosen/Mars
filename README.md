@@ -46,6 +46,7 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - **R**: Toggle planet rotation
 - **X**: Toggle water visibility
 - **C**: Toggle cloud visibility
+- **T**: Temperature overlay (blauw=koud, groen=0 °C, rood=warm)
 - **W/S**: Move camera forward/backward
 - **A/D**: Move camera left/right
 - **Q/E**: Move camera up/down
@@ -97,14 +98,33 @@ hun water af door terug te verdampen én door **regen die uitsluitend uit wolken
 valt**. Zowel damp als wolken worden met het windveld geadvecteerd.
 
 ## Wolkendek
-De wolken worden getekend als een doorzichtig dek op een **absolute hoogte**
-(straal vanaf het planeetcentrum) die per cel uit temperatuur, druk en damp wordt
+De wolken worden getekend als een doorzichtig dek op een **absolute hoogte**(straal vanaf het planeetcentrum) die per cel uit temperatuur, druk en damp wordt
 berekend — in dezelfde hoogte→straal-afbeelding als het terrein (sealevel = straal
 1.0). Het dek zweeft dus in de atmosfeerlaag i.p.v. als een vast percentage boven
 de grond: bergtoppen die hoger reiken dan het lokale dek steken erbovenuit en
 hebben daar geen wolk. Het plafond is 90% van het hoogste terreinpunt
 (`hoogsteGrond()`, bij het laden bepaald), zodat wolken nooit boven het hoogste
 punt van de kaart uitkomen (`Mount Olympus` = 27 km).
+
+## Temperatuur & ijs
+- **Temperatuuroverlay** (toets **T**) kleurt het land en het wateroppervlak per
+  celtemperatuur: **-25 °C blauw**, **0 °C groen**, **+25 °C rood** (kouder dan
+  -25 °C klemt op blauw). IJs toont zijn eigen temperatuurkleur met een dunne
+  witte contour op de rand.
+- **Echte energiebalans**: ieder vak houdt zijn lucht-temperatuur bij van stap tot
+  stap. Per stap komt er energie van de zon **met invalshoek** (cosinus van de
+  zonhoogte; scherende straling valt over meer oppervlak), gemoduleerd door het
+  **albedo** van de getoonde oppervlakte (ijs/wolken/water/grond/begroeiïng).
+  Tegelijk straalt de planeet uit naar de ruimte, afgeremd door het **wolkendek**,
+  en houdt de CO₂-atmosfeer (semi-geterraformd Mars) warmte vast via een
+  broeikaseffect — zodat de evenaar boven het vriespunt kan komen en de polen
+  ijzig blijven.
+- **IJs** (altijd actief): onder het vriespunt (273 K) bevriest water tot ijs, hoe
+  kouder hoe sneller; boven het vriespunt dooit het terug. IJs telt als grond voor
+  de stroming (zie `kolom()` in `planeetDefinities.wgsl`), dus water stroomt er
+  overheen zoals over terrein, en bevroren water kan niet weglopen of verdampen
+  zolang het koud is. IJs wordt als wit deksel getoond, ook als het vak (bijna)
+  geen water meer bevat.
 
 
 ## Erosie / ondergronden

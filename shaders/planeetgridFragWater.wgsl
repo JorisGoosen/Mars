@@ -23,6 +23,8 @@ struct naarFrag {
     @location(7) leven          : f32,
     @location(8) plek           : vec2f,
     @location(9) pos            : vec4f,
+    @location(10) temperatuur   : f32,
+    @location(11) ijs           : f32,
 };
 
 fn berekenVervormdeNormaal(n : vec3f, hoeks : vec3f, vervorming : vec2f) -> vec3f {
@@ -30,11 +32,23 @@ fn berekenVervormdeNormaal(n : vec3f, hoeks : vec3f, vervorming : vec2f) -> vec3
     return normalize(n + vervorming.x * hoeks + vervorming.y * haaks);
 }
 
+//Temperatuuroverlay-kleurkaart (zelfde als het land): -25 °C blauw, 0 °C groen,
+//+25 °C rood, kouder dan -25 °C klemt op blauw.
+fn temperatuurKleur(TC : f32) -> vec3f {
+    let t = clamp((TC - 248.0) / 50.0, 0.0, 1.0);
+    var kleur = mix(vec3f(0.2, 0.35, 1.0), vec3f(0.2, 0.85, 0.2), smoothstep(0.0, 0.5, t));
+    kleur = mix(kleur, vec3f(1.0, 0.25, 0.1), smoothstep(0.5, 1.0, t));
+    return kleur;
+}
+
 @fragment
 fn main(in : naarFrag) -> @location(0) vec4f {
-    if(in.waterHoogte < 0.1) {
+    //Alleen tonen waar er water óf een ijsdeksel is
+    if(in.waterHoogte < 0.1 && in.ijs <= 0.01) {
         discard;
     }
+
+    let isIJs = in.ijs > 0.01;
 
     //Naadloze textuur-coordinaten op basis van fwidth (Tarini 2012)
     let naadloosTex = vec2f(select(in.texDraaien.z, in.texDraaien.y, fwidth(in.texDraaien.y) <= fwidth(in.texDraaien.z) + 0.000001), in.texDraaien.x);
@@ -64,6 +78,24 @@ fn main(in : naarFrag) -> @location(0) vec4f {
 
     var kleur = mix(vec4f(in.kleur.xyz * max(0.2, diffuus), in.kleur.a), vec4f(vec3f(1.0), in.kleur.a), lichtheid);
     kleur *= vec4f(1.0, 1.0, 1.0, 0.85);
+
+    //IJs: wit deksel; met temperatuurview aan toont ook ijs zijn temperatuurkleur,
+    //met een dunne witte contour op de rand (fwidth) zodat je ijs toch herkent.
+    let ijsRand = fwidth(select(0.0, 1.0, in.ijs > 0.01));
+
+    if(extra.toonTemperatuur > 0.5) {
+        //temperatuurkleur voor zowel water als ijs
+        kleur = vec4f(temperatuurKleur(in.temperatuur), 0.85);
+        if(isIJs) {
+            kleur = mix(vec4f(temperatuurKleur(in.temperatuur), 0.9),
+                        vec4f(1.0, 1.0, 1.0, 0.95),
+                        smoothstep(0.03, 0.2, ijsRand));
+        }
+    }
+    else if(isIJs) {
+        kleur = vec4f(0.85, 0.9, 0.95, 0.95);
+    }
+
     kleur.a = max(kleur.a, lichtheid);
 
     return kleur;

@@ -22,7 +22,7 @@ struct rekenParameters
 	float	atmosfeer[4];   //(zonkracht, rotatieOmega, wrijving, diffusie)
 	float	zonRicht[4];    //zonrichting (dagzijde; de planeet draait t.o.v. de zon)
 	float	condenseer[4];  //basisVerzadiging, hoogteKoel, neerslagFactor, orografieFactor
-	float	fasen[4];       //verwarmtijdconstante, ongebruikt, ongebruikt, ongebruikt
+	float	fasen[4];       //verwarmtijdconstante, maxGrondHoogte, grondMult, ongebruikt
 };
 static_assert(sizeof(rekenParameters) == 80, "rekenParameters moet 80 bytes zijn (gelijk aan WGSL)");
 
@@ -55,6 +55,7 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 	float	maxWaterHoogte = 0, maxSchijn = 0, maxBodemVocht = 0, maxLuchtVocht = 0,
 			maxDroesem = 0, maxPijp = 0, maxSnelheid = 0, maxGrond = 0,
 			maxTemp = 0, maxDruk = 0, maxWind = 0, maxWolken = 0;
+	float maxIjs = 0, minTemp = 1.0e30f;
 	size_t	piekWater = 0, piekDroesem = 0, piekPijp = 0, piekSnelheid = 0;
 	bool	nietEindig = false;
 
@@ -78,6 +79,8 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 		if		(snelhe > maxSnelheid)				{ maxSnelheid = snelhe; piekSnelheid = i; }
 		if		(cel.grondHoogte > maxGrond)		maxGrond = cel.grondHoogte;
 		if		(cel.temperatuur > maxTemp)			maxTemp = cel.temperatuur;
+		if		(cel.temperatuur < minTemp)			minTemp = cel.temperatuur;
+		if		(cel.ijs > maxIjs)					maxIjs = cel.ijs;
 		if		(cel.luchtdruk > maxDruk)			maxDruk = cel.luchtdruk;
 		if		(winds > maxWind)					maxWind = winds;
 		if		(cel.wolken > maxWolken)			maxWolken = cel.wolken;
@@ -115,7 +118,9 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 			  << " (cel " << piekDroesem << ")  pijp=" << maxPijp
 			  << " (cel " << piekPijp << ")  snelheid=" << maxSnelheid
 			  << " (cel " << piekSnelheid << ")  grond=" << maxGrond
-			  << "  temp=" << maxTemp << "  druk=" << maxDruk
+			  << "  temp=" << maxTemp << "K (" << (maxTemp - 273.15f) << "°C)"
+			  << "  minTemp=" << minTemp << "K (" << (minTemp - 273.15f) << "°C)"
+			  << "  ijs=" << maxIjs << "  druk=" << maxDruk
 			  << "  wind=" << maxWind << "  wolken=" << maxWolken << std::endl;
 
 	wgpuBufferUnmap(t->buffer);
@@ -154,7 +159,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 	if(t->teller == 0)
 	{
 		uit << "id,x,y,z,grond,rots,water,bodemVocht,leven,droesem,luchtVocht,"
-		       "temperatuur,luchtdruk,windX,windY,wolken\n";
+		       "temperatuur,luchtdruk,windX,windY,wolken,ijs\n";
 	}
 
 	for(size_t i = 0; i < aantal; i++)
@@ -165,7 +170,8 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 			<< cel.grondHoogte << "," << cel.rotsHoogte << "," << cel.waterHoogte << ","
 			<< cel.bodemVocht << "," << cel.leven << "," << cel.droesem << ","
 			<< cel.luchtVocht << "," << cel.temperatuur << "," << cel.luchtdruk << ","
-			<< cel.wind.x << "," << cel.wind.y << "," << cel.wolken << "\n";
+			<< cel.wind.x << "," << cel.wind.y << "," << cel.wolken << ","
+			<< cel.ijs << "\n";
 	}
 
 	wgpuBufferUnmap(t->buffer);
@@ -433,7 +439,8 @@ int main(int argc, char ** argv)
 				waterStroomt	= true,
 				waterStap		= false,
 				tekenWater		= true,
-				tekenWolken		= true;
+				tekenWolken		= true,
+				toonTemperatuur	= false;
 
 	glm::vec3	kijkPlek		(0.0f)				,
 				zonPos			(0.0f)				;
@@ -460,26 +467,97 @@ int main(int argc, char ** argv)
 			if(action == GLFW_PRESS)
 				switch(key)
 				{
-				case GLFW_KEY_SPACE:		bevroren 		= !bevroren;		break;
-				case GLFW_KEY_B:			zonRoteert 		= !zonRoteert;		break;
-				case GLFW_KEY_R:			roteerMaar 		= !roteerMaar;		break;
-				case GLFW_KEY_X:			tekenWater 		= !tekenWater;		break;
-				case GLFW_KEY_C:			tekenWolken 	= !tekenWolken;		break;
-				case GLFW_KEY_ENTER:		waterStap 		= true;				break;
-				case GLFW_KEY_SEMICOLON:	grondMult 		= glm::max(1.0f, grondMult * 0.9f);	break;
-				case GLFW_KEY_APOSTROPHE:	grondMult 		= glm::max(1.0f, grondMult * 1.1f);	break;
-				case GLFW_KEY_K:			verdamping 		= glm::max(0.0f, verdamping - 0.001f);	break;
-				case GLFW_KEY_L:			verdamping 		= glm::max(0.0f, verdamping + 0.001f);	break;
-				case GLFW_KEY_LEFT_BRACKET:	rotatieOmega 	= glm::max(0.0f, rotatieOmega - 0.002f);	break;
-				case GLFW_KEY_RIGHT_BRACKET:rotatieOmega 	= glm::min(0.2f, rotatieOmega + 0.002f);	break;
-				case GLFW_KEY_G:			coriolisOmega 	= glm::max(0.0f, coriolisOmega - 0.02f);	break;
-				case GLFW_KEY_H:			coriolisOmega 	= glm::min(2.0f, coriolisOmega + 0.02f);	break;
-				case GLFW_KEY_U:			zonKracht 		= glm::max(0.0f, zonKracht - 5.0f);	break;
-				case GLFW_KEY_I:			zonKracht 		= glm::min(200.0f, zonKracht + 5.0f);	break;
-				case GLFW_KEY_O:			wrijving 		= glm::max(0.0f, wrijving - 0.01f);	break;
-				case GLFW_KEY_P:			wrijving 		= glm::min(1.0f, wrijving + 0.01f);	break;
-				case GLFW_KEY_PERIOD:		neerslagFactor 	= glm::max(0.0f, neerslagFactor - 0.1f);	break;
-				case GLFW_KEY_SLASH:		neerslagFactor 	= glm::max(0.0f, neerslagFactor + 0.1f);	break;
+				case GLFW_KEY_SPACE:
+					bevroren = !bevroren;
+					std::cout << "Je hebt op spatie gedrukt: de simulatie is "
+							  << (bevroren ? "bevroren" : "ontdooid") << "." << std::endl;
+					break;
+				case GLFW_KEY_B:
+					zonRoteert = !zonRoteert;
+					std::cout << "Je hebt op B gedrukt: de zon " << (zonRoteert ? "loopt nu voort" : "staat nu stil")
+							  << ", dus de dag en de nacht " << (zonRoteert ? "wisselen" : "wisselen niet meer") << "." << std::endl;
+					break;
+				case GLFW_KEY_R:
+					roteerMaar = !roteerMaar;
+					std::cout << "Je hebt op R gedrukt: de planeet "
+							  << (roteerMaar ? "draait nu rond" : "staat nu stil") << "." << std::endl;
+					break;
+				case GLFW_KEY_X:
+					tekenWater = !tekenWater;
+					std::cout << "Je hebt op X gedrukt: het water is nu "
+							  << (tekenWater ? "zichtbaar" : "onzichtbaar") << "." << std::endl;
+					break;
+				case GLFW_KEY_C:
+					tekenWolken = !tekenWolken;
+					std::cout << "Je hebt op C gedrukt: de wolken zijn nu "
+							  << (tekenWolken ? "zichtbaar" : "onzichtbaar") << "." << std::endl;
+					break;
+				case GLFW_KEY_T:
+					toonTemperatuur = !toonTemperatuur;
+					std::cout << "Je hebt op T gedrukt: de temperatuuroverlay is nu "
+							  << (toonTemperatuur ? "aan" : "uit")
+							  << " (blauw is koud, groen is 0 °C, rood is warm)." << std::endl;
+					break;
+				case GLFW_KEY_ENTER:
+					waterStap = true;
+					std::cout << "Je hebt op Enter gedrukt: er wordt één simulatiestap uitgevoerd." << std::endl;
+					break;
+				case GLFW_KEY_SEMICOLON:
+					grondMult = glm::max(1.0f, grondMult * 0.9f);
+					std::cout << "Je hebt op ; gedrukt: de terreinhoogte is nu " << grondMult << "." << std::endl;
+					break;
+				case GLFW_KEY_APOSTROPHE:
+					grondMult = glm::max(1.0f, grondMult * 1.1f);
+					std::cout << "Je hebt op ' gedrukt: de terreinhoogte is nu " << grondMult << "." << std::endl;
+					break;
+				case GLFW_KEY_K:
+					verdamping = glm::max(0.0f, verdamping - 0.001f);
+					std::cout << "Je hebt op K gedrukt: de verdampingssnelheid is nu " << verdamping << "." << std::endl;
+					break;
+				case GLFW_KEY_L:
+					verdamping = glm::max(0.0f, verdamping + 0.001f);
+					std::cout << "Je hebt op L gedrukt: de verdampingssnelheid is nu " << verdamping << "." << std::endl;
+					break;
+				case GLFW_KEY_LEFT_BRACKET:
+					rotatieOmega = glm::max(0.0f, rotatieOmega - 0.002f);
+					std::cout << "Je hebt op [ gedrukt: de dag-en-nachtsnelheid is nu " << rotatieOmega << "." << std::endl;
+					break;
+				case GLFW_KEY_RIGHT_BRACKET:
+					rotatieOmega = glm::min(0.2f, rotatieOmega + 0.002f);
+					std::cout << "Je hebt op ] gedrukt: de dag-en-nachtsnelheid is nu " << rotatieOmega << "." << std::endl;
+					break;
+				case GLFW_KEY_G:
+					coriolisOmega = glm::max(0.0f, coriolisOmega - 0.02f);
+					std::cout << "Je hebt op G gedrukt: de Coriolis-sterkte is nu " << coriolisOmega << "." << std::endl;
+					break;
+				case GLFW_KEY_H:
+					coriolisOmega = glm::min(2.0f, coriolisOmega + 0.02f);
+					std::cout << "Je hebt op H gedrukt: de Coriolis-sterkte is nu " << coriolisOmega << "." << std::endl;
+					break;
+				case GLFW_KEY_U:
+					zonKracht = glm::max(0.0f, zonKracht - 5.0f);
+					std::cout << "Je hebt op U gedrukt: de zonkracht is nu " << zonKracht << "." << std::endl;
+					break;
+				case GLFW_KEY_I:
+					zonKracht = glm::min(200.0f, zonKracht + 5.0f);
+					std::cout << "Je hebt op I gedrukt: de zonkracht is nu " << zonKracht << "." << std::endl;
+					break;
+				case GLFW_KEY_O:
+					wrijving = glm::max(0.0f, wrijving - 0.01f);
+					std::cout << "Je hebt op O gedrukt: de wrijving is nu " << wrijving << "." << std::endl;
+					break;
+				case GLFW_KEY_P:
+					wrijving = glm::min(1.0f, wrijving + 0.01f);
+					std::cout << "Je hebt op P gedrukt: de wrijving is nu " << wrijving << "." << std::endl;
+					break;
+				case GLFW_KEY_PERIOD:
+					neerslagFactor = glm::max(0.0f, neerslagFactor - 0.1f);
+					std::cout << "Je hebt op . gedrukt: de neerslagfactor is nu " << neerslagFactor << "." << std::endl;
+					break;
+				case GLFW_KEY_SLASH:
+					neerslagFactor = glm::max(0.0f, neerslagFactor + 0.1f);
+					std::cout << "Je hebt op / gedrukt: de neerslagfactor is nu " << neerslagFactor << "." << std::endl;
+					break;
 				}
 		};
 		scherm.setCustomKeyhandler(toetsenbord);
@@ -712,6 +790,7 @@ int main(int argc, char ** argv)
 		extra[4] 	= kijkPlek.x;	extra[5] = kijkPlek.y;	extra[6] = kijkPlek.z;
 		extra[8] 	= zonPos.x;		extra[9] = zonPos.y;	extra[10] = zonPos.z;
 		extra[12] 	= geo->hoogsteGrond();
+		extra[13] 	= toonTemperatuur ? 1.0f : 0.0f;
 
 		//parameters voor de reken-shaders
 		rekenPar.grondSchaal 	= grondSchaal;
@@ -728,7 +807,8 @@ int main(int argc, char ** argv)
 		rekenPar.condenseer[2] 	= neerslagFactor;
 		rekenPar.condenseer[3] 	= orografieFactor;
 		rekenPar.fasen[0] 		= verwarmtijd;
-		rekenPar.fasen[1] 		= 0.0f;
+		rekenPar.fasen[1] 		= geo->hoogsteGrond();
+		rekenPar.fasen[2] 		= grondMult;
 		rekenPar.fasen[2] 		= 0.0f;
 		rekenPar.fasen[3] 		= 0.0f;
 
