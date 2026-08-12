@@ -10,6 +10,7 @@
 
 //Verzadigingsdampdruk, temperatuur-afhankelijk (lineaire benadering van
 //Clausius-Clapeyron in het kleine werkbereik). Warme lucht houdt meer damp.
+const dynamischLift = 6.0; //hoe sterk convergentie de verzadiging verlaagt (wolkvorming)
 fn sat_temp(T : f32) -> f32 {
     let q = reken.condenseer.x * (1.0 + 0.08 * (T - 270.0));
     return max(0.0001, q);
@@ -46,10 +47,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //Stroomafwaartse buur (waar de wind heen gaat) voor orografische stijging.
     var afId = ID;
     var besteAf = -1.0;
+    var ligDiv = 0.0;
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
         let mee = dot(vakMetas[ID].buurRicht[buur], wind);
         if(mee > besteAf) { besteAf = mee; afId = vakMetas[ID].buren[buur]; }
+        ligDiv += dot(vakMetas[ID].buurRicht[buur], wind);
     }
+    ligDiv /= max(n, 1.0);
 
     //Orografische stijging: stroomafwaarts stijgt het oppervlak => de lucht wordt
     //omhooggeduwd, koelt en kan minder damp houden (lagere verzadiging).
@@ -57,7 +61,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let stijgOp     = max(0.0, min(oppervlakAf - oppervlak, 1.0));
     let stijgTerm   = clamp(reken.condenseer.w * stijgOp, 0.0, 0.9);
 
-    var verzadiging = sat_temp(T) * (1.0 - stijgTerm) - reken.condenseer.y * hoogteFrac;
+    //Dynamische opwaartse stroming: waar de wind convergeert (negatieve divergentie)
+    //wordt lucht omhooggeduwd, koelt af en condenseert. Dit vormt bewolking in
+    //echte circulatie-systemen i.p.v. louter onder de zon.
+    let convergentie = -ligDiv;
+    let dynLift      = clamp(convergentie * dynamischLift, 0.0, 0.95);
+
+    var verzadiging = sat_temp(T) * (1.0 - stijgTerm - (1.0 - stijgTerm) * dynLift) - reken.condenseer.y * hoogteFrac;
     verzadiging = max(0.0001, verzadiging);
 
     //---- condensatie: oververzadigde damp wordt wolkwater ----

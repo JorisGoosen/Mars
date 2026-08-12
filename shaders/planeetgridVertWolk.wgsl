@@ -1,5 +1,11 @@
-//WGSL vertex-shader voor de wolk-pass: een half-doorzichtige schil die net
-//boven het terrein zweeft, opgeblazen waar een cel bewolkt is.
+//WGSL vertex-shader voor de wolk-pass: een doorzichtig wolkendek op een ABSOLUTE
+//hoogte (straal vanaf Marscentrum) die per vak uit temperatuur, druk en damp wordt
+//berekend (T/P-gestuurd dek) in DEZELFDE hoogte->straal-afbeelding als het terrein.
+//
+//Het dek zweeft dus in de atmosfeerlaag i.p.v. als een vast percentage boven de
+//grond: bergtoppen die hoger reiken dan het lokale dek steken er bovenuit en
+//hebben daar geen wolk. Sealevel = straal 1.0; het plafond = 90% van het hoogste
+//terreinpunt (maxGrondHoogte, bij het laden bepaald).
 #include "planeetDefinitiesRender.wgsl"
 
 struct matricesDaar {
@@ -23,22 +29,60 @@ struct naarFrag {
     @location(4) pos            : vec4f,
 };
 
+//Verzadigingsdampconcentratie (dauwpunt) via een exponentiële Clausius-Clapeyron-
+//benadering, goed gedefinieerd over het hele werkgebied van de sim (180-300 K).
+const satTempRef = 250.0;  //referentie-temperatuur (K) van de exponentiële fit
+const satDicht   = 0.05;   //verzadigingsdampconcentratie bij satTempRef
+const satGamma   = 0.09;   //exponentcoëfficiënt (≈1/schaalhoogte)
+
 @vertex
 fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     var uit : naarFrag;
     let ID = vertexIndex;
 
     uit.texDraaien = vec3f(in.tex.y, fract(in.tex.x), fract(in.tex.x + 0.5) - 0.5);
-    uit.wolken     = vakken0[ID].wolken;
     uit.grondHoogte = vakken0[ID].grondHoogte;
 
-    let hier = in.posV * (vakHoogte(ID, false) / extra.grondMult);
+    let T    = vakken0[ID].temperatuur;
+    let P    = vakken0[ID].luchtdruk;
+    let damp = max(0.0, vakken0[ID].luchtVocht);
 
-    //Wolken zweven iets boven het terrein; opgeblazen evenredig met de bewolking
-    let ophef = 1.0 + 0.015 + clamp(uit.wolken, 0.0, 1.0) * 0.18;
-    let hierWolk = hier * ophef;
+    //Dauwpunt: de temperatuur waarbij de damp precies de draagkracht vult.
+    var Td = satTempRef - 200.0;
+    if(damp > 1.0e-6) {
+        Td = satTempRef + (log(damp / satDicht) / satGamma);
+    }
 
-    uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, false), 0.0)).xyz);
+    //Hoogste terreinpunt (bij het laden bepaald) in dezelfde hoogte-eenheden als
+    //het terrein; de bijbehorende straal rMax. Sealevel = straal 1.0 (radius 1).
+    let maxGrond = max(extra.maxGrondHoogte, 1.0);
+    let rMax = (1.0 + maxGrond * extra.grondSchaal) / max(extra.grondMult, 0.0001);
+
+    //Plafond = 90% van het hoogste punt (gemeten vanaf sealevel). Het dek zweeft
+    //dus in de atmosfeerlaag, boven sealevel maar onder de hoogste piek.
+    let rPlafond = 1.0 + 0.9 * (rMax - 1.0);
+
+    //Dekhoogte uit dauwpuntdepressie: vochtige lucht (RN~1) condenseert laag (laag
+    //dek), droge lucht hoog. Uitgedrukt als fractie van het plafond-parcours.
+    let depressie = clamp(T - Td, 0.0, 60.0);
+    let dekFract = clamp(1.0 - depressie / 60.0, 0.0, 1.0);
+
+    //Absolute straal: sealevel (1.0) + fractie van het parcours tot het plafond.
+    let rWolk = 1.0 + dekFract * (rPlafond - 1.0);
+
+    //Schil op absolute straal rWolk (onafhankelijk van het lokale terrein).
+    let hierWolk = in.posV * max(rWolk, 0.15);
+
+    //Bergtoppen boven het lokale dek: geen wolk (piek steekt erbovenuit).
+    let terreinR = vakHoogte(ID, false) / extra.grondMult;
+    if(terreinR >= rWolk) {
+        uit.wolken = 0.0;
+    } else {
+        uit.wolken = vakken0[ID].wolken;
+    }
+
+    //Radiale normaal: gladde belichting over het dek (i.p.v. het terrein te volgen)
+    uit.normaal = normalize((matrices.modelZicht * vec4f(in.posV, 0.0)).xyz);
     uit.pos = matrices.modelZicht * vec4f(hierWolk, 1.0);
     uit.glPos = matrices.projectie * uit.pos;
 

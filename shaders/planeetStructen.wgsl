@@ -56,9 +56,9 @@ const maxBuren = 6u;
 const luchtBaseTemp   = 250.0;  //referentietemperatuur (K)
 const lapseKoeling    = 35.0;   //koeling per genormaliseerde hoogtelaag
 const evenaarWarm     = 45.0;   //K die de evenaar warmer is dan de polen
-const drukKracht     = 1.5;    //drukgradiëntkracht-coëfficiënt (wind versnelling)
+const drukKracht     = 0.8;    //drukgradiëntkracht-coëfficiënt (wind versnelling)
 const drukRelax      = 0.05;   //hoe snel de druk naar het thermische evenwicht zakt
-const drukDiffusie   = 0.12;   //extra gladstrijken van de druk (anti-ruis)
+const drukDiffusie   = 0.04;   //extra gladstrijken van de druk (klein = scherpere banden)
 const minLuchtdruk   = 0.2;    //klemmen op de druk zodat P>0 blijft
 const maxLuchtdruk   = 5.0;
 
@@ -122,4 +122,6 @@ struct extraParameters {
     _padC       : f32,
     zonPos      : vec3f,
     _padD       : f32,
+    maxGrondHoogte : f32, //hoogste terreinpunt (bepaald bij het laden); basis voor het wolkendek
+    _padE       : f32,    //(align-vulling om het uniform netjes op de glsl-struct te laten passen)
 };

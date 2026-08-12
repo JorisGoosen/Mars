@@ -13,9 +13,11 @@
 //schrijft de nieuwe waarden naar vakken1.
 #include "planeetDefinities.wgsl"
 
-const winddemping  = 0.22;   //fractie wind die per ronde door wrijving remt (groot = stabiel)
-const maxWindsnel  = 2.5;    //abs. windsnelheidsgrens
+const winddemping  = 0.10;   //fractie wind die per ronde door wrijving remt (klein = levendig)
+const maxWindsnel  = 8.0;    //abs. windsnelheidsgrens (boven evenwicht, zodat er snelheidscontrast overblijft)
 const drukGevolg   = 0.04;   //hoe sterk wind-divergentie de druk verandert
+const coriolisKracht = 1.0; //schaal van de Coriolis-afbuiging (naast de rotatie-Ω)
+const terrainKracht  = 0.4; //schaal van de terrein-forcering (wervels rond bergen)
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid : vec3u) {
@@ -60,12 +62,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let verwarm = luchtAan * (1.0 - exp(-tijdVerschil / max(reken.fasen.x, 0.001)));
     let T1 = T_adv + verwarm * (T_eq - T_adv);
 
-    //---- wind: drukgradiënt + Coriolis + wrijving + diffusie ----
+    //---- wind: drukgradiënt + Coriolis + wrijving + diffusie + terrein ----
     var somW     = vec2f(0.0);
     var gradiënt = vec2f(0.0);
     var somP     = 0.0;
     var somT     = 0.0;
     var div      = 0.0;
+    var terreinGrad = vec2f(0.0);
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
         let buurId = buurID(ID, buur);
         let richt  = vakMetas[ID].buurRicht[buur];
@@ -74,20 +77,33 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         somP     += vakken0[buurId].luchtdruk;
         somT     += vakken0[buurId].temperatuur;
         div      += dot(V0, richt);
+        terreinGrad += (vakken0[buurId].grondHoogte - vakken0[ID].grondHoogte) * richt;
     }
     somW     /= n;
     gradiënt /= n;
     somP     /= n;
     somT     /= n;
     div      /= n;
+    terreinGrad /= n;
 
     //Coriolis: f = 2 Omega * breedte; 90°-draaiing in het raakvlak.
+    //Eigen coëfficiënt (coriolisKracht) zodat de Coriolis-kromming zichtbaar wordt
+    //zonder dat de demping hem wegveegt. In het (west, noord)-raakvlak is de 90°-
+    //draaiing naar rechts (noordelijk halfrond) (V.x, -V.y) → noordwaarts/groter.
     let fgeo = 2.0 * reken.atmosfeer.y * breedte;
-    let cor  = vec2f(V0.x, -V0.y) * fgeo;
+    let cor  = vec2f(V0.x, -V0.y) * fgeo * coriolisKracht;
+
+    //Terrein-forcering: het vaste hoogteveld buigt de stroming om bergen/flanken
+    //heen en werkt als een permanente (fysieke) ruisbron. Flow die een helling
+    //oversteekt krijgt verticale vorticiteit → benedenstrooms ontstaan kolken en
+    //heuvelluwten die door de wind worden meegevoerd.
+    let terreinDruk = clamp(dot(V0, terreinGrad), -1.0, 1.0);
+    let terreinForce = terrainKracht * (terreinGrad * (1.0 + 2.0 * terreinDruk));
 
     var V1 = V0
            - drukKracht * gradiënt                     //drukgradiëntkracht
-           + tijdVerschil * cor                          //coriolis (zwak, via tijdstap)
+           + cor                                         //coriolis
+           + terreinForce                                 //terrein (wervels/omleiding)
            - winddemping * V0                             //Rayleigh-wrijving (sterk)
            + reken.atmosfeer.w * (somW - V0);            //diffusie
 

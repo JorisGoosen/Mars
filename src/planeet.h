@@ -54,6 +54,7 @@ public:
 	planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis, bool beginMetWater = true);
 
 	size_t 	aantalVakjes() const { return _vakken[0].size(); }
+	float	hoogsteGrond() const { return _hoogsteGrond; }
 	void	volgendeRonde();
 	void	bindVrwrkrOpslagen() { }
 	void	bindVrwrkrOpslagen(weergaveScherm & scherm);
@@ -83,6 +84,7 @@ private:
 	std::function<float(glm::vec3)> 	_ruis;
 	bool								_isRuis;
 	bool								_beginMetWater	= true;
+	float								_hoogsteGrond	= 0.0f;
 									
 										
 };

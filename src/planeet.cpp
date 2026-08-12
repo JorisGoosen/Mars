@@ -96,6 +96,8 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakMetas[i].buren[buur++] 	= buurId;
 
 		_vakken[0][i].grondHoogte 	= _isRuis ? _ruis(_punten->ggvPunt3(i)) : _hoogteMonsteraar(_tex->ggvPunt2(i));
+		if(_vakken[0][i].grondHoogte > _hoogsteGrond)
+			_hoogsteGrond = _vakken[0][i].grondHoogte;
 
 		//De planeet begint met een zanddeksel: een deklaag zand boven op de rots.
 		//Waar die laag ligt is het oppervlak zand (maakPingPongOpslagen zet dat als

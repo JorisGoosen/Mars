@@ -53,7 +53,8 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - **Enter**: Single water simulation step
 - **;/'**: Adjust ground height
 - **K/L**: Adjust evaporation rate
-- **[ / ]**: Adjust planet rotation speed (Ω → Coriolis / daglengte)
+- **[ / ]**: Adjust planet rotation speed (daglengte)
+- **G/H**: Adjust Coriolis strength (losgekoppeld van daglengte)
 - **U/I**: Adjust solar heating strength
 - **O/P**: Adjust friction (demping)
 - **./,**: Adjust precipitation factor
@@ -94,6 +95,16 @@ dezelfde rotatie.
 gecondenseerde wolkwater. Oververzadigde damp condenseert tot wolken; wolken geven
 hun water af door terug te verdampen én door **regen die uitsluitend uit wolken
 valt**. Zowel damp als wolken worden met het windveld geadvecteerd.
+
+## Wolkendek
+De wolken worden getekend als een doorzichtig dek op een **absolute hoogte**
+(straal vanaf het planeetcentrum) die per cel uit temperatuur, druk en damp wordt
+berekend — in dezelfde hoogte→straal-afbeelding als het terrein (sealevel = straal
+1.0). Het dek zweeft dus in de atmosfeerlaag i.p.v. als een vast percentage boven
+de grond: bergtoppen die hoger reiken dan het lokale dek steken erbovenuit en
+hebben daar geen wolk. Het plafond is 90% van het hoogste terreinpunt
+(`hoogsteGrond()`, bij het laden bepaald), zodat wolken nooit boven het hoogste
+punt van de kaart uitkomen (`Mount Olympus` = 27 km).
 
 
 ## Erosie / ondergronden

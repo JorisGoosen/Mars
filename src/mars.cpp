@@ -441,6 +441,7 @@ int main(int argc, char ** argv)
 				verdamping		= 0.01f;
 	float		zonKracht		= 60.0f,
 				rotatieOmega	= 0.003f,   //dag/nacht langzaam (minder zonne-flikker)
+				coriolisOmega	= 0.06f,    //Coriolis-rotatie; losgekoppeld van dag/nacht
 				wrijving		= 0.05f,
 				diffusie		= 0.02f,
 				verwarmtijd		= 0.5f;
@@ -471,6 +472,8 @@ int main(int argc, char ** argv)
 				case GLFW_KEY_L:			verdamping 		= glm::max(0.0f, verdamping + 0.001f);	break;
 				case GLFW_KEY_LEFT_BRACKET:	rotatieOmega 	= glm::max(0.0f, rotatieOmega - 0.002f);	break;
 				case GLFW_KEY_RIGHT_BRACKET:rotatieOmega 	= glm::min(0.2f, rotatieOmega + 0.002f);	break;
+				case GLFW_KEY_G:			coriolisOmega 	= glm::max(0.0f, coriolisOmega - 0.02f);	break;
+				case GLFW_KEY_H:			coriolisOmega 	= glm::min(2.0f, coriolisOmega + 0.02f);	break;
 				case GLFW_KEY_U:			zonKracht 		= glm::max(0.0f, zonKracht - 5.0f);	break;
 				case GLFW_KEY_I:			zonKracht 		= glm::min(200.0f, zonKracht + 5.0f);	break;
 				case GLFW_KEY_O:			wrijving 		= glm::max(0.0f, wrijving - 0.01f);	break;
@@ -708,6 +711,7 @@ int main(int argc, char ** argv)
 		extra[1] 	= grondSchaal;
 		extra[4] 	= kijkPlek.x;	extra[5] = kijkPlek.y;	extra[6] = kijkPlek.z;
 		extra[8] 	= zonPos.x;		extra[9] = zonPos.y;	extra[10] = zonPos.z;
+		extra[12] 	= geo->hoogsteGrond();
 
 		//parameters voor de reken-shaders
 		rekenPar.grondSchaal 	= grondSchaal;
@@ -715,7 +719,7 @@ int main(int argc, char ** argv)
 		rekenPar.erosie 		= erosieAan ? 1.0f : 0.0f;
 		rekenPar.levenAan 		= levenAan ? 1.0f : 0.0f;
 		rekenPar.atmosfeer[0] 	= atmosfeerAan ? zonKracht : 0.0f;
-		rekenPar.atmosfeer[1] 	= rotatieOmega;
+		rekenPar.atmosfeer[1] 	= coriolisOmega;
 		rekenPar.atmosfeer[2] 	= atmosfeerAan ? wrijving : 0.0f;
 		rekenPar.atmosfeer[3] 	= atmosfeerAan ? diffusie : 0.0f;
 		rekenPar.zonRicht[0] 	= zonPos.x;		rekenPar.zonRicht[1] = zonPos.y;	rekenPar.zonRicht[2] = zonPos.z;	rekenPar.zonRicht[3] = 0.0f;
