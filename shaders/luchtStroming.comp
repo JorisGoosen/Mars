@@ -48,7 +48,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //---- zonne-verwarming (zon vast in modelruimte; de planeet draait) ----
     let zon     = normalize(reken.zonRicht.xyz);
-    let ins     = max(0.0, dot(hier, zon));          //dagzijde = boven de horizon
+    //Instralingshoek: vergelijk de normaal van de cel met de invalsrichting van het
+    //licht. Als nagelrecht tegenover het licht staat (dot==-1) is de instraling
+    //maximaal; zodra de normaal weg of haaks op het licht staat (dot>=0) is er geen
+    //instraling meer.
+    let ins     = max(0.0, -dot(hier, zon));
     let noord   = vec3f(0.0, 1.0, 0.0);              //vaste geografische rotatie-as
     let breedte = clamp(dot(hier, noord), -1.0, 1.0); //+1 = noordpool
 
