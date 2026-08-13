@@ -356,6 +356,7 @@ int main(int argc, char ** argv)
 
 	scherm.maakRekenShader(	"waterStroming", 	"shaders/waterStroming.comp"											);
 	scherm.maakRekenShader(	"waterDruk", 		"shaders/waterDruk.comp"												);
+	scherm.maakRekenShader(	"grondGelijkmaker", "shaders/grondGelijkmaker.comp"										);
 	scherm.maakRekenShader(	"waterGemiddelde", 	"shaders/waterGemiddelde.comp"											);
 	scherm.maakRekenShader(	"luchtStroming", 	"shaders/luchtStroming.comp"											);
 	scherm.maakRekenShader(	"waterLucht", 		"shaders/waterLucht.comp"												);
@@ -452,10 +453,10 @@ int main(int argc, char ** argv)
 	glm::vec3	kijkPlek		(0.0f)				,
 				zonPos			(0.0f)				;
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.0008f;
+				verdamping		= 0.002f;
 	float		zonKracht		= 60.0f,
 				rotatieOmega	= 0.003f,   //dag/nacht langzaam (minder zonne-flikker)
-				coriolisOmega	= 0.06f,    //Coriolis-rotatie; losgekoppeld van dag/nacht
+				coriolisOmega	= 0.1f,     //Coriolis-rotatie; losgekoppeld van dag/nacht
 				wrijving		= 0.05f,
 				diffusie		= 0.02f,
 				verwarmtijd		= 0.5f;
@@ -832,6 +833,7 @@ int main(int argc, char ** argv)
 			{
 				scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
+				scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("luchtStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("waterLucht", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);

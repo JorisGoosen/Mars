@@ -30,6 +30,13 @@ const rotsErosie   = 0.01; //100x langzamer dan zand
 const hellingKracht = 5.0;   //hoe sterk de helling de draagcapaciteit verhoogt
 const maxDichtheid = 0.5;    //max. zwevend sediment t.o.v. de waterhoogte
 
+//Zand-rusthelling (angle of repose, zie grondGelijkmaker.comp): zand zakt naar een
+//stabiele helling. zandRepose = maximale hoogte-drempel (in dezelfde eenheden als
+//grondHoogte) voordat zand naar een lagere buur mag 'vallen'; zandZakhoek is de
+//fractie van het overschot die per ronde daadwerkelijk verplaatst wordt.
+const zandRepose  = 2.0;
+const zandZakhoek = 1.0 / 6.0;
+
 //Extreem hoge kleppen: puur bescherming tegen Niet-eindige waarden en
 //f32-overflow, ver boven elk reëel fysisch niveau. De pijpen kunnen door de
 //K-factor (water/dt, dt=0.1) tot ~10x de waterhoogte oplopen.
