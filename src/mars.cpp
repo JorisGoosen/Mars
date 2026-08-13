@@ -471,7 +471,7 @@ int main(int argc, char ** argv)
 				zonPos			(0.0f)				;
 	float		grondSchaal		= 1.0,
 				verdamping		= 0.002f;
-	float						zonKracht		= 40.0f,
+	float						zonKracht		= 30.0f,
 				rotatieOmega	= 0.003f,   //dag/nacht langzaam (minder zonne-flikker)
 				coriolisOmega	= 0.1f,     //Coriolis-rotatie; losgekoppeld van dag/nacht
 				wrijving		= 0.05f,
