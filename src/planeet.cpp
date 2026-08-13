@@ -121,7 +121,7 @@ void planeet::burenAlsEigenschapWijzers()
 		}
 		else
 		{
-			_vakken[0][i].waterHoogte 	=  _beginMetWater ? 0.5f : 0.0f;
+			_vakken[0][i].waterHoogte 	=  _beginMetWater ? 0.1667f : 0.0f; //1/3 van de oorspronkelijke 0.5
 			_vakken[0][i].bodemVocht	=  0.0f;
 			_vakken[0][i].luchtVocht	=  0.0f;
 			_vakken[0][i].leven			=  0.0001f;
@@ -130,10 +130,11 @@ void planeet::burenAlsEigenschapWijzers()
 
 			//Luchttoestand: evenwichtstemperatuur naar breedte (palen koud, evenaar
 			//warm) en hoogte (lapse-rate), neutrale druk, stilstaande wind, geen wolken.
+			//Mars begint koud: evenaar rond -50 °C (223.15 K).
 			glm::vec3 wijst = glm::normalize(_punten->ggvPunt3(i));
 			float breedte  = glm::clamp(wijst.y, -1.0f, 1.0f); //noordpool=+1
 			float hoogteF  = glm::clamp((_vakken[0][i].grondHoogte - 10.0f) / (200.0f - 10.0f), 0.0f, 1.0f);
-			_vakken[0][i].temperatuur = 260.0f + 40.0f * (1.0f - glm::abs(breedte)) - 30.0f * hoogteF;
+			_vakken[0][i].temperatuur = 223.15f - 20.0f * glm::abs(breedte) - 10.0f * hoogteF;
 			_vakken[0][i].luchtdruk   = 1.0f;
 			_vakken[0][i].wind        = glm::vec2(0.0f);
 			_vakken[0][i].wolken      = 0.0f;
