@@ -13,11 +13,17 @@
 //schrijft de nieuwe waarden naar vakken1.
 #include "planeetDefinities.wgsl"
 
-const winddemping  = 0.10;   //fractie wind die per ronde door wrijving remt (klein = levendig)
-const maxWindsnel  = 3.0;    //abs. windsnelheidsgrens (boven evenwicht, zodat er snelheidscontrast overblijft)
+//De wind wordt zwaarder gedempt (Rayleigh) en zwakker door de drukgradiënt
+//aangedreven dan voorheen, zodat de velden onder de cap blijven en er coherente
+//(grootschalige, samenhangende) circulatie-ellipsen/banden ontstaan i.p.v. dat
+//élke cel tegelijk tegen de cap maxWindsnel wordt geperst (waar de richtingen
+//onderling uitmiddelen tot ~0 en de wolken niets om te dragen hebben).
+const winddemping  = 0.35;   //fractie wind die per ronde door wrijving remt (groter = rustiger/gebalanceerd)
+const maxWindsnel  = 2.0;    //abs. windsnelheidsgrens; bewust onder de evenwichtssnelheid zodat het veld nooit vol raakt
+const windDiffusie = 0.45;   //hoe sterk de wind naar het buurgemiddelde toe smoort (verwijdert grid-ruis → coherente banden)
 const drukGevolg   = 0.04;   //hoe sterk wind-divergentie de druk verandert
-const coriolisKracht = 1.0; //schaal van de Coriolis-afbuiging (naast de rotatie-Ω)
-const terrainKracht  = 0.4; //schaal van de terrein-forcering (wervels rond bergen)
+const coriolisKracht = 3.0; //schaal van de Coriolis-afbuiging (laat geostrofisch evenwicht + jets ontstaan)
+const terrainKracht  = 0.15; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid : vec3u) {
@@ -129,7 +135,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
            + cor                                         //coriolis
            + terreinForce                                 //terrein (wervels/omleiding)
            - winddemping * V0                             //Rayleigh-wrijving (sterk)
-           + reken.atmosfeer.w * (somW - V0);            //diffusie
+           + windDiffusie * (somW - V0);                 //diffusie: smoot de wind tot grootschalige, coherente stroming
 
     //abs. begrenzing van de wind
     let lV = length(V1);

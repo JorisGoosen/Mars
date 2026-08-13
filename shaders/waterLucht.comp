@@ -32,15 +32,22 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //---- de verse wind en temperatuur van deze ronde (uit luchtStroming) ----
     let wind = vakken1[ID].wind;
-    //Echte advectie i.p.v. willekeurige menging: sterkte geschaald met de tijdstap,
-    //zodat vocht met de wind meereist i.p.v. elke stap met de buur te versmeren.
-    let windSterkte = clamp(length(wind) * tijdVerschil, 0.0, 0.2);
+    //Afstand die het vocht in deze ronde met de wind meereist, in cel-eenheden.
+    //Semi-Lagrangiaans: we volgen de wind terug over meerdere cellen i.p.v. één
+    //donorcel mengen, zodat wolken visueel coherent meetrekken met de luchtstroom.
+    let wolkSnelheid = 4.0; //versterker zodat de beweging op het scherm zichtbaar wordt
+    let afstand = clamp(length(wind) * tijdVerschil * wolkSnelheid, 0.0, 8.0);
     let T = vakken1[ID].temperatuur;
 
-    //---- advectie van damp en wolkwater met de wind (upwind, donor-cel) ----
-    let opId = opwaartseBuur(ID, wind);
-    let dampAan = advecteerWaarde(ID, wind, windSterkte, vakken0[ID].luchtVocht, vakken0[opId].luchtVocht);
-    let wolkAan = advecteerWaarde(ID, wind, windSterkte, vakken0[ID].wolken,     vakken0[opId].wolken);
+    //---- advectie van damp en wolkwater met de wind (semi-Lagrangiaans) ----
+    let traject = advecteerTraject(ID, wind, afstand);
+    let opId = u32(traject.x);
+    let opId2 = u32(traject.y);
+    let frac = traject.z;
+    let dampOp  = mix(vakken0[opId].luchtVocht, vakken0[opId2].luchtVocht, frac);
+    let wolkOp  = mix(vakken0[opId].wolken,     vakken0[opId2].wolken,     frac);
+    let dampAan = dampOp;
+    let wolkAan = wolkOp;
 
     //---- verzadiging uit de temperatuur (+ hoogte + orografie) ----
     let oppervlak = vakken0[ID].grondHoogte + vakken0[ID].waterHoogte;

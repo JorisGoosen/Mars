@@ -69,6 +69,27 @@ fn advecteerWaarde(id : u32, wind : vec2f, sterkte : f32, eigen : f32, op : f32)
     return mix(eigen, op, k);
 }
 
+//Semi-Lagrangiaanse advectie: volg de wind terug (stroomopwaarts) over meerdere
+//cellen tot de afstand 'afstand' (in cel-eenheden, kan fractioneel zijn) op is,
+//en lever de twee laatste cellen van de traject plus de resterende fractie.
+//De aanroeper interpoleert zelf over de juiste velden (damp/wolken/enz.).
+//Retour = (laatsteBron, daar de donor, fractie in [0,1)).
+fn advecteerTraject(id : u32, wind : vec2f, afstand : f32) -> vec3f {
+    var bron : u32 = id;
+    var over = max(afstand, 0.0);
+    var teller = 0u;
+    //loop maximaal enkele cellen (beperk de kracht van één windstoot)
+    while(over >= 1.0 && teller < 6u) {
+        let donor = opwaartseBuur(bron, wind);
+        if(donor == bron) { break; }
+        bron = donor;
+        over -= 1.0;
+        teller++;
+    }
+    let donor = opwaartseBuur(bron, wind);
+    return vec3f(f32(bron), f32(donor), clamp(over, 0.0, 1.0));
+}
+
 fn vakHoogte(id : u32, water : bool) -> f32 {
     return max(0.001, 1.0 + (hoogteBuur(id, water) * reken.grondSchaal));
 }

@@ -74,6 +74,7 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - `--stappen <n>`: stop na n rondes (samen met `--hoofdloos`).
 - `--schermafbeelding <bestand>`: render (ook met `--hoofdloos`) naar een off-screen framebuffer en bewaar die als PNG, bijv. `--hoofdloos --procedureel --diepte 3 --stappen 300 --schermafbeelding beeld.png`.
 - `--stil`: bevries alles vanaf het begin (sim, zon- en modelrotatie). Handig met `--hoofdloos --schermafbeeldingElkeFrames 1` om te controleren dat opeenvolgende beelden identiek zijn (geen flikker).
+- `--luchtstappen <n>`: aantal atmosfeer-simstappen per beeld (standaard 1). Hoger zet de wind de damp/wolken per beeld verder, zodat je de wolkbeweging op het scherm zichtbaar sneller voorbij ziet trekken (bijv. `--luchtstappen 8`).
 
 Voorbeeld: `./build/src/mars --zonder-water --zonder-erosie --zonder-leven`
 Analyse-voorbeeld: `./build/src/mars --procedureel --hoofdloos --diepte 4 --stappen 3000 --diagnoseCsv uit.csv`
@@ -90,6 +91,16 @@ door een **echt, opgeslagen** atmosfeerveld met drie vragen:
 Straalstromen/banden ontstaan zo vanzelf. Dag/nacht volgt uit een zon die om de
 geografische noordpool draait (de planeet draait t.o.v. de zon); Coriolis gebruikt
 dezelfde rotatie.
+
+Om de wolken zichtbaar te laten meebewegen is de wind zwaarder gedempt en
+sterker gladgestreken (hoge wind-diffusie) en door een mildere drukgradiënt
+aangedreven, zodat het veld **onder** de snelheidsgrens blijft en er coherente,
+grootschalige circulatie-ellipsen/banden ontstaan i.p.v. dat élke cel tegelijk op
+de cap wordt geperst (waar richtingen onderling tot ~0 uitmiddelen). Damp en
+wolken worden daarna **semi-Lagrangiaans** (over meerdere wind-cellen tegelijk,
+i.p.v. één donorcel mengen) getransporteerd, zodat wolkpatronen meetrekken met de
+luchtstroom i.p.v. op hun plaats te versmeren. Zie ook `--luchtstappen` om de
+beweging per beeld te versnellen.
 
 ## Vochtcyclus in twee fasen
 `luchtVocht` is damp (de capaciteit volgt de temperatuur); `wolken` is het

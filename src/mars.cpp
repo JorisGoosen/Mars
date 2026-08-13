@@ -245,6 +245,7 @@ static void toonHelp()
 "  --stappen <n>         stop na n rondes (samen met --hoofdloos)\n"
 "  --schermafbeelding <bestand>  render een beeld naar een PNG (handig bij --hoofdloos)\n"
 "  --schermafbeeldingElkeFrames <n>  maak om de n frames een schermafbeelding\n"
+"  --luchtstappen <n>    sim-stappen per beeld (standaard 1; hoger = ze zichtbaar sneller zie je wolken bewegen)\n"
 "  --stil               bevries alles vanaf het begin (sim, zon- en modelrotatie)\n"
 "  --help, -h            toon deze hulp\n"
 "\n"
@@ -273,6 +274,7 @@ int main(int argc, char ** argv)
 	std::string csvBestand;
 	std::string schermafbeeldingBestand;
 	size_t schermElkeFrames = 0; //0 = alleen de eind-screenshot
+	int  luchtStappen = 1;      //aantal atmosfeer-simstappen per beeld (wolken zichtbaar laten bewegen)
 	bool bevroren = false;      //bevriest sim + zonrotatie + modelrotatie
 	bool zonRoteert = true;     //of de bezonning (dag/nacht) vooruitloopt
 
@@ -321,6 +323,11 @@ int main(int argc, char ** argv)
 		{
 			if(a + 1 < argc) subdiv = std::max(1, std::atoi(argv[++a]));
 			else std::cerr << "--diepte verwacht een getal (bijv. --diepte 6)" << std::endl;
+		}
+		else if(vlag == "--luchtstappen")
+		{
+			if(a + 1 < argc) luchtStappen = std::max(1, std::atoi(argv[++a]));
+			else std::cerr << "--luchtstappen verwacht een getal (bijv. --luchtstappen 4)" << std::endl;
 		}
 		else
 		{
@@ -818,14 +825,19 @@ int main(int argc, char ** argv)
 
 		if(!bevroren && (waterStroomt || waterStap || hoofdloos))
 		{
-			scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
-			scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
-			scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
-			scherm.doeRekenVerwerker("luchtStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
-			scherm.doeRekenVerwerker("waterLucht", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
+			//Multi-stap: loop de rekenketen meerdere keren per beeld. Daarmee wordt
+			//de beweging (wind advecteert damp/wolken) op het scherm zichtbaar i.p.v.
+			//dat één micro-stap per beeld te traag is om met het oog te volgen.
+			for(int substap = 0; substap < luchtStappen; substap++)
+			{
+				scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
+				scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
+				scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
+				scherm.doeRekenVerwerker("luchtStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
+				scherm.doeRekenVerwerker("waterLucht", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
+				geo->volgendeRonde();
+			}
 			waterStap = false;
-
-			geo->volgendeRonde();
 		}
 
 		//Periodieke schermafbeeldingen (--schermafbeeldingElkeFrames)
