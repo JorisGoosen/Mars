@@ -35,8 +35,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //Afstand die het vocht in deze ronde met de wind meereist, in cel-eenheden.
     //Semi-Lagrangiaans: we volgen de wind terug over meerdere cellen i.p.v. één
     //donorcel mengen, zodat wolken visueel coherent meetrekken met de luchtstroom.
-    let wolkSnelheid = 4.0; //versterker zodat de beweging op het scherm zichtbaar wordt
-    let afstand = clamp(length(wind) * tijdVerschil * wolkSnelheid, 0.0, 8.0);
+    //Belangrijk: deze afstand moet boven de 1-cel-grens uitkomen, anders bekert de
+    //wolk alleen maar naar de naaste stroomopwaartse buur (sub-cel diffusie) i.p.v.
+    //dat het patroon zichtbaar over meerdere cellen doorschuift.
+    let wolkSnelheid = 9.0; //koppeling wind->verplaatsing (in cel-eenheden per ronde)
+    let afstand = clamp(length(wind) * tijdVerschil * wolkSnelheid, 0.0, 12.0);
     let T = vakken1[ID].temperatuur;
 
     //---- advectie van damp en wolkwater met de wind (semi-Lagrangiaans) ----

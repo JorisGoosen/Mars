@@ -99,8 +99,30 @@ grootschalige circulatie-ellipsen/banden ontstaan i.p.v. dat élke cel tegelijk 
 de cap wordt geperst (waar richtingen onderling tot ~0 uitmiddelen). Damp en
 wolken worden daarna **semi-Lagrangiaans** (over meerdere wind-cellen tegelijk,
 i.p.v. één donorcel mengen) getransporteerd, zodat wolkpatronen meetrekken met de
-luchtstroom i.p.v. op hun plaats te versmeren. Zie ook `--luchtstappen` om de
-beweging per beeld te versnellen.
+luchtstroom i.p.v. op hun plaats te versmeren.
+
+De wolk-advectie-afstand (`wolkSnelheid` in `waterLucht.comp`) moet boven de
+**1-cel-grens** uitkomen: ligt hij eronder, dan bekert de wolk alleen maar naar de
+naaste stroomopwaartse buur (sub-cel diffusie) en lijkt hij stil te staan op zijn
+plek op te laaien. Zie ook `--luchtstappen` om de beweging per beeld te
+versnellen.
+
+## Beweegtest (wolken)
+`Gereedschap/bewegingstest.py` bevestigt of de wolken *werkelijk* over de planeet
+schuiven of op hun plaats blijven. Maak een dump van opeenvolgende rekenrondes
+(ping→pong) en vergelijk die:
+
+```bash
+./build/src/mars --procedureel --hoofdloos --diepte 4 --stappen 700 \
+    --diagnoseCsvFrames 1 --diagnoseCsv /tmp/pingpong.csv
+python3 Gereedschap/bewegingstest.py --samenvatting /tmp/pingpong.csv
+```
+
+De samenvatting over de stabiele toestand meldt `persistentie` (fractie wolk-massa
+op dezelfde cel als de vorige ronde) en `nieuw` (fractie op andere cellen):
+statische wolken geven `persistentie ≈ 1`; bewegende wolken geven lage
+`persistentie` (bv. ~0.05), hoge `nieuw` en `delta > 0`.
+
 
 ## Vochtcyclus in twee fasen
 `luchtVocht` is damp (de capaciteit volgt de temperatuur); `wolken` is het
