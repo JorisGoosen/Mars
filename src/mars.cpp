@@ -374,6 +374,23 @@ int main(int argc, char ** argv)
 		MarsHoogte = laadPNG("MARS_Hoogte.png", w, h, kanalen);
 		if(!MarsHoogte)
 			throw std::runtime_error("Kon MARS_Hoogte.png niet laden (of gebruik --procedureel)!");
+
+		//Spiegel de MOLA-hoogtekaart links-rechts (horizontaal), zodat het terrein
+		//dat we op de planeet zetten gespiegeld is t.o.v. de ruwe kaart. Het beeld
+		//is RGBA (4 kanalen); per rij wisselen we x met (w-1-x).
+		for(size_t y = 0; y < h; y++)
+		{
+			for(size_t x = 0; x < w / 2; x++)
+			{
+				size_t links = (x + y * w) * 4;
+				size_t rechts = ((w - 1 - x) + y * w) * 4;
+				std::swap(MarsHoogte[links],     MarsHoogte[rechts]);
+				std::swap(MarsHoogte[links + 1], MarsHoogte[rechts + 1]);
+				std::swap(MarsHoogte[links + 2], MarsHoogte[rechts + 2]);
+				std::swap(MarsHoogte[links + 3], MarsHoogte[rechts + 3]);
+			}
+		}
+
 		MarsHoogteBH = glm::uvec2(w, h);
 	}
 
