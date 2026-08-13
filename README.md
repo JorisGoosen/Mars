@@ -130,6 +130,11 @@ gecondenseerde wolkwater. Oververzadigde damp condenseert tot wolken; wolken gev
 hun water af door terug te verdampen én door **regen die uitsluitend uit wolken
 valt**. Zowel damp als wolken worden met het windveld geadvecteerd.
 
+De oppervlakte-verdamping (`verdamping` in `mars.cpp`) is 10× omlaag gezet, zodat
+staand water (en de damp die erdoor gevormd wordt) beduidend langer blijft staan
+i.p.v. supersnel weg te dampen — de "beweging" die eerder leek te ontstaan was
+vooral verdamping, geen echte wolk-windtracering.
+
 ## Wolkendek
 De wolken worden getekend als een doorzichtig dek op een **absolute hoogte**(straal vanaf het planeetcentrum) die per cel uit temperatuur, druk en damp wordt
 berekend — in dezelfde hoogte→straal-afbeelding als het terrein (sealevel = straal
@@ -169,6 +174,11 @@ de rots zelf 100× langzamer. Zowel erosie van zand als van rots vormt droesem i
 het water, en waar water droesem neerlegt wordt het altijd zand. Op het
 oppervlak zie je een zachte overgang van Mars-rode rots naar zand naarmate
 de zandlaag dikker wordt.
+
+De erosie-snelheid is in totaal 10× trager gemaakt (`oplosheid` in
+`planeetStructen.wgsl`): zowel zand als rots eroderen langzamer, zodat het
+terrein rustiger blijft en de vorming/afvoer van sediment niet het watergedrag
+overschaduwt.
 
 ## Supported Platforms
 - ✅ Linux (Vulkan)
