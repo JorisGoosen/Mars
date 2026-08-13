@@ -52,7 +52,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //licht. Als nagelrecht tegenover het licht staat (dot==-1) is de instraling
     //maximaal; zodra de normaal weg of haaks op het licht staat (dot>=0) is er geen
     //instraling meer. Kwadratisch, zodat scherende straling snel afvalt.
-    let ins     = pow(max(0.0, clamp(dot(-hier, zon), 0.0, 1.0)), 4.0);
+    let ins     = pow(max(0.0, clamp(dot(-hier, zon), 0.0, 1.0)), 8.0);
     let noord   = vec3f(0.0, 1.0, 0.0);              //vaste geografische rotatie-as
     let breedte = clamp(dot(hier, noord), -1.0, 1.0); //+1 = noordpool
 
