@@ -61,6 +61,15 @@ const vriespuntK    = 273.0;  //0 °C in Kelvin
 const ijsTempo      = 0.005;  //fractie water dat per ronde per Kelvin onder het vriespunt bevriest
 const miniJs        = 0.01;   //onder deze ijsdikte heet een cel ijsloos (render-drempel)
 
+//Leven & temperatuur (zie waterDruk.comp): leven groeit alleen boven 0 °C en sterft
+//bij vorst. De dood begint traag rond -20 °C en wordt steil (kwadratisch) snel bij
+//-60 °C en kouder. De dood is uniform: hij remt elke levenscel, nat of droog.
+const levenBevriesK   = 273.0;   //0 °C: boven dit punt mag leven pas groeien
+const levenGroeiBand  = 6.0;     //K boven vriespunt waarover de groei naar vol oploopt
+const levenKoudBegin  = 253.15;  //-20 °C: de dood begint hier langzaam
+const levenKoudSnel   = 213.15;  //-60 °C: hier doodt het heel snel
+const levenKoudTempo  = 0.5;     //fractie leven die per ronde sterft bij -60 °C
+
 const maxBuren = 6u;
 
 //Atmosferische dynamica (zie luchtStroming.comp): barotrope-achtige circulatie.
@@ -68,8 +77,8 @@ const maxBuren = 6u;
 //rotatie-omega, wrijving, diffusie); onderstaande zijn de fysische constanten.
 const luchtBaseTemp   = 250.0;  //start/referentietemperatuur (K) van de lucht
 const lapseKoeling    = 15.0;   //gematigde koeling per genormaliseerde hoogtelaag
-const opnameTempo     = 0.10;   //hoe snel zonne-energie de lucht opwarmt
-const stralingKracht  = 0.11;   //hoe snel de planeet afkoelt naar het omringende
+const opnameTempo     = 0.06;   //hoe snel zonne-energie de lucht opwarmt (zwakker: minder zonne-inkomende warmte)
+const stralingKracht  = 0.015;  //hoe snel de planeet afkoelt naar het omringende (lager = betere warmtebehoud)
 const tempDiffusie    = 0.15;   //hoe snel de temperatuur zich over de buren verdeelt
 const ruimteK         = 180.0;  //effectieve hemeltemperatuur (K) zonder broeikas
 const broeikasK       = 96.0;   //CO2-groeikaseffect: verhoogt de effectieve hemel-T

@@ -214,15 +214,32 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let groei     = select(rotsGroei, zandGroei, isZand);
     let buurG     = select(rotsBuur,  zandBuur,  isZand);
 
+    //Temperatuur-afhankelijkheid van het leven:
+    // - groeiTemp: 0 bij/onder 0 °C, oplopend naar 1 net boven het vriespunt, zodat
+    //   leven alleen groeit boven 0 °C.
+    // - doodKoud: kwadratische koude-dood van 0 (boven -20 °C) tot 1 (bij -60 °C en
+    //   kouder), uniform per cel.
+    let T_kelvin = vakken0[ID].temperatuur;
+    let groeiTemp = smoothstep(levenBevriesK, levenBevriesK + levenGroeiBand, T_kelvin);
+    let koudFract = clamp((levenKoudBegin - T_kelvin) / max(levenKoudBegin - levenKoudSnel, zeerKlein), 0.0, 1.0);
+
+    //Bestaande vocht-afhankelijke groei, maar nu geschaald met de temperatuur:
+    //onder 0 °C (groeiTemp=0) groeit er niets meer.
     if(vakken1[ID].waterHoogte <= 0.05) {
-        leven = max(0.0, min(vakken1[ID].bodemVocht, max(leven * groei, leven + (buurLeven * buurG))));
+        leven = max(0.0, min(vakken1[ID].bodemVocht,
+                  max(leven * (1.0 + (groei - 1.0) * groeiTemp), leven + (buurLeven * buurG) * groeiTemp)));
     }
     else if(vakken1[ID].waterHoogte > 2.0) {
-        leven *= 0.85;
+        leven *= mix(1.0, 0.85, groeiTemp);
     }
     else {
-        leven *= 0.95;
+        leven *= mix(1.0, 0.95, groeiTemp);
     }
+
+    //Koude-dood (uniform): vanaf -20 °C begint leven te sterven, kwadratisch opbouwend
+    //naar heel snel bij -60 °C en daaronder. Bij volledige koude-dood wordt leven 0.
+    let doodSterkte = koudFract * koudFract * levenKoudTempo;
+    leven = max(0.0, leven * (1.0 - doodSterkte));
 
     //--no-life: geen plantengroei, dus leven blijft op 0 (geen groene begroeiing)
     if(reken.levenAan <= 0.5) {
