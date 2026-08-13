@@ -470,7 +470,7 @@ int main(int argc, char ** argv)
 	glm::vec3	kijkPlek		(0.0f)				,
 				zonPos			(0.0f)				;
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.0005f;
+				verdamping		= 0.0001f;
 	float						zonKracht		= 30.0f,
 				rotatieOmega	= 0.003f,   //dag/nacht langzaam (minder zonne-flikker)
 				coriolisOmega	= 0.1f,     //Coriolis-rotatie; losgekoppeld van dag/nacht
