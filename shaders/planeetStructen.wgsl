@@ -103,7 +103,7 @@ const condensTempo   = 0.05;   //fractie oververzadigde damp die per ronde conde
 const wolkVerdamp    = 0.05;   //fractie wolkwater dat per ronde in droge lucht terugverdampf
 const regenTempo     = 0.3333333; //fractie wolkwater dat per ronde als regen uitvalt
 const minWolk        = 0.0005; //onder deze waarde heet een cel wolkloos
-const wolkDraagKracht = 0.3;   //max. wolkwater per eenheid; daarboven regent het uit
+const wolkDraagKracht = 0.075; //max. wolkwater per eenheid; daarboven regent het uit
 
 struct vak {
     grondSoort  : i32,
