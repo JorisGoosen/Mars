@@ -24,7 +24,6 @@ const windDiffusie = 0.45;   //hoe sterk de wind naar het buurgemiddelde toe smo
 const drukGevolg   = 0.04;   //hoe sterk wind-divergentie de druk verandert
 const coriolisKracht = 3.0; //schaal van de Coriolis-afbuiging (laat geostrofisch evenwicht + jets ontstaan)
 const terrainKracht  = 0.15; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
-const advectieSnelheid = 4.0;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid : vec3u) {

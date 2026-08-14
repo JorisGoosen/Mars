@@ -177,6 +177,56 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 	wgpuBufferUnmap(t->buffer);
 }
 
+//Waterconservering (--conservering <tol%>): leest de laatste reken-stand terug en
+//telt de totale watermassa per reservoir op. Het "waterbewustzijn" is het budget
+//waterHoogte + bodemVocht + ijs + luchtVocht + wolken; elk van deze kan in een ander
+//reservoir stromen (regen/verdamping/condensatie/bevriezen/infiltratie), maar de som
+//moet constant blijven zolang er geen externe waterbron is.
+struct conservatieStat
+{
+	double water = 0, bodem = 0, ijs = 0, damp = 0, wolk = 0;
+	size_t teller = 0;
+};
+
+//Draagt de buffer-informatie + het doel-struct over naar de map-callback.
+struct conservatieToestandje
+{
+	WGPUBuffer	buffer = nullptr;
+	size_t		grootte = 0;
+	bool		klaar   = false;
+	conservatieStat * stat = nullptr;
+};
+
+static void conservatieVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebruiker1, void * gebruiker2)
+{
+	(void)gebruiker2;
+	conservatieToestandje * t = (conservatieToestandje *)gebruiker1;
+	t->klaar = true;
+
+	if(status != WGPUMapAsyncStatus_Success)
+	{
+		std::cerr << "[conservering] lezen mislukt (status " << (uint32_t)status << ")" << std::endl;
+		return;
+	}
+
+	const vak * cellen = (const vak *)wgpuBufferGetMappedRange(t->buffer, 0, t->grootte);
+	const size_t aantal = t->grootte / sizeof(vak);
+	double w = 0, b = 0, ij = 0, d = 0, k = 0;
+	for(size_t i = 0; i < aantal; i++)
+	{
+		const vak & c = cellen[i];
+		w += c.waterHoogte; b += c.bodemVocht; ij += c.ijs; d += c.luchtVocht; k += c.wolken;
+	}
+	t->stat->water = w; t->stat->bodem = b; t->stat->ijs = ij; t->stat->damp = d; t->stat->wolk = k;
+	t->stat->teller++;
+
+	std::cerr << "[conservering " << t->stat->teller << "] water=" << w
+			  << " bodem=" << b << " ijs=" << ij << " damp=" << d << " wolk=" << k
+			  << "  TOTAAL=" << (w + b + ij + d + k) << std::endl;
+
+	wgpuBufferUnmap(t->buffer);
+}
+
 //Schrijft RGBA-pixels (8 bit/component) weg naar een PNG-bestand (via libpng).
 //Mogelijk gemaakt zodat --hoofdloos --schermafbeelding kan renderen naar een
 //off-screen framebuffer en die zonder display kan bewaren/controleren.
@@ -241,6 +291,7 @@ static void toonHelp()
 "  --diagnose            print elke 25 frames de extremen van de reken-stand\n"
 "  --diagnoseCsv <bestand>  dump de hele planeet naar een CSV\n"
 "  --diagnoseCsvFrames <n>  interval voor het CSV-dumpen (standaard 25)\n"
+"  --conservering [tol%]    check of het totale water constant blijft (hoofdloos; tol%=rel. driftsz, standaard 1)\n"
 "  --hoofdloos           draai zonder venster (geen display/aqua nodig)\n"
 "  --stappen <n>         stop na n rondes (samen met --hoofdloos)\n"
 "  --schermafbeelding <bestand>  render een beeld naar een PNG (handig bij --hoofdloos)\n"
@@ -277,6 +328,10 @@ int main(int argc, char ** argv)
 	int  luchtStappen = 1;      //aantal atmosfeer-simstappen per beeld (wolken zichtbaar laten bewegen)
 	bool bevroren = false;      //bevriest sim + zonrotatie + modelrotatie
 	bool zonRoteert = true;     //of de bezonning (dag/nacht) vooruitloopt
+		bool conservatieAan = false; //--conservering <tol%>: controleer of het totale water constant blijft
+		double conservatieTol = 0.01; //relatieve tolerantie op de totale watermassa (standaard 1%)
+		int  conservatieElke = 200;   //om de zoveel frames één meting
+		double totaalWaterStart = -1.0, totaalWaterMin = 0.0, totaalWaterMax = 0.0;
 
 	for(int a = 1; a < argc; a++)
 	{
@@ -285,6 +340,15 @@ int main(int argc, char ** argv)
 		{
 			toonHelp();
 			return 0;
+		}
+		else if(vlag == "--conservering")
+		{
+			conservatieAan = true;
+			if(a + 1 < argc)
+			{
+				double t = std::atof(argv[a + 1]);
+				if(t > 0.0) { conservatieTol = t / 100.0; a++; }
+			}
 		}
 		else if(vlag == "--zonder-water")          beginMetWater = false;
 		else if(vlag == "--zonder-erosie")   erosieAan = false;
@@ -607,7 +671,7 @@ int main(int argc, char ** argv)
 	//Diagnose/Csv-buffers: aparte leesbare kopieën om de stand terug te lezen
 	const size_t diagGrootte = geo->aantalVakjes() * sizeof(vak);
 	WGPUBuffer diagLees = nullptr;
-	if(diagAan || !csvBestand.empty())
+	if(diagAan || !csvBestand.empty() || conservatieAan)
 	{
 		WGPUBufferDescriptor leesBeschrijving = WGPU_BUFFER_DESCRIPTOR_INIT;
 		leesBeschrijving.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
@@ -942,6 +1006,59 @@ int main(int argc, char ** argv)
 			std::cerr << "[stap " << frameNummer << "]" << std::endl;
 		}
 
+		//Waterconservering (--conservering): lees regelmatig de totale watermassa terug
+		if(conservatieAan && diagLees && frameNummer > 0 && frameNummer % conservatieElke == 0)
+		{
+			conservatieStat stat;
+			conservatieToestandje toestand;
+			toestand.buffer  = diagLees;
+			toestand.grootte = diagGrootte;
+			toestand.stat	 = &stat;
+
+			WGPUCommandEncoder leesEncoder = wgpuDeviceCreateCommandEncoder(apparaat, nullptr);
+			wgpuCommandEncoderCopyBufferToBuffer(leesEncoder, geo->huidigeOpslag(), 0, diagLees, 0, diagGrootte);
+			WGPUCommandBuffer leesCommando = wgpuCommandEncoderFinish(leesEncoder, nullptr);
+			wgpuQueueSubmit(rij, 1, &leesCommando);
+			wgpuCommandBufferRelease(leesCommando);
+			wgpuCommandEncoderRelease(leesEncoder);
+
+			WGPUBufferMapCallbackInfo cb = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+			cb.mode 	 = WGPUCallbackMode_AllowSpontaneous;
+			cb.callback  = conservatieVerwerker;
+			cb.userdata1 = &toestand;
+			wgpuBufferMapAsync(diagLees, WGPUMapMode_Read, 0, diagGrootte, cb);
+
+			while(!toestand.klaar)
+				wgpuInstanceProcessEvents(scherm.instantie());
+
+			double totaal = stat.water + stat.bodem + stat.ijs + stat.damp + stat.wolk;
+			if(totaalWaterStart < 0.0)
+			{
+				totaalWaterStart = totaal;
+				totaalWaterMin = totaal;
+				totaalWaterMax = totaal;
+			}
+			else
+			{
+				totaalWaterMin = std::min(totaalWaterMin, totaal);
+				totaalWaterMax = std::max(totaalWaterMax, totaal);
+
+				if(hoofdloos && stappenTotaal > 0 && frameNummer >= stappenTotaal)
+				{
+					double afwijking = (totaalWaterStart > 0.0)
+						? std::max(std::abs((totaalWaterMax - totaalWaterStart) / totaalWaterStart),
+								   std::abs((totaalWaterMin - totaalWaterStart) / totaalWaterStart))
+						: 0.0;
+					std::cerr << "[conservering] EVALUATIE: start=" << totaalWaterStart
+							  << " min=" << totaalWaterMin << " max=" << totaalWaterMax
+							  << "  max-afwijking=" << (100.0 * afwijking) << "%  (tolerantie "
+							  << (100.0 * conservatieTol) << "%)  => "
+							  << (afwijking <= conservatieTol ? "GEVANGEN: constant" : "LEK: niet constant")
+							  << std::endl;
+				}
+			}
+		}
+
 		frameNummer++;
 
 		//De CPU mag pas verder zodra de GPU de vorige frame (render + reken-passen)
@@ -981,4 +1098,18 @@ int main(int argc, char ** argv)
 	wgpuBufferRelease(rekenParBuffer);
 
 	delete geo;
+
+	//Terugkeer-waarde voor --conservering: 0 = water blijft constant, 1 = LEK.
+	if(conservatieAan && totaalWaterStart > 0.0)
+	{
+		double afwijking = std::max(std::abs((totaalWaterMax - totaalWaterStart) / totaalWaterStart),
+									std::abs((totaalWaterMin - totaalWaterStart) / totaalWaterStart));
+		if(afwijking > conservatieTol)
+		{
+			std::cerr << "[conservering] LEK gedetecteerd: afwijking " << (100.0 * afwijking)
+					  << "% > tolerantie " << (100.0 * conservatieTol) << "%" << std::endl;
+			return 1;
+		}
+	}
+	return 0;
 }

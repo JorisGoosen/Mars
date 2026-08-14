@@ -51,14 +51,14 @@ const maxLuchtVocht  = 1.0e12;
 //atmosferische vochtigheid (advectie door de wind, regent uit boven verzadiging
 //en op bergflanken).
 const veldCapaciteit    = 0.5; //max. bodemvocht dat een cel kan vasthouden
-const infiltratie       = 0.03; //fractie staand water dat per ronde de grond in zakt
+const infiltratie       = 0.003; //fractie staand water dat per ronde de grond in zakt (10x trager)
 const evapotranspiratie = 0.05; //hoe snel vochtige grond verdroogt naar droge lucht
 const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekbegrenzer)
 
 //IJsvorming (zie waterDruk.comp): onder 273 K bevriest water tot ijs, daarboven
 //dooit het terug. Hoe kouder, hoe sneller. IJs telt als grond voor de stroming.
 const vriespuntK    = 273.0;  //0 °C in Kelvin
-const ijsTempo      = 0.0001; //fractie water/ijs dat per ronde per Kelvin onder/boven het vriespunt bevriest/dooit (trager)
+const ijsTempo      = 0.0005; //fractie water/ijs dat per ronde per Kelvin onder/boven het vriespunt bevriest/dooit
 const miniJs        = 0.01;   //onder deze ijsdikte heet een cel ijsloos (render-drempel)
 
 //Leven & temperatuur (zie waterDruk.comp): leven groeit alleen boven 0 °C en sterft
@@ -84,9 +84,15 @@ const ruimteK         = 180.0;  //effectieve hemeltemperatuur (K) zonder broeika
 const broeikasK       = 96.0;   //CO2-groeikaseffect: verhoogt de effectieve hemel-T
 const drukKracht     = 0.8;    //drukgradiëntkracht-coëfficiënt (wind versnelling)
 const drukRelax      = 0.05;   //hoe snel de druk naar het thermische evenwicht zakt
-const drukDiffusie   = 0.04;   //extra gladstrijken van de druk (klein = scherpere banden)
+const drukDiffusie   = tempDiffusie; //extra gladstrijken van de druk (gelijk aan de T-diffusie)
 const minLuchtdruk   = 0.2;    //klemmen op de druk zodat P>0 blijft
 const maxLuchtdruk   = 5.0;
+
+//Advectie-snelheidskoppeling: hoe ver een luchtpakket per ronde met de wind
+//opschuift (in cel-eenheden). Gedeeld door luchtStroming (T/P) én waterLucht
+//(vocht/wolken), zodat alle atmosferische grootheden als één pakket even hard
+//meereizen. afstand = |wind| * tijdVerschil * advectieSnelheid, geclipt op 12.
+const advectieSnelheid = 4.0;
 
 //Albedo's van het oppervlak/weer (moduleren hoe veel zonnestraling wordt geabsorbeerd).
 const albedoIJs     = 0.60;

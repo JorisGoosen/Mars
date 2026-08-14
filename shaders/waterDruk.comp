@@ -32,7 +32,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
                 let stroomBinnen = vakken1[buurIDv].pijpen[buurBuur] - vakken1[ID].pijpen[buur];
 
                 stroming += stroomBinnen;
-                buurBodemVocht += (vakken1[buurIDv].bodemVocht - mijnBodemVocht) / 6.0;
+                //Bodemvocht-diffusie: symmetrisch per buurpaar, zodat de totale
+                //hoeveelheid bodemvocht behouden blijft. Gewicht = harmonisch gemiddelde
+                //van beide buur-aantallen (5 of 6 buren) BEIDE uit dezelfde (oude) stand,
+                //zodat de fluxen per pijp netjes anti-symmetrisch zijn (geen lek).
+                let buurCount  = f32(vakMetas[buurIDv].burenAantal);
+                let weegFactor = 2.0 / (f32(burenAantal) + buurCount);
+                buurBodemVocht += (vakken0[buurIDv].bodemVocht - mijnBodemVocht) * weegFactor;
                 buurLeven += vakken1[buurIDv].leven;
                 snelheid += vakMetas[ID].buurRicht[buur] * stroomBinnen;
 
