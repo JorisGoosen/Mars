@@ -24,6 +24,8 @@ struct naarFrag {
     @location(8) plek           : vec2f,
     @location(9) pos            : vec4f,
     @location(10) temperatuur   : f32,
+    @location(11) wind          : vec2f,
+    @location(12) luchtdruk     : f32,
 };
 
 //Temperatuuroverlay-kleurkaart: -25 °C (= 248 K) blauw, 0 °C (= 273 K) groen,
@@ -33,6 +35,18 @@ fn temperatuurKleur(TC : f32) -> vec3f {
     var kleur = mix(vec3f(0.2, 0.35, 1.0), vec3f(0.2, 0.85, 0.2), smoothstep(0.0, 0.5, t));
     kleur = mix(kleur, vec3f(1.0, 0.25, 0.1), smoothstep(0.5, 1.0, t));
     return kleur;
+}
+
+//Windoverlay (toets V): rood = wind-component langs de lengtebreedte-as
+//(oost-west), groen = langs de hoogtebreedte-as (noord-zuid), blauw = luchtdruk.
+//De wind-componenten zijn gecentreerd rond 0.5 (tegenwind = donker, meewind = helder),
+//de druk wordt genormaliseerd over [minLuchtdruk, maxLuchtdruk].
+fn windKleur(W : vec2f, P : f32) -> vec3f {
+    let wScale = 2.0; //maxWindsnel (zie luchtStroming.comp)
+    let r = clamp(W.x / wScale * 0.5 + 0.5, 0.0, 1.0); //oost-west
+    let g = clamp(W.y / wScale * 0.5 + 0.5, 0.0, 1.0); //noord-zuid
+    let b = clamp((P - 0.2) / 4.8, 0.0, 1.0);          //luchtdruk
+    return vec3f(r, g, b);
 }
 
 @fragment
@@ -53,6 +67,11 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     //Temperatuuroverlay (toets T): vervang de oppervlaktekleur door de temp-kleurkaart
     if(extra.toonTemperatuur > 0.5) {
         kleur = vec4f(temperatuurKleur(in.temperatuur), 1.0);
+    }
+
+    //Windoverlay (toets V): rood/groen = windrichting, blauw = luchtdruk
+    if(extra.toonWind > 0.5) {
+        kleur = vec4f(windKleur(in.wind, in.luchtdruk), 1.0);
     }
 
     return kleur * max(0.2, diffuus);

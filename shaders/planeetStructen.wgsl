@@ -58,7 +58,7 @@ const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekb
 //IJsvorming (zie waterDruk.comp): onder 273 K bevriest water tot ijs, daarboven
 //dooit het terug. Hoe kouder, hoe sneller. IJs telt als grond voor de stroming.
 const vriespuntK    = 273.0;  //0 °C in Kelvin
-const ijsTempo      = 0.0005; //fractie water/ijs dat per ronde per Kelvin onder/boven het vriespunt bevriest/dooit (trager)
+const ijsTempo      = 0.0001; //fractie water/ijs dat per ronde per Kelvin onder/boven het vriespunt bevriest/dooit (trager)
 const miniJs        = 0.01;   //onder deze ijsdikte heet een cel ijsloos (render-drempel)
 
 //Leven & temperatuur (zie waterDruk.comp): leven groeit alleen boven 0 °C en sterft
@@ -158,4 +158,5 @@ struct extraParameters {
     _padD       : f32,
     maxGrondHoogte : f32, //hoogste terreinpunt (bepaald bij het laden); basis voor het wolkendek
     toonTemperatuur : f32, //1 = temperatuuroverlay aan (toets T)
+    toonWind        : f32, //1 = windoverlay aan (toets V)
 };

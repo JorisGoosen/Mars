@@ -25,6 +25,8 @@ struct naarFrag {
     @location(9) pos            : vec4f,
     @location(10) temperatuur   : f32,
     @location(11) ijs           : f32,
+    @location(12) wind          : vec2f,
+    @location(13) luchtdruk     : f32,
 };
 
 fn berekenVervormdeNormaal(n : vec3f, hoeks : vec3f, vervorming : vec2f) -> vec3f {
@@ -39,6 +41,16 @@ fn temperatuurKleur(TC : f32) -> vec3f {
     var kleur = mix(vec3f(0.2, 0.35, 1.0), vec3f(0.2, 0.85, 0.2), smoothstep(0.0, 0.5, t));
     kleur = mix(kleur, vec3f(1.0, 0.25, 0.1), smoothstep(0.5, 1.0, t));
     return kleur;
+}
+
+//Windoverlay (toets V, zelfde als land): rood = oost-west, groen = noord-zuid,
+//blauw = genormaliseerde luchtdruk.
+fn windKleur(W : vec2f, P : f32) -> vec3f {
+    let wScale = 2.0; //maxWindsnel (zie luchtStroming.comp)
+    let r = clamp(W.x / wScale * 0.5 + 0.5, 0.0, 1.0);
+    let g = clamp(W.y / wScale * 0.5 + 0.5, 0.0, 1.0);
+    let b = clamp((P - 0.2) / 4.8, 0.0, 1.0);
+    return vec3f(r, g, b);
 }
 
 @fragment
@@ -94,6 +106,11 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     }
     else if(isIJs) {
         kleur = vec4f(0.85, 0.9, 0.95, 0.95);
+    }
+
+    //Windoverlay (toets V): rood/groen = windrichting, blauw = luchtdruk
+    if(extra.toonWind > 0.5) {
+        kleur = vec4f(windKleur(in.wind, in.luchtdruk), 0.85);
     }
 
     kleur.a = max(kleur.a, lichtheid);

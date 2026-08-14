@@ -27,6 +27,8 @@ struct naarFrag {
     @location(9) pos            : vec4f,
     @location(10) temperatuur   : f32,
     @location(11) ijs           : f32,
+    @location(12) wind          : vec2f,
+    @location(13) luchtdruk     : f32,
 };
 
 const waterSchaler = 2.0;
@@ -49,6 +51,8 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     uit.plek = vakken0[ID].plek - floor(vakken0[ID].plek);
     uit.temperatuur = vakken0[ID].temperatuur;
     uit.ijs = vakken0[ID].ijs;
+    uit.wind      = vakken0[ID].wind;
+    uit.luchtdruk = vakken0[ID].luchtdruk;
 
     //het water ligt boven op de grond: schijnbare waterhoogte telt mee
     let hier = in.posV * (vakHoogte(ID, true) / extra.grondMult);

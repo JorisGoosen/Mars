@@ -29,6 +29,8 @@ struct naarFrag {
     @location(8) plek           : vec2f,
     @location(9) pos            : vec4f,
     @location(10) temperatuur   : f32,
+    @location(11) wind          : vec2f,
+    @location(12) luchtdruk     : f32,
 };
 
 @vertex
@@ -55,6 +57,8 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     uit.snelheid = vakken0[ID].snelheid;
     uit.leven = vakken0[ID].leven;
     uit.plek = vakken0[ID].plek - floor(vakken0[ID].plek);
+    uit.wind      = vakken0[ID].wind;
+    uit.luchtdruk = vakken0[ID].luchtdruk;
 
     let hier = in.posV * (vakHoogte(ID, false) / extra.grondMult);
 

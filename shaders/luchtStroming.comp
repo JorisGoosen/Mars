@@ -24,6 +24,7 @@ const windDiffusie = 0.45;   //hoe sterk de wind naar het buurgemiddelde toe smo
 const drukGevolg   = 0.04;   //hoe sterk wind-divergentie de druk verandert
 const coriolisKracht = 3.0; //schaal van de Coriolis-afbuiging (laat geostrofisch evenwicht + jets ontstaan)
 const terrainKracht  = 0.15; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
+const advectieSnelheid = 4.0;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid : vec3u) {
@@ -78,11 +79,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //(lapse rate) ingebouwd in het stralingsevenwicht: hoger -> kouder doel.
     let ruimteEffectief = ruimteK + broeikasK - lapseKoeling * hoogteFrac;
 
-    //---- advectie van T en P met de huidige wind (upwind, donor-cel) ----
-    let opId        = opwaartseBuur(ID, V0);
-    let windSterkte = clamp(length(V0) * tijdVerschil, 0.0, 0.35);
-    let T_adv = advecteerWaarde(ID, V0, windSterkte, T0, vakken0[opId].temperatuur);
-    let P_adv = advecteerWaarde(ID, V0, windSterkte, P0, vakken0[opId].luchtdruk);
+    //---- advectie van T en P met de huidige wind (semi-Lagrangiaans) ----
+    //Vroeger eerste-orde upwind: één donorcel, mengstapje geklemd op 0.35, waardoor
+    //T/P nauwelijks meetrokken en de wolken (die wél de volle semi-Lagrangiaanse
+    //tracer gebruiken) een eigen, losgekoppeld pad volgden. Nu volgen T en P dézelfde
+    //multi-cel achterwaartse traject-interpolatie als het vocht in waterLucht, zodat
+    //temperatuur, druk én wolken met één samenhangend luchtpakket meereizen.
+    let traject = advecteerTraject(ID, V0, clamp(length(V0) * tijdVerschil * advectieSnelheid, 0.0, 12.0));
+    let advBron  = u32(traject.x);
+    let advBron2 = u32(traject.y);
+    let advFrac  = traject.z;
+    let T_adv = mix(vakken0[advBron].temperatuur, vakken0[advBron2].temperatuur, advFrac);
+    let P_adv = mix(vakken0[advBron].luchtdruk,   vakken0[advBron2].luchtdruk,   advFrac);
 
     //---- wind: drukgradiënt + Coriolis + wrijving + diffusie + terrein ----
     var somW     = vec2f(0.0);
@@ -123,9 +131,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //Coriolis: f = 2 Omega * breedte; 90°-draaiing in het raakvlak.
     //Eigen coëfficiënt (coriolisKracht) zodat de Coriolis-kromming zichtbaar wordt
     //zonder dat de demping hem wegveegt. In het (west, noord)-raakvlak is de 90°-
-    //draaiing naar rechts (noordelijk halfrond) (V.x, -V.y) → noordwaarts/groter.
+    //draaiing "-draaiing (-V.y, V.x)". Let op: de lokale noord-as van het raakvlak
+    //(buurRicht.y, zie planeet.cpp) wijst naar het ZUIDEN; met deze rotatie én die
+    //noord-conventie bloeft de druk noord/zuid evenwichtig (geen pool-cirkulatie).
     let fgeo = 2.0 * reken.atmosfeer.y * breedte;
-    let cor  = vec2f(V0.x, -V0.y) * fgeo * coriolisKracht;
+    let cor  = vec2f(-V0.y, V0.x) * fgeo * coriolisKracht;
 
     //Terrein-forcering: het vaste hoogteveld buigt de stroming om bergen/flanken
     //heen en werkt als een permanente (fysieke) ruisbron. Flow die een helling

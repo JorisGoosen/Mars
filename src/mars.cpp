@@ -465,7 +465,8 @@ int main(int argc, char ** argv)
 				waterStap		= false,
 				tekenWater		= true,
 				tekenWolken		= true,
-				toonTemperatuur	= false;
+				toonTemperatuur	= false,
+				toonWind		= false;
 
 	glm::vec3	kijkPlek		(0.0f)				,
 				zonPos			(0.0f)				;
@@ -522,6 +523,12 @@ int main(int argc, char ** argv)
 					std::cout << "Je hebt op T gedrukt: de temperatuuroverlay is nu "
 							  << (toonTemperatuur ? "aan" : "uit")
 							  << " (blauw is koud, groen is 0 °C, rood is warm)." << std::endl;
+					break;
+				case GLFW_KEY_V:
+					toonWind = !toonWind;
+					std::cout << "Je hebt op V gedrukt: de windoverlay is nu "
+							  << (toonWind ? "aan" : "uit")
+							  << " (rood = oost-west, groen = noord-zuid, blauw = luchtdruk)." << std::endl;
 					break;
 				case GLFW_KEY_ENTER:
 					waterStap = true;
@@ -816,6 +823,7 @@ int main(int argc, char ** argv)
 		extra[8] 	= zonPos.x;		extra[9] = zonPos.y;	extra[10] = zonPos.z;
 		extra[12] 	= geo->hoogsteGrond();
 		extra[13] 	= toonTemperatuur ? 1.0f : 0.0f;
+		extra[14] 	= toonWind ? 1.0f : 0.0f;
 
 		//parameters voor de reken-shaders
 		rekenPar.grondSchaal 	= grondSchaal;
