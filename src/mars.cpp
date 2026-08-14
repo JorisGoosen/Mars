@@ -538,8 +538,8 @@ int main(int argc, char ** argv)
 	float		grondSchaal		= 1.0,
 				verdamping		= 0.0001f;
 	float						zonKracht		= 30.0f,
-				rotatieOmega	= 0.003f,   //dag/nacht langzaam (minder zonne-flikker)
-				coriolisOmega	= 0.1f,     //Coriolis-rotatie; losgekoppeld van dag/nacht
+				rotatieOmega	= 0.009f,   //dag/nacht (3x sneller dan 0.003)
+				coriolisOmega	= 0.0f,     //Coriolis-rotatie; losgekoppeld van dag/nacht (standaard uit)
 				wrijving		= 0.05f,
 				diffusie		= 0.02f,
 				verwarmtijd		= 0.5f;
@@ -624,11 +624,11 @@ int main(int argc, char ** argv)
 					std::cout << "Je hebt op ] gedrukt: de dag-en-nachtsnelheid is nu " << rotatieOmega << "." << std::endl;
 					break;
 				case GLFW_KEY_G:
-					coriolisOmega = glm::max(0.0f, coriolisOmega - 0.02f);
+					coriolisOmega = glm::max(0.0f, coriolisOmega - 0.001f);
 					std::cout << "Je hebt op G gedrukt: de Coriolis-sterkte is nu " << coriolisOmega << "." << std::endl;
 					break;
 				case GLFW_KEY_H:
-					coriolisOmega = glm::min(2.0f, coriolisOmega + 0.02f);
+					coriolisOmega = glm::min(2.0f, coriolisOmega + 0.001f);
 					std::cout << "Je hebt op H gedrukt: de Coriolis-sterkte is nu " << coriolisOmega << "." << std::endl;
 					break;
 				case GLFW_KEY_U:

@@ -12,7 +12,7 @@ const tijdVerschil    = 0.1;
 const zwaartekracht   = 0.8;
 const pijpDoorsnee    = 0.5;
 const pijpLengte      = 1.0;
-const oplosheid       = 0.15;  //hoe snel water materiaal oplost/erodeert
+const oplosheid       = 0.60;  //hoe snel water materiaal oplost/erodeert (4x de vorige 0.15)
 const bezinkheid      = 0.30;  //hoe snel materiaal weer bezinkt (sedimentatie; verdubbeld)
 const droesemheid     = 0.45;
 const vertrager       = 1.0 / 3.0;
@@ -51,7 +51,7 @@ const maxLuchtVocht  = 1.0e12;
 //atmosferische vochtigheid (advectie door de wind, regent uit boven verzadiging
 //en op bergflanken).
 const veldCapaciteit    = 0.5; //max. bodemvocht dat een cel kan vasthouden
-const infiltratie       = 0.003; //fractie staand water dat per ronde de grond in zakt (10x trager)
+const infiltratie       = 0.0003; //fractie staand water dat per ronde de grond in zakt (10x lager)
 const evapotranspiratie = 0.05; //hoe snel vochtige grond verdroogt naar droge lucht
 const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekbegrenzer)
 
@@ -85,6 +85,7 @@ const broeikasK       = 96.0;   //CO2-groeikaseffect: verhoogt de effectieve hem
 const drukKracht     = 0.8;    //drukgradiëntkracht-coëfficiënt (wind versnelling)
 const drukRelax      = 0.05;   //hoe snel de druk naar het thermische evenwicht zakt
 const drukDiffusie   = tempDiffusie; //extra gladstrijken van de druk (gelijk aan de T-diffusie)
+const rotatieWind    = 2.0;  //vaste zonale (oostwaartse) basiswind evenaar-sterk, polen 0 (vertegenwoordigt planeetrotatie)
 const minLuchtdruk   = 0.2;    //klemmen op de druk zodat P>0 blijft
 const maxLuchtdruk   = 5.0;
 

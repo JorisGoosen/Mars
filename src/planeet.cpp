@@ -175,36 +175,26 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	
 	vector<sorteerDit> sorteerDeze;
 
-	//Bepaal de buur die het meeste naar het noorden ligt, gaan we vanaf daar buren bepalen
-	vec3 	noordPool 	= vec3(0, 1, 0);
-	float 	meestNoord	= length(noordPool - midden);
-	int		buurNoord	= -1; //oftwel midden
+	//Gladde, grid-onafhankelijke tangentbasis uit de WARE rotatie-as (geografische
+	//noordpool) i.p.v. uit de noordelijkste BUUR. De oude "noord"-richting (naar de
+	//meest-noordelijke buur) volgde de icosahedron-structuur en gaf een grid-afwijking
+	//in alle windrichtingen/drukgradiënten (zie de 5/6-voudige vlekken in druk en
+	//wolkafbuiging). east = zonale/rotatierichting, noordT = raaklijn naar de noordpool.
+	vec3 	omhoog	= _vakMetas[ID].normaal.xyz();
+	vec3 	noordAs	= vec3(0.0f, 1.0f, 0.0f);
+	vec3 	east	= normalize(cross(noordAs, omhoog));
+	if(length(east) < 1.0e-4f)                 //pool-degeneratie: kies een richting loodrecht
+		east = normalize(cross(vec3(0.0f, 0.0f, 1.0f), omhoog));
+	vec3 	noordT	= normalize(cross(omhoog, east));
 
-	for(size_t i=0; i<buren.size(); i++)
-	{
-		float mijnNoord = length(noordPool - buren[i]);
-
-		if(mijnNoord > meestNoord)
-		{
-			meestNoord 	= mijnNoord;
-			buurNoord	= i;
-		}
-	}
-
-	vec3 	omhoog	= _vakMetas[ID].normaal.xyz(),
-			noord 	= buurNoord != -1 ? normalize(buren[buurNoord] -  midden) : vec3(0.0f, 1.0f, 0.0f),
-			west	= cross(noord, omhoog);
-
-//	std::cout << "noord: " << noord << "\twest: " << west << "\tomhoog: " << omhoog << std::endl;
-	
 	for(size_t i=0; i<_vakMetas[ID].burenAantal; i++)
 	{
 		vec3 relatief = normalize(buren[i] - midden);
 		sorteerDeze.push_back(
 			sorteerDit(
 				_vakMetas[ID].buren[i], 
-				acos(dot(noord, relatief)),
-				normalize(vec2(dot(west, relatief), dot(noord, relatief)))
+				acos(dot(noordT, relatief)),
+				normalize(vec2(dot(east, relatief), dot(noordT, relatief)))
 			)
 		);
 	}

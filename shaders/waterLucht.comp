@@ -155,7 +155,10 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //---- evapotranspiratie: vochtige bodem verdroogt naar droge lucht ----
     //Conservatief: damp krijgt nooit meer dan de bodem écht inlevert (min met de
     //beschikbare bodemvocht), zodat er nooit vocht uit het niets ontstaat.
-    let verdroogt = luchtAan * evapotranspiratie * vakken1[ID].bodemVocht * max(0.0, verzadiging - damp);
+    //Geschaald met reken.verdamping / 0.0001, zodat de K/L-toets óók de
+    //bodemverdamping raakt (anders bleven er wolken komen als verdamping=0).
+    let evapot = evapotranspiratie * reken.verdamping / 0.0001;
+    let verdroogt = luchtAan * evapot * vakken1[ID].bodemVocht * max(0.0, verzadiging - damp);
     var bodemVochtNieuw = vakken1[ID].bodemVocht;
     if(verdroogt > zeerKlein) {
         let af = min(verdroogt, bodemVochtNieuw);

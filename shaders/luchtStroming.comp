@@ -18,12 +18,13 @@
 //(grootschalige, samenhangende) circulatie-ellipsen/banden ontstaan i.p.v. dat
 //élke cel tegelijk tegen de cap maxWindsnel wordt geperst (waar de richtingen
 //onderling uitmiddelen tot ~0 en de wolken niets om te dragen hebben).
-const winddemping  = 0.35;   //fractie wind die per ronde door wrijving remt (groter = rustiger/gebalanceerd)
-const maxWindsnel  = 2.0;    //abs. windsnelheidsgrens; bewust onder de evenwichtssnelheid zodat het veld nooit vol raakt
-const windDiffusie = 0.45;   //hoe sterk de wind naar het buurgemiddelde toe smoort (verwijdert grid-ruis → coherente banden)
-const drukGevolg   = 0.04;   //hoe sterk wind-divergentie de druk verandert
+const winddemping  = 0.15;   //fractie wind die per ronde door wrijving remt (groter = rustiger/gebalanceerd)
+const maxWindsnel  = 10.0;    //abs. windsnelheidsgrens
+const windDiffusie = 0.1;   //hoe sterk de wind naar het buurgemiddelde toe smoort (verwijdert grid-ruis → coherente banden)
+const drukGevolg   = 0.1;   //hoe sterk wind-divergentie de druk verandert
 const coriolisKracht = 3.0; //schaal van de Coriolis-afbuiging (laat geostrofisch evenwicht + jets ontstaan)
-const terrainKracht  = 0.15; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
+const terrainKracht  = 0.3; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
+const rotatieK       = 0.5; //hoe sterk de wind naar de rotatiewind wordt getrokken (zichtbare co-rotatie)
 
 //Temperatuur en druk advecteren veel zwakker mee dan het vocht: alleen een zachte
 //meetrek-beweging (sub-cel), zodat de diffusie/uitstraling kan overheersen en er
@@ -62,6 +63,14 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let ins     = pow(max(0.0, clamp(dot(hier, zon), 0.0, 1.0)), 2.0);
     let noord   = vec3f(0.0, 1.0, 0.0);              //vaste geografische rotatie-as
     let breedte = clamp(dot(hier, noord), -1.0, 1.0); //+1 = noordpool
+    //Zonale profiel: 1 aan de evenaar, 0 aan de polen. Bepaalt zowel de vaste
+    //rotatiewind als het Coriolis-veld (max aan de evenaar, niets aan de polen).
+    let zonal = sqrt(max(0.0, 1.0 - breedte * breedte));
+
+    //Vaste, kleine basiswind die de planeetrotatie vertegenwoordigt: oostwaarts
+    //(positieve eerste raakvlak-component = draairichting), evenaar-sterk, polen 0.
+    //Gated achter luchtAan, zodat --zonder-atmosfeer écht windstil blijft.
+    let V_rot = vec2f(rotatieWind * zonal, 0.0) * luchtAan;
 
     //Echte energiebalans (geen breedte-verzonnen evenwicht meer):
     // 1) zoninstraling met invalshoek (ins = cos van de zonhoogte; scherende
@@ -157,13 +166,12 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         + tempDiffusie * (somT - T_adv),
         luchtAan > 0.0);
 
-    //Coriolis: f = 2 Omega * breedte; 90°-draaiing in het raakvlak.
-    //Eigen coëfficiënt (coriolisKracht) zodat de Coriolis-kromming zichtbaar wordt
-    //zonder dat de demping hem wegveegt. In het (west, noord)-raakvlak is de 90°-
-    //draaiing "-draaiing (-V.y, V.x)". Let op: de lokale noord-as van het raakvlak
-    //(buurRicht.y, zie planeet.cpp) wijst naar het ZUIDEN; met deze rotatie én die
-    //noord-conventie bloeft de druk noord/zuid evenwichtig (geen pool-cirkulatie).
-    let fgeo = 2.0 * reken.atmosfeer.y * breedte;
+    //Coriolis: f = 2 Omega * zonal; max aan de evenaar, niets aan de polen (i.p.v.
+    //2 Omega * breedte dat polair versterkte en poolkolken maakte). 90°-draaiing
+    //in het raakvlak. In het (west, noord)-raakvlak is de 90°-draaiing
+    //"-draaiing (-V.y, V.x)". Let op: de lokale noord-as van het raakvlak
+    //(buurRicht.y, zie planeet.cpp) wijst naar het ZUIDEN.
+    let fgeo = 2.0 * reken.atmosfeer.y * zonal;
     let cor  = vec2f(-V0.y, V0.x) * fgeo * coriolisKracht;
 
     //Terrein-forcering: het vaste hoogteveld buigt de stroming om bergen/flanken
@@ -177,7 +185,8 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
            - drukKracht * gradiënt                     //drukgradiëntkracht
            + cor                                         //coriolis
            + terreinForce                                 //terrein (wervels/omleiding)
-           - winddemping * V0                             //Rayleigh-wrijving (sterk)
+           - winddemping * (V0 - V_rot)                 //Rayleigh-wrijving richting de rotatiewind (co-rotatie)
+           + rotatieK * (V_rot - V0)                     //sterke attractor: evenaar haalt de volle rotatiewind
            + windDiffusie * (somW - V0);                 //diffusie: smoot de wind tot grootschalige, coherente stroming
 
     //abs. begrenzing van de wind
