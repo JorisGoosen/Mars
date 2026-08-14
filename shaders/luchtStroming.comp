@@ -54,11 +54,12 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //---- zonne-verwarming (zon vast in modelruimte; de planeet draait) ----
     let zon     = normalize(reken.zonRicht.xyz);
-    //Instralingshoek: vergelijk de normaal van de cel met de invalsrichting van het
-    //licht. Als nagelrecht tegenover het licht staat (dot==-1) is de instraling
-    //maximaal; zodra de normaal weg of haaks op het licht staat (dot>=0) is er geen
-    //instraling meer. Kwadratisch, zodat scherende straling snel afvalt.
-    let ins     = pow(max(0.0, clamp(dot(-hier, zon), 0.0, 1.0)), 4.0);
+    //Instralingshoek: vergelijk de normaal van de cel (naar buiten) met de
+    //invalsrichting van het licht. Als de normaal naar de zon wijst (dot==+1) is de
+    //instraling maximaal; zodra de normaal weg of haaks op het licht staat (dot<=0)
+    //is er geen instraling meer. Kwadratisch, zodat scherende straling relatief
+    //zacht afvalt (minder extreme lokale hotspots).
+    let ins     = pow(max(0.0, clamp(dot(hier, zon), 0.0, 1.0)), 2.0);
     let noord   = vec3f(0.0, 1.0, 0.0);              //vaste geografische rotatie-as
     let breedte = clamp(dot(hier, noord), -1.0, 1.0); //+1 = noordpool
 
@@ -98,24 +99,27 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //een cel nooit meer wegstuurt dan hij bezit (geen onder-uitschot).
     var netT = 0.0;
     var netP = 0.0;
-    var fluxenT = 0.0;
-    var fluxenP = 0.0;
+    var minTN = T0; var maxTN = T0;
+    var minPN = P0; var maxPN = P0;
     for(var av = 0u; av < burenAantal && av < maxBuren; av++) {
         let avU  = windU(ID, av);
         let avNb = vakMetas[ID].buren[av];
         let c    = dtAdvPerL() * TPAdvectieZwakte;
-        let Tdon = select(vakken0[avNb].temperatuur, T0, avU >= 0.0);
-        let Pdon = select(vakken0[avNb].luchtdruk,   P0, avU >= 0.0);
+        let Tnb  = vakken0[avNb].temperatuur;
+        let Pnb  = vakken0[avNb].luchtdruk;
+        let Tdon = select(Tnb, T0, avU >= 0.0);
+        let Pdon = select(Pnb, P0, avU >= 0.0);
         netT -= avU * Tdon * c;
         netP -= avU * Pdon * c;
-        fluxenT += max(0.0, avU) * Tdon * c;
-        fluxenP += max(0.0, avU) * Pdon * c;
+        minTN = min(minTN, Tnb); maxTN = max(maxTN, Tnb);
+        minPN = min(minPN, Pnb); maxPN = max(maxPN, Pnb);
     }
-    let KT = fluxK(T0, fluxenT);
-    let KP = fluxK(P0, fluxenP);
-    //beperk alleen de uitgaande flux (outflow) terug; binnenkomende blijft ongemoeid
-    let T_adv = T0 + netT + (1.0 - KT) * fluxenT;
-    let P_adv = P0 + netP + (1.0 - KP) * fluxenP;
+    //Monotone flux-limiter: klemm de geadveteerde waarde op het buurbereik (inclusief
+    //zichzelf), zodat er nooit NIEUWE extremen ontstaan => onvoorwaardelijk stabiel
+    //(geen zelfversterkende hete/koude clusters). Behoud van de middeling blijft behouden
+    //zolang de limiter enkel overshoot afknipt; dit is de FCT-achtige garantie.
+    let T_adv = clamp(T0 + netT, minTN, maxTN);
+    let P_adv = clamp(P0 + netP, minPN, maxPN);
 
     //---- wind: drukgradiënt + Coriolis + wrijving + diffusie + terrein ----
     var somW     = vec2f(0.0);
