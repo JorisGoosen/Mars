@@ -423,6 +423,7 @@ int main(int argc, char ** argv)
 	scherm.maakRekenShader(	"grondGelijkmaker", "shaders/grondGelijkmaker.comp"										);
 	scherm.maakRekenShader(	"waterGemiddelde", 	"shaders/waterGemiddelde.comp"											);
 	scherm.maakRekenShader(	"luchtStroming", 	"shaders/luchtStroming.comp"											);
+	scherm.maakRekenShader(	"vochtStroming", 	"shaders/vochtStroming.comp"											);
 	scherm.maakRekenShader(	"waterLucht", 		"shaders/waterLucht.comp"												);
 
 	scherm.zetWeergaveKleur(0, 0, 0, 1);
@@ -925,6 +926,7 @@ int main(int argc, char ** argv)
 				scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("luchtStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
+				scherm.doeRekenVerwerker("vochtStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("waterLucht", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				geo->volgendeRonde();
 			}

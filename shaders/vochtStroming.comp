@@ -1,0 +1,51 @@
+//WGSL reken-shader die de vochtadvectie FLUXVORMIG (behoudend) uitrekent.
+//
+//De damp (luchtVocht) en het wolkwater reizen met de wind als één gezamenlijke
+//luchtcel mee — dezelfde face-snelheid (windU) als temperatuur/druk in
+//luchtStroming. Per rand wordt een richtingsgebonden, upwind flux teruggestoken
+//in de vochtpijpen (vochtPijpenA = damp, vochtPijpenB = wolken), precies zoals de
+//waterpijpen in waterStroming. Daarna sommeert waterLucht de netto-instroming uit
+//beide uiteinden van elke pijp, wat per rand antisymmetrisch is: de totale som van
+//damp+wolk over de hele planeet blijft exact constant (geen "water bij").
+//
+//Per scalar een eigen claim-limit (K) die alleen de uitgaande flux beperkt, zodat
+//een donercel nooit meer wegstuurt dan hij bezit en de vochtwaarde nooit negatief
+//wordt zonder dat de massa door clampen verloren gaat.
+#include "planeetDefinities.wgsl"
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
+
+    let burenAantal = vakMetas[ID].burenAantal;
+    let damp0 = vakken0[ID].luchtVocht;
+    let wolk0 = vakken0[ID].wolken;
+
+    var fluxenDamp = 0.0;
+    var fluxenWolk = 0.0;
+    let c = dtAdvPerL();
+
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        let u = windU(ID, buur);
+
+        //Richtingsgebonden, upwind flux van id naar buur (alleen stroming weg van id).
+        let uit = max(0.0, u);
+        let fDamp = uit * damp0 * c;
+        let fWolk = uit * wolk0 * c;
+        vakken1[ID].vochtPijpenA[buur] = fDamp;
+        vakken1[ID].vochtPijpenB[buur] = fWolk;
+        fluxenDamp += fDamp;
+        fluxenWolk += fWolk;
+    }
+
+    //Eigen claim-limit per scalar: beperk de uitgaande flux tot eigen voorraad.
+    let KA = fluxK(damp0, fluxenDamp);
+    let KB = fluxK(wolk0, fluxenWolk);
+
+    for(var buur2 = 0u; buur2 < burenAantal && buur2 < maxBuren; buur2++) {
+        vakken1[ID].vochtPijpenA[buur2] *= KA;
+        vakken1[ID].vochtPijpenB[buur2] *= KB;
+    }
+}

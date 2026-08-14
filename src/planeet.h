@@ -30,7 +30,9 @@ struct vak
 				luchtdruk	,
 				wolken		,
 				padLucht	, //opvulling zodat de vec2's hierna op een 8-voud beginnen (WGSL-align)
-				pijpen[6]	;
+				pijpen[6],
+				vochtPijpenA[6], //flux van damp per buur (behoudend)
+				vochtPijpenB[6]; //flux van wolken per buur (behoudend)
 	glm::vec2	snelheid	;
 	glm::vec2	wind		; //atmosferische wind in het lokale raakvlak (west, noord)
 	glm::vec2	plek		; //opgetelde snelheden, om water mee te tekenen

@@ -127,6 +127,8 @@ struct vak {
     wolken      : f32,
     padLucht    : f32,
     pijpen      : array<f32, maxBuren>,
+    vochtPijpenA : array<f32, maxBuren>, //flux van damp (luchtVocht) per buur, behoudend
+    vochtPijpenB : array<f32, maxBuren>, //flux van wolken per buur, behoudend
     snelheid    : vec2f,
     wind        : vec2f,
     plek        : vec2f,

@@ -25,6 +25,12 @@ const drukGevolg   = 0.04;   //hoe sterk wind-divergentie de druk verandert
 const coriolisKracht = 3.0; //schaal van de Coriolis-afbuiging (laat geostrofisch evenwicht + jets ontstaan)
 const terrainKracht  = 0.15; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
 
+//Temperatuur en druk advecteren veel zwakker mee dan het vocht: alleen een zachte
+//meetrek-beweging (sub-cel), zodat de diffusie/uitstraling kan overheersen en er
+//geen fijnschalige draaikolken/ruis in T/P ontstaan. Het vocht (damp/wolk) advecteert
+//voluit via vochtStroming; hier voldoet een zwakke druk/waarde meebewegen.
+const TPAdvectieZwakte = 0.12;
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid : vec3u) {
     let ID = gid.x;
@@ -84,12 +90,32 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //tracer gebruiken) een eigen, losgekoppeld pad volgden. Nu volgen T en P dézelfde
     //multi-cel achterwaartse traject-interpolatie als het vocht in waterLucht, zodat
     //temperatuur, druk én wolken met één samenhangend luchtpakket meereizen.
-    let traject = advecteerTraject(ID, V0, clamp(length(V0) * tijdVerschil * advectieSnelheid, 0.0, 12.0));
-    let advBron  = u32(traject.x);
-    let advBron2 = u32(traject.y);
-    let advFrac  = traject.z;
-    let T_adv = mix(vakken0[advBron].temperatuur, vakken0[advBron2].temperatuur, advFrac);
-    let P_adv = mix(vakken0[advBron].luchtdruk,   vakken0[advBron2].luchtdruk,   advFrac);
+    //---- advectie van T en P met de wind (fluxvormig, donor-cel) ----
+    //Eén gezamenlijke "luchtcel" verplaatst zich: temperatuur en druk reizen met
+    //díézelfde face-snelheid (windU) als het vocht in vochtStroming, zodat alle
+    //atmosferische grootheden als één gemengd luchtpakket meebewegen. Elke scalar
+    //heeft een eigen claim-limit (K) die alleen de UITGAANDE flux beperkt, zodat
+    //een cel nooit meer wegstuurt dan hij bezit (geen onder-uitschot).
+    var netT = 0.0;
+    var netP = 0.0;
+    var fluxenT = 0.0;
+    var fluxenP = 0.0;
+    for(var av = 0u; av < burenAantal && av < maxBuren; av++) {
+        let avU  = windU(ID, av);
+        let avNb = vakMetas[ID].buren[av];
+        let c    = dtAdvPerL() * TPAdvectieZwakte;
+        let Tdon = select(vakken0[avNb].temperatuur, T0, avU >= 0.0);
+        let Pdon = select(vakken0[avNb].luchtdruk,   P0, avU >= 0.0);
+        netT -= avU * Tdon * c;
+        netP -= avU * Pdon * c;
+        fluxenT += max(0.0, avU) * Tdon * c;
+        fluxenP += max(0.0, avU) * Pdon * c;
+    }
+    let KT = fluxK(T0, fluxenT);
+    let KP = fluxK(P0, fluxenP);
+    //beperk alleen de uitgaande flux (outflow) terug; binnenkomende blijft ongemoeid
+    let T_adv = T0 + netT + (1.0 - KT) * fluxenT;
+    let P_adv = P0 + netP + (1.0 - KP) * fluxenP;
 
     //---- wind: drukgradiënt + Coriolis + wrijving + diffusie + terrein ----
     var somW     = vec2f(0.0);

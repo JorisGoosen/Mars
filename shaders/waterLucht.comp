@@ -30,25 +30,30 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //geen wind, geen verdamping en geen neerslag; het water stroomt alleen nog.
     let luchtAan = select(0.0, 1.0, reken.atmosfeer.x > 0.0);
 
-    //---- de verse wind en temperatuur van deze ronde (uit luchtStroming) ----
+    //---- verse wind en temperatuur van deze ronde (uit luchtStroming) ----
     let wind = vakken1[ID].wind;
-    //Afstand die het vocht in deze ronde met de wind meereist, in cel-eenheden.
-    //Semi-Lagrangiaans: we volgen de wind terug over meerdere cellen i.p.v. één
-    //donorcel mengen, zodat wolken visueel coherent meetrekken met de luchtstroom.
-    //advectieSnelheid is gedeeld met de T/P-advectie in luchtStroming, zodat vocht,
-    //wolken en temperatuur/druk altijd als één luchtpakket even hard meereizen.
-    let afstand = clamp(length(wind) * tijdVerschil * advectieSnelheid, 0.0, 12.0);
-    let T = vakken1[ID].temperatuur;
+    let T    = vakken1[ID].temperatuur;
 
-    //---- advectie van damp en wolkwater met de wind (semi-Lagrangiaans) ----
-    let traject = advecteerTraject(ID, wind, afstand);
-    let opId = u32(traject.x);
-    let opId2 = u32(traject.y);
-    let frac = traject.z;
-    let dampOp  = mix(vakken0[opId].luchtVocht, vakken0[opId2].luchtVocht, frac);
-    let wolkOp  = mix(vakken0[opId].wolken,     vakken0[opId2].wolken,     frac);
-    let dampAan = dampOp;
-    let wolkAan = wolkOp;
+    //---- advectie van damp en wolkwater met de wind (fluxvormig, behoudend) ----
+    //vochtStroming heeft per rand de upwind flux al in de vochtpijpen gezet (met
+    //dezelfde face-snelheid als T/P in luchtStroming, dus één gezamenlijke luchtcel).
+    //Hier sommeert elke cel de NETTO-instroming: pijp van de buur-zijde min eigen
+    //pijp, per rand antisymmetrisch, zodat de totale damp+wolk exact behouden blijft.
+    var netDamp = 0.0;
+    var netWolk = 0.0;
+    for(var fv = 0u; fv < burenAantal && fv < maxBuren; fv++) {
+        let nb = vakMetas[ID].buren[fv];
+        let nbAantal = vakMetas[nb].burenAantal;
+        for(var rv = 0u; rv < nbAantal && rv < maxBuren; rv++) {
+            if(vakMetas[nb].buren[rv] == ID) {
+                netDamp += vakken1[nb].vochtPijpenA[rv] - vakken1[ID].vochtPijpenA[fv];
+                netWolk += vakken1[nb].vochtPijpenB[rv] - vakken1[ID].vochtPijpenB[fv];
+                break;
+            }
+        }
+    }
+    let dampAan = vakken0[ID].luchtVocht + netDamp;
+    let wolkAan = vakken0[ID].wolken + netWolk;
 
     //---- verzadiging uit de temperatuur (+ hoogte + orografie) ----
     let oppervlak = vakken0[ID].grondHoogte + vakken0[ID].waterHoogte;
@@ -148,11 +153,14 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     damp += stoom;
 
     //---- evapotranspiratie: vochtige bodem verdroogt naar droge lucht ----
+    //Conservatief: damp krijgt nooit meer dan de bodem écht inlevert (min met de
+    //beschikbare bodemvocht), zodat er nooit vocht uit het niets ontstaat.
     let verdroogt = luchtAan * evapotranspiratie * vakken1[ID].bodemVocht * max(0.0, verzadiging - damp);
     var bodemVochtNieuw = vakken1[ID].bodemVocht;
     if(verdroogt > zeerKlein) {
-        bodemVochtNieuw = max(0.0, bodemVochtNieuw - verdroogt);
-        damp += verdroogt;
+        let af = min(verdroogt, bodemVochtNieuw);
+        bodemVochtNieuw = bodemVochtNieuw - af;
+        damp += af;
     }
 
     vakken1[ID].waterHoogte = goed(waterNieuw,  vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);

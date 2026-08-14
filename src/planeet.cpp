@@ -7,9 +7,10 @@
 const float minGrondHoogte = 10.0f;
 const float maxGrondHoogte = 200.0f;
 
-//De vak-struct moet byte-gelijk zijn aan de WGSL-struct (104 bytes). Laat het
-//compileren falen als iemand straks een veld toevoegt zonder de layout te fixen.
-static_assert(sizeof(vak) == 104, "vak-struct moet 104 bytes groot zijn (gelijk aan WGSL)");
+//De vak-struct moet byte-gelijk zijn aan de WGSL-struct (152 bytes: 104 + 2x24
+//voor de vochtpijpen). Laat het compileren falen als iemand straks een veld
+//toevoegt zonder de layout te fixen.
+static_assert(sizeof(vak) == 152, "vak-struct moet 152 bytes groot zijn (gelijk aan WGSL)");
 
 
 using namespace glm;

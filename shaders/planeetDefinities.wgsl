@@ -40,54 +40,33 @@ fn kolom(id : u32) -> f32 {
     return vakken0[id].grondHoogte + vakken0[id].ijs + (waterHoogte + min(waterHoogte * maxDichtheid, vakken0[id].droesem));
 }
 
+//Transportconstante: welke fractie van een cel per ronde met 1 eenheid face-snelheid
+//meereist. Dezelfde constante wordt gebruikt voor temperatuur, druk, damp en wolken,
+//zodat ze als één (gemengde) luchtcel meebewegen.
+fn dtAdvPerL() -> f32 {
+    return (tijdVerschil * advectieSnelheid) / pijpLengte;
+}
+
+//Symmetrische face-snelheid over de rand id→buur (>0 = stroming van id naar buur).
+//Van beide uiteinden van dezelfde rand ANTISYMMETRISCH: windU(nb→id) = -windU(id→nb),
+//want het gebruikt de gemiddelde wind geprojecteerd op de richting-vector, en van de
+//andere zijde is die richting tegengesteld. Daardoor is de resulterende flux per rand
+//exact behoudend (wat wegstroomt komt bij de buur aan) en wordt er geen vocht gecreëerd.
+//Gebruikt de oude wind (vakken0) zodat alle grootheden in dezelfde ronde reizen.
+fn windU(id : u32, buur : u32) -> f32 {
+    let e  = vakMetas[id].buurRicht[buur];
+    let nb = vakMetas[id].buren[buur];
+    return dot(e, 0.5 * (vakken0[id].wind + vakken0[nb].wind));
+}
+
+//Monotoonheids-/claim-limit per scalar: een cel stuurt nooit meer uit dan hij zelf
+//bezit, zodat uitgaande flux de voorraad nooit overschrijdt (geen onder-uitschot).
+fn fluxK(waarde : f32, fluxen : f32) -> f32 {
+    return min(1.0, max(waarde, 0.0) / max(fluxen, zeerKlein));
+}
+
 fn hoogteBuur(id : u32, water : bool) -> f32 {
     return vakken0[id].grondHoogte + select(0.0, vakken0[id].waterSchijn, water);
-}
-
-//De buur waar de wind vandaan komt (stroomopwaarts), gezocht in het lokale
-//raakvlak: wind is een vec2 (west, noord) en buurRicht[buur] is de richting
-//naar de buur in dezelfde basis. De buur die het meeste TEGEN de wind in ligt
-//is de donor-cel (eerste-orde upwind / semi-Lagrangiaans).
-fn opwaartseBuur(id : u32, wind : vec2f) -> u32 {
-    let n = vakMetas[id].burenAantal;
-    var beste = id;
-    var besteScore = 1.0e30;
-    for(var buur = 0u; buur < n && buur < maxBuren; buur++) {
-        let score = dot(vakMetas[id].buurRicht[buur], wind);
-        if(score < besteScore) {
-            besteScore = score;
-            beste = vakMetas[id].buren[buur];
-        }
-    }
-    return beste;
-}
-
-//Advecteer een scalar met de wind: meng de eigen waarde met die van de
-//stroomopwaartse donor-cel, evenredig aan de windkracht (monotoon, niet-negatief).
-fn advecteerWaarde(id : u32, wind : vec2f, sterkte : f32, eigen : f32, op : f32) -> f32 {
-    let k = clamp(sterkte, 0.0, 1.0);
-    return mix(eigen, op, k);
-}
-
-//Semi-Lagrangiaanse advectie: volg de wind terug (stroomopwaarts) over meerdere
-//cellen tot de afstand 'afstand' (in cel-eenheden, kan fractioneel zijn) op is,
-//en lever de twee laatste cellen van de traject plus de resterende fractie.
-//De aanroeper interpoleert zelf over de juiste velden (damp/wolken/enz.).
-//Retour = (laatsteBron, daar de donor, fractie in [0,1)).
-fn advecteerTraject(id : u32, wind : vec2f, afstand : f32) -> vec3f {
-    var bron : u32 = id;
-    var over = max(afstand, 0.0);
-    var teller = 0u;
-    //loop maximaal enkele cellen (beperk de kracht van één windstoot)
-    while(over >= 1.0 && teller < 6u) {
-        let donor = opwaartseBuur(bron, wind);
-        if(donor == bron) { break; }
-        bron = donor;
-        over -= 1.0;
-        teller++;
-    }
-    let donor = opwaartseBuur(bron, wind);
-    return vec3f(f32(bron), f32(donor), clamp(over, 0.0, 1.0));
 }
 
 fn vakHoogte(id : u32, water : bool) -> f32 {
