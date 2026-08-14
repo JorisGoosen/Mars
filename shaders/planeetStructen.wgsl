@@ -77,9 +77,9 @@ const maxBuren = 6u;
 //rotatie-omega, wrijving, diffusie); onderstaande zijn de fysische constanten.
 const luchtBaseTemp   = 250.0;  //start/referentietemperatuur (K) van de lucht
 const lapseKoeling    = 30.0;   //gematigde koeling per genormaliseerde hoogtelaag
-const opnameTempo     = 0.10;   //hoe snel zonne-energie de lucht opwarmt
+const opnameTempo     = 0.30;   //hoe snel zonne-energie de lucht opwarmt
 const stralingKracht  = 0.025;  //hoe snel de planeet afkoelt naar het omringende (uitstraling)
-const tempDiffusie    = 0.5; //hoe snel de temperatuur zich over de buren verdeelt (10x de vorige 0.05)
+const tempDiffusie    = 0.2; //temperatuur gladstrijken (stabiel: monotone limiter vangt clusters op)
 const ruimteK         = 180.0;  //effectieve hemeltemperatuur (K) zonder broeikas
 const broeikasK       = 96.0;   //CO2-groeikaseffect: verhoogt de effectieve hemel-T
 const drukKracht     = 0.8;    //drukgradiëntkracht-coëfficiënt (wind versnelling)
