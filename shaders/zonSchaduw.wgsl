@@ -9,6 +9,9 @@
 //de rand van de planeet net buiten de kaart valt (alles buiten de kaart = verlicht).
 
 const schaduwBias = 0.0002;   //diepte-marge tegen zelf-schaduw (acne), in genormaliseerde diepte
+const schaduwEpsilon = 0.005; //caster-oppervlak wordt langs de zon teruggeduwd (render-eenheden),
+                              //zodat een oppervlak nooit zijn eigen diepte bemonstert; echte
+                              //occluders dieper dan epsilon werpen nog steeds schaduw.
 const schaduwMarge = 1.02;    //marge rond de planeet voor het orthografische kader
 
 //Deterministische orthonormale basis (u, v, zon) loodrecht op de zonrichting.
@@ -39,9 +42,12 @@ fn zonProjectie(p : vec3f, zon : vec3f, straal : f32) -> vec3f {
     );
 }
 
-//Van schaduwruimte naar textuur-coordinaten [0, 1].
+//Van schaduwruimte naar textuur-coordinaten [0, 1]. LET OP: NDC y=+1 landt in
+//texel-rij 0 (boven), dus de v-as moet omklappen t.o.v. pr.y — anders bemonstert
+//elke lookup de noord-zuid-spiegelbeeldkant van de kaart (schaduw op de verkeerde
+//helft van de planeet).
 fn zonSchaduwUV(pr : vec3f) -> vec2f {
-    return vec2f(pr.x * 0.5 + 0.5, pr.y * 0.5 + 0.5);
+    return vec2f(pr.x * 0.5 + 0.5, 0.5 - pr.y * 0.5);
 }
 
 //1 als het punt buiten het orthografische kader valt (daar is geen schaduw).

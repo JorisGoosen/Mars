@@ -14,8 +14,14 @@ struct vertexIn {
 fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> @builtin(position) vec4f {
     let ID = vertexIndex;
 
+    //IJs ligt bovenop het terrein en werpt dus zelf schaduw: de kaart bevat
+    //grondHoogte + ijs. Vloeibaar water telt niet mee (dat is doorzichtig).
+    let schaduwHoogte = vakken0[ID].grondHoogte + vakken0[ID].ijs;
+
     let zon  = normalize(extra.zonPos.xyz);
-    let hier = in.posV * (vakHoogte(ID, false) / extra.grondMult);
+    //Duw de caster een epsilon van de zon af zodat vlakken die van de zon af kijken
+    //(die zelf in de kaart zitten) hun eigen diepte niet als schaduw lezen.
+    let hier = in.posV * (max(0.001, 1.0 + schaduwHoogte * extra.grondSchaal) / extra.grondMult) - zon * schaduwEpsilon;
     let pr   = zonProjectie(hier, zon, zonStraal(extra.grondMult, extra.grondSchaal, extra.maxGrondHoogte));
 
     return vec4f(pr.x, pr.y, pr.z, 1.0);

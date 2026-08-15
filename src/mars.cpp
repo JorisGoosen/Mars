@@ -460,6 +460,7 @@ static void toonHelp()
 "  --zonder-atmosfeer    houdt de lucht volledig stil (geen wind/verdamping/neerslag)\n"
 "  --zonder-schaduw      zet de schaduwkaart uit (geen terreinschaduwen, volle zoninstraling)\n"
 "  --schaduwGrootte <n>  resolutie van de schaduwkaart (standaard 4096; hoger = scherper, meer geheugen)\n"
+"  --dumpSchaduw <bestand>  dump de rauwe schaduwkaart (diepte) als PNG en stop (debug)\n"
 "  --procedureel         genereer het terrein met ruis i.p.v. de MOLA-hoogtekaart\n"
 "  --diepte <n>          icosahedron-onderverdelingsniveau (standaard 5)\n"
 "  --diagnose            print elke 25 frames de extremen van de reken-stand\n"
@@ -508,6 +509,7 @@ int main(int argc, char ** argv)
 	bool zonRoteert = true;     //of de bezonning (dag/nacht) vooruitloopt
 	bool schaduwAan = true;     //schaduwkaart: visuele schaduwen + zonlicht-benadering in de sim
 	int schaduwGrootte = 4096;  //resolutie van de schaduwkaart (pixels per zijde; 64 MB bij 4096)
+	std::string dumpSchaduwBestand; //--dumpSchaduw <bestand>: dump de rauwe schaduwkaart en stop
 		bool conservatieAan = false; //--conservering <tol%>: controleer of het totale water constant blijft
 		double conservatieTol = 0.01; //relatieve tolerantie op de totale watermassa (standaard 1%)
 		int  conservatieElke = 200;   //om de zoveel frames één meting
@@ -539,6 +541,11 @@ int main(int argc, char ** argv)
 		{
 			if(a + 1 < argc) schaduwGrootte = std::clamp(std::atoi(argv[++a]), 256, 8192);
 			else std::cerr << "--schaduwGrootte verwacht een getal (bijv. --schaduwGrootte 4096)" << std::endl;
+		}
+		else if(vlag == "--dumpSchaduw")
+		{
+			if(a + 1 < argc) dumpSchaduwBestand = argv[++a];
+			else std::cerr << "--dumpSchaduw verwacht een bestandsnaam (bijv. --dumpSchaduw kaart.png)" << std::endl;
 		}
 		else if(vlag == "--procedureel")   procedural = true;
 		else if(vlag == "--diagnose")         diagAan = true;
@@ -960,6 +967,11 @@ int main(int argc, char ** argv)
 			return;
 
 		weergaveInstellingen schaduwInstellingen;
+		//De naar de zon gekeerde vlakken (met deze winding de "front"-vlakken) mogen
+		//niet in de kaart: anders vergelijkt elk oppervlaktepunt met zichzelf en geven
+		//interpolatieverschillen tussen de twee projecties valse schaduwvlakken. Met
+		//cullMode Front blijven alleen de achterkanten over (incl. de van de zon
+		//afgewende flanken die als occluder dienen).
 		schaduwInstellingen.cullMode = WGPUCullMode_Front;
 		scherm.zetWeergaveInstellingen(schaduwInstellingen);
 
@@ -1179,6 +1191,66 @@ int main(int argc, char ** argv)
 		//Eerst de schaduwkaart verversen (de zon draait en het terrein erodeert),
 		//dan pas de weergave-passes en de reken-passes die er allebei uit lezen.
 		doeSchaduwPass();
+
+		//Debug-hulp: dump de rauwe schaduwkaart (diepte, wit = dicht bij de zon) als
+		//PNG en stop meteen — om de kaart zelf te kunnen inspecteren.
+		if(!dumpSchaduwBestand.empty() && frameNummer == 0 && schaduwAan)
+		{
+			const uint32_t N = (uint32_t)schaduwGrootte;
+			const uint32_t bytesPerRij = ((N * 4u + 255u) / 256u) * 256u;
+
+			WGPUBufferDescriptor rb = WGPU_BUFFER_DESCRIPTOR_INIT;
+			rb.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
+			rb.size  = (uint64_t)bytesPerRij * N;
+			WGPUBuffer leesBuf = wgpuDeviceCreateBuffer(apparaat, &rb);
+
+			WGPUTexelCopyTextureInfo bron = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
+			bron.texture  = scherm.textuurId("zonSchaduwKaart");
+			bron.mipLevel = 0;
+			bron.aspect   = WGPUTextureAspect_DepthOnly;
+
+			WGPUTexelCopyBufferInfo dest = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
+			dest.buffer = leesBuf;
+			dest.layout.offset       = 0;
+			dest.layout.bytesPerRow  = bytesPerRij;
+			dest.layout.rowsPerImage = N;
+
+			WGPUExtent3D omvang = { N, N, 1u };
+
+			WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(apparaat, nullptr);
+			wgpuCommandEncoderCopyTextureToBuffer(enc, &bron, &dest, &omvang);
+			WGPUCommandBuffer cmd = wgpuCommandEncoderFinish(enc, nullptr);
+			wgpuQueueSubmit(rij, 1, &cmd);
+			wgpuCommandBufferRelease(cmd);
+			wgpuCommandEncoderRelease(enc);
+
+			shotToestandje toestand;
+			WGPUBufferMapCallbackInfo info = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+			info.mode 	 = WGPUCallbackMode_AllowSpontaneous;
+			info.callback 	= shotVerwerker;
+			info.userdata1 = &toestand;
+			wgpuBufferMapAsync(leesBuf, WGPUMapMode_Read, 0, rb.size, info);
+			while(!toestand.klaar)
+				wgpuInstanceProcessEvents(scherm.instantie());
+
+			const float * diepte = (const float *)wgpuBufferGetMappedRange(leesBuf, 0, rb.size);
+			std::vector<unsigned char> rgba((size_t)N * N * 4);
+			for(uint32_t y = 0; y < N; y++)
+				for(uint32_t x = 0; x < N; x++)
+				{
+					float d = diepte[y * bytesPerRij / 4 + x];
+					unsigned char v = (unsigned char)(std::clamp(1.0f - d, 0.0f, 1.0f) * 255.0f + 0.5f);
+					size_t k = ((size_t)y * N + x) * 4;
+					rgba[k] = rgba[k+1] = rgba[k+2] = v;
+					rgba[k+3] = 255;
+				}
+			wgpuBufferUnmap(leesBuf);
+			wgpuBufferRelease(leesBuf);
+
+			bewaarPNG(dumpSchaduwBestand, N, N, rgba);
+			std::cout << "schaduwkaart -> " << dumpSchaduwBestand << std::endl;
+			return 0;
+		}
 
 		if(!hoofdloos)
 			doeRenderPassen();

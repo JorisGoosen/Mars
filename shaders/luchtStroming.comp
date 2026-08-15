@@ -89,7 +89,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     var zonZicht = 1.0;
     if(reken.schaduw.x > 0.5 && dagKant > 0.0 && reken.schaduw.y > 0.5) {
         let straal = zonStraal(reken.fasen.z, reken.grondSchaal, reken.fasen.y);
-        let plek   = hier * ((1.0 + vakken0[ID].grondHoogte * reken.grondSchaal) / reken.fasen.z);
+        //zelfde oppervlak als de schaduw-pass: terrein + ijs (water telt niet mee)
+        let kolomHoogte = vakken0[ID].grondHoogte + vakken0[ID].ijs;
+        let plek   = hier * ((1.0 + kolomHoogte * reken.grondSchaal) / reken.fasen.z);
         let pr     = zonProjectie(plek, zon, straal);
         zonZicht   = zonSchaduwFactor(pr, reken.schaduw.y);
     }
