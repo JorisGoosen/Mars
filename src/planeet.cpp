@@ -125,7 +125,7 @@ void planeet::burenAlsEigenschapWijzers()
 		}
 		else
 		{
-			_vakken[0][i].waterHoogte 	=  _beginMetWater ? 0.8335f : 0.0f; //10x de oorspronkelijke 0.08335
+			_vakken[0][i].waterHoogte 	=  _beginMetWater ? 8.335f : 0.0f; //10x de oorspronkelijke 0.8335
 			_vakken[0][i].bodemVocht	=  0.0f;
 			_vakken[0][i].luchtVocht	=  0.0f;
 			_vakken[0][i].leven			=  0.0001f;
