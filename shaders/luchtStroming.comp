@@ -144,15 +144,15 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         gradiënt += (vakken0[buurId].luchtdruk - P0) * richt;
         somP     += vakken0[buurId].luchtdruk;
         somT     += vakken0[buurId].temperatuur;
-        div      += dot(V0, richt);
+        div      += dot(vakken0[buurId].wind - V0, richt);
         terreinGrad += (vakken0[buurId].grondHoogte - vakken0[ID].grondHoogte) * richt;
     }
     somW     /= n;
-    gradiënt /= n;
     somP     /= n;
     somT     /= n;
     div      /= n;
-    terreinGrad /= n;
+    let gradP = applyGradWeights(ID, gradiënt);
+    let gradH = applyGradWeights(ID, terreinGrad);
 
     //---- temperatuur-update: warmte erbij (zon), af (uitstraling) + diffusie ----
     //Zonder atmosfeer (reken.atmosfeer.x = 0) blijft de temperatuur stil.
@@ -178,11 +178,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //heen en werkt als een permanente (fysieke) ruisbron. Flow die een helling
     //oversteekt krijgt verticale vorticiteit → benedenstrooms ontstaan kolken en
     //heuvelluwten die door de wind worden meegevoerd.
-    let terreinDruk = clamp(dot(V0, terreinGrad), -1.0, 1.0);
-    let terreinForce = terrainKracht * (terreinGrad * (1.0 + 2.0 * terreinDruk));
+    let terreinDruk = clamp(dot(V0, gradH), -1.0, 1.0);
+    let terreinForce = terrainKracht * (gradH * (1.0 + 2.0 * terreinDruk));
 
     var V1 = V0
-           - drukKracht * gradiënt                     //drukgradiëntkracht
+           - drukKracht * gradP                       //drukgradiëntkracht
            + cor                                         //coriolis
            + terreinForce                                 //terrein (wervels/omleiding)
            - winddemping * (V0 - V_rot)                 //Rayleigh-wrijving richting de rotatiewind (co-rotatie)

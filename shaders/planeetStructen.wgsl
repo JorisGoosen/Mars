@@ -137,6 +137,7 @@ struct vak {
 
 struct vakMeta {
     normaal     : vec4f,
+    gradWeights : vec3f,        //(a,b,c) van de 2×2 correctiematrix M = avgDist · C⁻¹
     buurRicht   : array<vec2f, maxBuren>,
     buren       : array<u32, maxBuren>,
     burenAantal : u32,

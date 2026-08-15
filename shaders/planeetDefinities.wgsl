@@ -25,6 +25,11 @@ fn goedV2(v : vec2f, vervanger : f32, laag : f32, hoog : f32) -> vec2f {
     return vec2f(goed(v.x, vervanger, laag, hoog), goed(v.y, vervanger, laag, hoog));
 }
 
+fn applyGradWeights(id : u32, raw : vec2f) -> vec2f {
+    let w = vakMetas[id].gradWeights;
+    return vec2f(w[0] * raw.x + w[1] * raw.y, w[1] * raw.x + w[2] * raw.y);
+}
+
 fn hoogteverschil(id : u32, buurId : u32) -> f32 {
     //De kolom die stroomt telt het zwevende sediment mee: droesem beweegt zo met
     //het water mee en kan bij depositie nooit boven de (water+droesem)-kolom uitkomen.
@@ -48,10 +53,9 @@ fn dtAdvPerL() -> f32 {
 }
 
 //Symmetrische face-snelheid over de rand id→buur (>0 = stroming van id naar buur).
-//Van beide uiteinden van dezelfde rand ANTISYMMETRISCH: windU(nb→id) = -windU(id→nb),
-//want het gebruikt de gemiddelde wind geprojecteerd op de richting-vector, en van de
-//andere zijde is die richting tegengesteld. Daardoor is de resulterende flux per rand
-//exact behoudend (wat wegstroomt komt bij de buur aan) en wordt er geen vocht gecreëerd.
+//Gebruikt het gemiddelde van beide celwinden voor een gecentreerde (tweede-orde)
+//benadering. De flux-pijpstructuur (vochtPijpenA/B) garandeert behoud doordat elke
+//flux precies één keer als positief en één keer als negatief wordt meegerekend.
 //Gebruikt de oude wind (vakken0) zodat alle grootheden in dezelfde ronde reizen.
 fn windU(id : u32, buur : u32) -> f32 {
     let e  = vakMetas[id].buurRicht[buur];

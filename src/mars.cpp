@@ -10,6 +10,7 @@
 #include <chrono>
 #include <vector>
 #include <cstring>
+#include <algorithm>
 
 //De parameters voor de reken-shaders (bind-groep 0, binding 3). Layout moet matchen
 //met het rekenParameters-struct in shaders/planeetStructen.wgsl (80 bytes).
@@ -159,7 +160,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 	if(t->teller == 0)
 	{
 		uit << "id,x,y,z,grond,rots,water,bodemVocht,leven,droesem,luchtVocht,"
-		       "temperatuur,luchtdruk,windX,windY,wolken,ijs\n";
+		       "temperatuur,luchtdruk,windX,windY,wolken,ijs,asym\n";
 	}
 
 	for(size_t i = 0; i < aantal; i++)
@@ -171,7 +172,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 			<< cel.bodemVocht << "," << cel.leven << "," << cel.droesem << ","
 			<< cel.luchtVocht << "," << cel.temperatuur << "," << cel.luchtdruk << ","
 			<< cel.wind.x << "," << cel.wind.y << "," << cel.wolken << ","
-			<< cel.ijs << "\n";
+			<< cel.ijs << "," << t->geo->buurAsymmetrie(i) << "\n";
 	}
 
 	wgpuBufferUnmap(t->buffer);
@@ -245,6 +246,157 @@ static bool bewaarPNG(const std::string & bestand, int breedte, int hoogte, cons
 	return true;
 }
 
+//Kleurkaarten identiek aan de overlay-shaders (T en V) plus gladStap (smoothstep).
+static float gladStap(float e0, float e1, float x)
+{
+	float t = std::clamp((x - e0) / (e1 - e0), 0.0f, 1.0f);
+	return t * t * (3.0f - 2.0f * t);
+}
+
+static glm::vec3 temperatuurKleurC(float TC)
+{
+	float t = std::clamp((TC - 248.0f) / 50.0f, 0.0f, 1.0f);
+	glm::vec3 blauw(0.2f, 0.35f, 1.0f), groen(0.2f, 0.85f, 0.2f), rood(1.0f, 0.25f, 0.1f);
+	glm::vec3 kleur = glm::mix(blauw, groen, gladStap(0.0f, 0.5f, t));
+	return glm::mix(kleur, rood, gladStap(0.5f, 1.0f, t));
+}
+
+static glm::vec3 windKleurC(const vak & c)
+{
+	float r = std::clamp(c.wind.x / 2.0f * 0.5f + 0.5f, 0.0f, 1.0f);
+	float g = std::clamp(c.wind.y / 2.0f * 0.5f + 0.5f, 0.0f, 1.0f);
+	float b = std::clamp((c.luchtdruk - 0.2f) / 4.8f, 0.0f, 1.0f);
+	return glm::vec3(r, g, b);
+}
+
+static float veldWaardeC(const vak & c, const std::string & veld)
+{
+	if(veld == "druk" || veld == "luchtdruk") return c.luchtdruk;
+	if(veld == "grond" || veld == "hoogte")   return c.grondHoogte;
+	if(veld == "water")    return c.waterHoogte;
+	if(veld == "ijs")      return c.ijs;
+	if(veld == "wolken")   return c.wolken;
+	if(veld == "leven")    return c.leven;
+	if(veld == "droesem")  return c.droesem;
+	if(veld == "bodemvocht") return c.bodemVocht;
+	if(veld == "luchtvocht") return c.luchtVocht;
+	return c.temperatuur;
+}
+
+//--veldKaart: zet de per-cel stand om in een equirectangulaire volledige-planeet
+//heatmap (PNG). De resolutie schaalt mee met de celdichtheid (afgeleid uit het
+//aantal cellen, dus onafhankelijk van --diepte). temperatuur en wind gebruiken
+//dezelfde kleurkaarten als de T- en V-overlays; overige velden worden grijs.
+static void schrijfVeldKaart(const std::string & bestand, const vak * cellen, size_t aantal,
+                             planeet * geo, const std::string & veld)
+{
+	const double PI = 3.14159265358979323846;
+
+	auto waarde = [&](size_t i) -> float {
+		if(veld == "asym") return geo->buurAsymmetrie(i);
+		return veldWaardeC(cellen[i], veld);
+	};
+
+	const bool kleur = (veld == "temperatuur" || veld == "wind");
+	float vmin = 0.0f, vmax = 1.0f;
+	if(!kleur)
+	{
+		vmin = 1.0e30f; vmax = -1.0e30f;
+		for(size_t i = 0; i < aantal; i++)
+		{
+			float v = waarde(i);
+			if(v < vmin) vmin = v;
+			if(v > vmax) vmax = v;
+		}
+		if(vmax - vmin < 1.0e-6f) { vmin = 0.0f; vmax = 1.0f; }
+	}
+
+	double theta = std::sqrt(4.0 * PI / (double)aantal);
+	double cellenRond = 2.0 * PI / theta;
+	int breedte = (int)(cellenRond * 3.4);
+	breedte = std::clamp(breedte, 600, 4800);
+	if(breedte % 2) breedte += 1;
+	int hoogte = breedte / 2;
+
+	double pxPerCel = (double)breedte / cellenRond;
+	int straal = std::max(2, (int)std::ceil(0.75 * pxPerCel));
+
+	std::vector<unsigned char> rgba((size_t)breedte * hoogte * 4, 0);
+
+	for(size_t i = 0; i < aantal; i++)
+	{
+		glm::vec3 p = geo->punt3(i);
+		float plen = glm::length(p);
+		if(plen > 0.0f) p /= plen;
+
+		float lat = std::asin(std::clamp(p.y, -1.0f, 1.0f));
+		float lon = std::atan2(p.x, p.z);
+		int px = (int)std::floor((double)(lon / (2.0 * PI) + 0.5) * breedte);
+		int py = (int)std::floor((double)(0.5 - lat / PI) * hoogte);
+		px = ((px % breedte) + breedte) % breedte;
+		py = std::clamp(py, 0, hoogte - 1);
+
+		glm::vec3 rgb;
+		if(veld == "temperatuur") rgb = temperatuurKleurC(cellen[i].temperatuur);
+		else if(veld == "wind")   rgb = windKleurC(cellen[i]);
+		else
+		{
+			float t = std::clamp((waarde(i) - vmin) / (vmax - vmin), 0.0f, 1.0f);
+			rgb = glm::vec3(t);
+		}
+
+		unsigned char rr = (unsigned char)(std::clamp(rgb.r, 0.0f, 1.0f) * 255.0f + 0.5f);
+		unsigned char gg = (unsigned char)(std::clamp(rgb.g, 0.0f, 1.0f) * 255.0f + 0.5f);
+		unsigned char bb = (unsigned char)(std::clamp(rgb.b, 0.0f, 1.0f) * 255.0f + 0.5f);
+
+		for(int dy = -straal; dy <= straal; dy++)
+		{
+			int qy = py + dy;
+			if(qy < 0 || qy >= hoogte) continue;
+			for(int dx = -straal; dx <= straal; dx++)
+			{
+				if(dx * dx + dy * dy > straal * straal) continue;
+				int qx = px + dx;
+				if(qx < 0) qx += breedte;
+				if(qx >= breedte) qx -= breedte;
+				size_t k = ((size_t)qy * breedte + qx) * 4;
+				rgba[k + 0] = rr; rgba[k + 1] = gg; rgba[k + 2] = bb; rgba[k + 3] = 255;
+			}
+		}
+	}
+
+	if(bewaarPNG(bestand, breedte, hoogte, rgba))
+		std::cout << "veldkaart '" << veld << "' -> " << bestand << " (" << breedte << "x" << hoogte << ")" << std::endl;
+}
+
+struct veldKaartToestandje
+{
+	WGPUBuffer	buffer	= nullptr;
+	size_t		grootte	= 0;
+	planeet	*	geo		= nullptr;
+	bool		klaar	= false;
+	std::string	veld;
+	std::string	bestand;
+};
+
+static void veldKaartVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebruiker1, void * gebruiker2)
+{
+	(void)gebruiker2;
+	veldKaartToestandje * t = (veldKaartToestandje *)gebruiker1;
+	t->klaar = true;
+
+	if(status != WGPUMapAsyncStatus_Success)
+	{
+		std::cerr << "[veldKaart] lezen mislukt (status " << (uint32_t)status << ")" << std::endl;
+		return;
+	}
+
+	const vak * cellen = (const vak *)wgpuBufferGetMappedRange(t->buffer, 0, t->grootte);
+	const size_t aantal = t->grootte / sizeof(vak);
+	schrijfVeldKaart(t->bestand, cellen, aantal, t->geo, t->veld);
+	wgpuBufferUnmap(t->buffer);
+}
+
 struct shotToestandje
 {
 	bool klaar = false;
@@ -296,6 +448,7 @@ static void toonHelp()
 "  --stappen <n>         stop na n rondes (samen met --hoofdloos)\n"
 "  --schermafbeelding <bestand>  render een beeld naar een PNG (handig bij --hoofdloos)\n"
 "  --schermafbeeldingElkeFrames <n>  maak om de n frames een schermafbeelding\n"
+"  --veldKaart <veld> [bestand]  volledige-planeet heatmap als PNG (temperatuur, wind, druk, grond, water, ijs, wolken, ...)\n"
 "  --luchtstappen <n>    sim-stappen per beeld (standaard 1; hoger = ze zichtbaar sneller zie je wolken bewegen)\n"
 "  --stil               bevries alles vanaf het begin (sim, zon- en modelrotatie)\n"
 "  --help, -h            toon deze hulp\n"
@@ -325,6 +478,8 @@ int main(int argc, char ** argv)
 	std::string csvBestand;
 	std::string schermafbeeldingBestand;
 	size_t schermElkeFrames = 0; //0 = alleen de eind-screenshot
+	std::string veldKaartVeld;       //--veldKaart <veld> [bestand]
+	std::string veldKaartBestand;
 	int  luchtStappen = 1;      //aantal atmosfeer-simstappen per beeld (wolken zichtbaar laten bewegen)
 	bool bevroren = false;      //bevriest sim + zonrotatie + modelrotatie
 	bool zonRoteert = true;     //of de bezonning (dag/nacht) vooruitloopt
@@ -392,6 +547,17 @@ int main(int argc, char ** argv)
 		{
 			if(a + 1 < argc) luchtStappen = std::max(1, std::atoi(argv[++a]));
 			else std::cerr << "--luchtstappen verwacht een getal (bijv. --luchtstappen 4)" << std::endl;
+		}
+		else if(vlag == "--veldKaart")
+		{
+			if(a + 1 < argc)
+			{
+				veldKaartVeld = argv[++a];
+				veldKaartBestand = veldKaartVeld + ".png";
+				if(a + 1 < argc && argv[a + 1][0] != '-')
+					veldKaartBestand = argv[++a];
+			}
+			else std::cerr << "--veldKaart verwacht een veldnaam (temperatuur, wind, druk, grond, ...)" << std::endl;
 		}
 		else
 		{
@@ -672,7 +838,7 @@ int main(int argc, char ** argv)
 	//Diagnose/Csv-buffers: aparte leesbare kopieën om de stand terug te lezen
 	const size_t diagGrootte = geo->aantalVakjes() * sizeof(vak);
 	WGPUBuffer diagLees = nullptr;
-	if(diagAan || !csvBestand.empty() || conservatieAan)
+	if(diagAan || !csvBestand.empty() || conservatieAan || !veldKaartBestand.empty())
 	{
 		WGPUBufferDescriptor leesBeschrijving = WGPU_BUFFER_DESCRIPTOR_INIT;
 		leesBeschrijving.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
@@ -1088,6 +1254,34 @@ int main(int argc, char ** argv)
 	//framebuffer en bewaar die als PNG (zonder display/aqua nodig).
 	if(hoofdloos && !schermafbeeldingBestand.empty() && offScreen && shotLees)
 		slaScreenshot(schermafbeeldingBestand);
+
+	//--veldKaart: lees de laatste rekenstand terug en schrijf een volledige-planeet
+	//heatmap (temperatuur, wind, druk, ...) als equirectangulaire PNG.
+	if(!veldKaartBestand.empty() && diagLees)
+	{
+		veldKaartToestandje toestand;
+		toestand.buffer  = diagLees;
+		toestand.grootte = diagGrootte;
+		toestand.geo     = geo;
+		toestand.veld    = veldKaartVeld;
+		toestand.bestand = veldKaartBestand;
+
+		WGPUCommandEncoder leesEncoder = wgpuDeviceCreateCommandEncoder(apparaat, nullptr);
+		wgpuCommandEncoderCopyBufferToBuffer(leesEncoder, geo->huidigeOpslag(), 0, diagLees, 0, diagGrootte);
+		WGPUCommandBuffer leesCommando = wgpuCommandEncoderFinish(leesEncoder, nullptr);
+		wgpuQueueSubmit(rij, 1, &leesCommando);
+		wgpuCommandBufferRelease(leesCommando);
+		wgpuCommandEncoderRelease(leesEncoder);
+
+		WGPUBufferMapCallbackInfo leesInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+		leesInfo.mode      = WGPUCallbackMode_AllowSpontaneous;
+		leesInfo.callback  = veldKaartVerwerker;
+		leesInfo.userdata1 = &toestand;
+		wgpuBufferMapAsync(diagLees, WGPUMapMode_Read, 0, diagGrootte, leesInfo);
+
+		while(!toestand.klaar)
+			wgpuInstanceProcessEvents(scherm.instantie());
+	}
 
 	if(csvUit.is_open())
 		csvUit.close();

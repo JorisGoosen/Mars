@@ -66,12 +66,12 @@ fn main(in : naarFrag) -> @location(0) vec4f {
 
     //Temperatuuroverlay (toets T): vervang de oppervlaktekleur door de temp-kleurkaart
     if(extra.toonTemperatuur > 0.5) {
-        kleur = vec4f(temperatuurKleur(in.temperatuur), 1.0);
+        return vec4f(temperatuurKleur(in.temperatuur), 1.0);
     }
 
     //Windoverlay (toets V): rood/groen = windrichting, blauw = luchtdruk
     if(extra.toonWind > 0.5) {
-        kleur = vec4f(windKleur(in.wind, in.luchtdruk), 1.0);
+        return vec4f(windKleur(in.wind, in.luchtdruk), 1.0);
     }
 
     return kleur * max(0.2, diffuus);

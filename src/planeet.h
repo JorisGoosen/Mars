@@ -40,7 +40,9 @@ struct vak
 
 struct vakMeta
 {
-	glm::vec4	normaal			;	// base alignment 4 bytes want std430
+	glm::vec4	normaal			;	// base alignment 16 (WGSL vec4f)
+	glm::vec3	gradWeights		;	// (a,b,c) van M = avgDist · C⁻¹, 2×2 symmetrische correctie-matrix
+	float		_padGrad		;	// opvulling: WGSL vec3f heeft align 16, C++ glm::vec3 heeft align 4
 	glm::vec2	buurRicht[6]	;	// 3 * 4
 	glm::uint32	buren[6]		,	//     6 
 				burenAantal		,	// 	   1
@@ -65,6 +67,12 @@ public:
 	//"vakken0" (de laatste uitgerekende stand) gebonden wordt + de plek van een cel.
 	WGPUBuffer	huidigeOpslag() const { return _pingPongVakken[_pingIsDit]->opslag(); }
 	glm::vec3	punt3(size_t id) const { return _punten->ggvPunt3(id); }
+
+	//Richtings-asymmetrie van de buurlus: |Σ_j normalize(pos_buur − pos)/(n)|.
+	//0 voor een perfect symmetrische buurlus, groter waar het grid onregelmatig is.
+	float		buurAsymmetrie(size_t id) const;
+	size_t		burenAantal(size_t id) const { return _vakMetas[id].burenAantal; }
+	glm::uint32	buurVan(size_t id, size_t k) const { return _vakMetas[id].buren[k]; }
 	
 protected:
 	void bouwPlaneet();

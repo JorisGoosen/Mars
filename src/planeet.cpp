@@ -12,6 +12,9 @@ const float maxGrondHoogte = 200.0f;
 //toevoegt zonder de layout te fixen.
 static_assert(sizeof(vak) == 152, "vak-struct moet 152 bytes groot zijn (gelijk aan WGSL)");
 
+//vakMeta: normaal(16) + gradWeights(12) + padding(4) + buurRicht(48) + buren(24) + burenAantal(4) + opvulling(4) = 112
+static_assert(sizeof(vakMeta) == 112, "vakMeta-struct moet 112 bytes groot zijn (gelijk aan WGSL)");
+
 
 using namespace glm;
 
@@ -193,7 +196,7 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 		sorteerDeze.push_back(
 			sorteerDit(
 				_vakMetas[ID].buren[i], 
-				acos(dot(noordT, relatief)),
+				atan2(dot(east, relatief), dot(noordT, relatief)),
 				normalize(vec2(dot(east, relatief), dot(noordT, relatief)))
 			)
 		);
@@ -209,6 +212,42 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	{
 		_vakMetas[ID].buurRicht	[buur	] = buurNoHoek.buurRicht;
 		_vakMetas[ID].buren		[buur++	] = buurNoHoek.buurNo;
+	}
+
+	//Least-squares gradient weights: trace-genormaliseerde correctiematrix.
+	//M = 2·C⁻¹ / (trace(C⁻¹)·n) — corrigeert de directionele bias van het
+	//onregelmatige grid (5 vs 6 buren, ongelijke afstanden) terwijl de
+	//magnitude vergelijkbaar blijft met de oude "/ n" normalisatie.
+	//Voor een regelmatige zeshoek: M = I/n, dus grad_new = raw/n = grad_old.
+	//LET OP: C gebruikt LINEAIRE afstanden (|r|·dir·dirᵀ), niet kwadratische,
+	//omdat de shader de GENORMALISEERDE richting (buurRicht) gebruikt:
+	//raw = Σ(ΔP·dir) = Σ(|r|·(g·dir)·dir) voor een lineair veld.
+	using glm::mat2;
+	mat2 C(0.0f);
+	size_t nBuren = _vakMetas[ID].burenAantal;
+	for(size_t i = 0; i < nBuren; i++)
+	{
+		size_t nb = sorteerDeze[i].buurNo;
+		vec3 delta = _punten->ggvPunt3(nb) - midden;
+		vec2 r = vec2(dot(east, delta), dot(noordT, delta));
+		float dist = length(r);
+		if(dist > 1.0e-8f) {
+			C[0][0] += r.x * r.x / dist;
+			C[0][1] += r.x * r.y / dist;
+			C[1][1] += r.y * r.y / dist;
+		}
+	}
+	float det = C[0][0] * C[1][1] - C[0][1] * C[0][1];
+	if(det > 1.0e-10f) {
+		float invDet = 1.0f / det;
+		float a = C[1][1] * invDet;
+		float b = -C[0][1] * invDet;
+		float c = C[0][0] * invDet;
+		float trace = a + c;
+		float scale = 2.0f / (trace * float(nBuren));
+		_vakMetas[ID].gradWeights = glm::vec3(a * scale, b * scale, c * scale);
+	} else {
+		_vakMetas[ID].gradWeights = glm::vec3(0.0f);
 	}
 
 }
@@ -276,6 +315,22 @@ void planeet::volgendeRonde()
 	_pingIsDit	= 1 - _pingIsDit;
 
 	bindVrwrkrOpslagen();
+}
+
+float planeet::buurAsymmetrie(size_t id) const
+{
+	using namespace glm;
+	vec3 midden = _punten->ggvPunt3(id);
+	vec3 som(0.0f);
+	size_t n = _vakMetas[id].burenAantal;
+	for(size_t k = 0; k < n && k < 6; k++)
+	{
+		vec3 d = _punten->ggvPunt3(_vakMetas[id].buren[k]) - midden;
+		float dl = length(d);
+		if(dl > 1.0e-8f)
+			som += d / dl;
+	}
+	return n ? length(som) / float(n) : 0.0f;
 }
 
 void planeet::bindVrwrkrOpslagen(weergaveScherm & scherm)
