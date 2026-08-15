@@ -30,6 +30,21 @@ fn applyGradWeights(id : u32, raw : vec2f) -> vec2f {
     return vec2f(w[0] * raw.x + w[1] * raw.y, w[1] * raw.x + w[2] * raw.y);
 }
 
+//Wind als 3D-vector in het wereldframe: elke cel heeft een eigen lokaal
+//raakvlak-basisje (oost, noord) en die basisjes draaien tussen buren onderling.
+//Componenten uit verschillende basisjes optellen leest de basis-rotatie als
+//valse wind/divergentie (grid-patroon langs de icosahedron-hoofdvlakken).
+//In 3D zijn alle vectoren direct vergelijkbaar; projecteer pas terug op het
+//lokale basisje zodra er een resultaat per cel nodig is.
+fn wind3(id : u32) -> vec3f {
+    let m = vakMetas[id];
+    return vakken0[id].wind.x * m.oost.xyz + vakken0[id].wind.y * m.noord.xyz;
+}
+
+fn lokaal2(id : u32, v3 : vec3f) -> vec2f {
+    return vec2f(dot(v3, vakMetas[id].oost.xyz), dot(v3, vakMetas[id].noord.xyz));
+}
+
 fn hoogteverschil(id : u32, buurId : u32) -> f32 {
     //De kolom die stroomt telt het zwevende sediment mee: droesem beweegt zo met
     //het water mee en kan bij depositie nooit boven de (water+droesem)-kolom uitkomen.
@@ -60,7 +75,32 @@ fn dtAdvPerL() -> f32 {
 fn windU(id : u32, buur : u32) -> f32 {
     let e  = vakMetas[id].buurRicht[buur];
     let nb = vakMetas[id].buren[buur];
-    return dot(e, 0.5 * (vakken0[id].wind + vakken0[nb].wind));
+    let e3 = normalize(vakMetas[id].oost.xyz * e.x + vakMetas[id].noord.xyz * e.y);
+    return dot(e3, 0.5 * (wind3(id) + wind3(nb)));
+}
+
+//Gemiddelde face-snelheid rond een cel. Voor een uniform windveld is dit op een
+//perfecte zeshoek exact 0, maar op dit onregelmatige grid leest het de lokale
+//richting-anisotropie (Σ e3 ≠ 0) als valse convergentie/divergentie — en omdat de
+//fluxen met de ABSOLUTE waarde (T0, P0, damp0) schalen, domineert die valse
+//compressie de echte (gradiënt-)advectie ruimschoots en ontstaat het patroon
+//langs de icosahedron-hoofdvlakken.
+fn windLambda(id : u32) -> f32 {
+    let nA = vakMetas[id].burenAantal;
+    var s = 0.0;
+    for(var i = 0u; i < nA && i < maxBuren; i = i + 1u) {
+        s = s + windU(id, i);
+    }
+    return s / f32(nA);
+}
+
+//Compressie-gecorrigeerde face-snelheid: trek het gemiddelde van beide aangrenzende
+//cellen af. Voor uniform wind wordt ũ ≈ 0 (geen valse compressie meer), en omdat de
+//correctie symmetrisch in (id, nb) is blijft ũ antisymmetrisch per rand => de
+//fluxvormige vochtadvectie blijft exact behoudend.
+fn windUC(id : u32, buur : u32) -> f32 {
+    let nb = vakMetas[id].buren[buur];
+    return windU(id, buur) - 0.5 * (windLambda(id) + windLambda(nb));
 }
 
 //Monotoonheids-/claim-limit per scalar: een cel stuurt nooit meer uit dan hij zelf

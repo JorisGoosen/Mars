@@ -41,6 +41,8 @@ struct vak
 struct vakMeta
 {
 	glm::vec4	normaal			;	// base alignment 16 (WGSL vec4f)
+	glm::vec4	oost			;	// lokale raakvlak-basis (oost) in wereldcoördinaten
+	glm::vec4	noord			;	// lokale raakvlak-basis (noord) in wereldcoördinaten
 	glm::vec3	gradWeights		;	// (a,b,c) van M = avgDist · C⁻¹, 2×2 symmetrische correctie-matrix
 	float		_padGrad		;	// opvulling: WGSL vec3f heeft align 16, C++ glm::vec3 heeft align 4
 	glm::vec2	buurRicht[6]	;	// 3 * 4

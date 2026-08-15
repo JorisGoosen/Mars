@@ -2,3 +2,11 @@
 mars
 .vscode
 build/
+
+#lokaal gegenereerde veldkaart-diagnostiek
+/temp*.png
+/wind*.png
+/druk*.png
+/wolken*.png
+/asym*.png
+/opp*.png

@@ -28,7 +28,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let c = dtAdvPerL();
 
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
-        let u = windU(ID, buur);
+        let u = windUC(ID, buur);
 
         //Richtingsgebonden, upwind flux van id naar buur (alleen stroming weg van id).
         let uit = max(0.0, u);

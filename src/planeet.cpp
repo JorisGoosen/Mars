@@ -12,8 +12,8 @@ const float maxGrondHoogte = 200.0f;
 //toevoegt zonder de layout te fixen.
 static_assert(sizeof(vak) == 152, "vak-struct moet 152 bytes groot zijn (gelijk aan WGSL)");
 
-//vakMeta: normaal(16) + gradWeights(12) + padding(4) + buurRicht(48) + buren(24) + burenAantal(4) + opvulling(4) = 112
-static_assert(sizeof(vakMeta) == 112, "vakMeta-struct moet 112 bytes groot zijn (gelijk aan WGSL)");
+//vakMeta: normaal(16) + oost(16) + noord(16) + gradWeights(12) + padding(4) + buurRicht(48) + buren(24) + burenAantal(4) + opvulling(4) = 144
+static_assert(sizeof(vakMeta) == 144, "vakMeta-struct moet 144 bytes groot zijn (gelijk aan WGSL)");
 
 
 using namespace glm;
@@ -189,6 +189,8 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	if(length(east) < 1.0e-4f)                 //pool-degeneratie: kies een richting loodrecht
 		east = normalize(cross(vec3(0.0f, 0.0f, 1.0f), omhoog));
 	vec3 	noordT	= normalize(cross(omhoog, east));
+	_vakMetas[ID].oost  = vec4(east, 0.0f);
+	_vakMetas[ID].noord = vec4(noordT, 0.0f);
 
 	for(size_t i=0; i<_vakMetas[ID].burenAantal; i++)
 	{

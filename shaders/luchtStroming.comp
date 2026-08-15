@@ -111,15 +111,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     var minTN = T0; var maxTN = T0;
     var minPN = P0; var maxPN = P0;
     for(var av = 0u; av < burenAantal && av < maxBuren; av++) {
-        let avU  = windU(ID, av);
+        let avU  = windUC(ID, av);
         let avNb = vakMetas[ID].buren[av];
         let c    = dtAdvPerL() * TPAdvectieZwakte;
         let Tnb  = vakken0[avNb].temperatuur;
         let Pnb  = vakken0[avNb].luchtdruk;
         let Tdon = select(Tnb, T0, avU >= 0.0);
         let Pdon = select(Pnb, P0, avU >= 0.0);
-        netT -= avU * Tdon * c;
-        netP -= avU * Pdon * c;
+        //(Tdon - T0) i.p.v. Tdon: de kale fluxvorm leest de residu-compressie van
+        //het discrete windveld (Σ ũ ≈ 0 maar niet exact) vermenigvuldigd met de
+        //absolute waarde T0/P0 als valse bron; de verschilvorm is compressievrij.
+        netT -= avU * (Tdon - T0) * c;
+        netP -= avU * (Pdon - P0) * c;
         minTN = min(minTN, Tnb); maxTN = max(maxTN, Tnb);
         minPN = min(minPN, Pnb); maxPN = max(maxPN, Pnb);
     }
@@ -131,26 +134,41 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let P_adv = clamp(P0 + netP, minPN, maxPN);
 
     //---- wind: drukgradiënt + Coriolis + wrijving + diffusie + terrein ----
-    var somW     = vec2f(0.0);
+    //Vectorgrootheden (wind, windverschillen) worden in 3D gecombineerd: de
+    //lokale raakvlak-basisjes draaien tussen buren, dus componenten rechtstreeks
+    //optellen leest die rotatie als valse divergentie/diffusie, systematisch
+    //langs de icosahedron-hoofdvlakken (sterpatroon in druk, ruiten in wind).
+    let oost0  = vakMetas[ID].oost.xyz;
+    let noord0 = vakMetas[ID].noord.xyz;
+    let V3_0   = V0.x * oost0 + V0.y * noord0;
+    var somW3    = vec3f(0.0);
     var gradiënt = vec2f(0.0);
     var somP     = 0.0;
     var somT     = 0.0;
-    var div      = 0.0;
+    var rawDivX  = vec2f(0.0);
+    var rawDivY  = vec2f(0.0);
     var terreinGrad = vec2f(0.0);
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
         let buurId = buurID(ID, buur);
         let richt  = vakMetas[ID].buurRicht[buur];
-        somW     += vakken0[buurId].wind;
+        somW3    += wind3(buurId);
         gradiënt += (vakken0[buurId].luchtdruk - P0) * richt;
         somP     += vakken0[buurId].luchtdruk;
         somT     += vakken0[buurId].temperatuur;
-        div      += dot(vakken0[buurId].wind - V0, richt);
+        let dV    = lokaal2(ID, wind3(buurId) - V3_0);
+        rawDivX  += dV.x * richt;
+        rawDivY  += dV.y * richt;
         terreinGrad += (vakken0[buurId].grondHoogte - vakken0[ID].grondHoogte) * richt;
     }
-    somW     /= n;
+    let somW = lokaal2(ID, somW3 / n - V3_0) + V0;
     somP     /= n;
     somT     /= n;
-    div      /= n;
+    //Least-squares divergentie (zelfde correctiematrix als de gradient): de kale
+    //som dot(dV, richt) leest op dit onregelmatige grid de schuifspanning van de
+    //wind als valse divergentie, en die anisotropie ligt systematisch langs de
+    //icosahedron-hoofdvlakken (sterpatroon in druk/wind/temperatuur).
+    let wDiv = vakMetas[ID].gradWeights;
+    let div  = wDiv.x * rawDivX.x + wDiv.y * (rawDivX.y + rawDivY.x) + wDiv.z * rawDivY.y;
     let gradP = applyGradWeights(ID, gradiënt);
     let gradH = applyGradWeights(ID, terreinGrad);
 

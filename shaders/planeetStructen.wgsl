@@ -137,6 +137,8 @@ struct vak {
 
 struct vakMeta {
     normaal     : vec4f,
+    oost        : vec4f,        //lokale raakvlak-basis (oost) in wereldcoördinaten
+    noord       : vec4f,        //lokale raakvlak-basis (noord) in wereldcoördinaten
     gradWeights : vec3f,        //(a,b,c) van de 2×2 correctiematrix M = avgDist · C⁻¹
     buurRicht   : array<vec2f, maxBuren>,
     buren       : array<u32, maxBuren>,

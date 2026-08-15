@@ -9,6 +9,7 @@
 #include <fstream>
 #include <chrono>
 #include <vector>
+#include <utility>
 #include <cstring>
 #include <algorithm>
 
@@ -269,6 +270,16 @@ static glm::vec3 windKleurC(const vak & c)
 	return glm::vec3(r, g, b);
 }
 
+static glm::vec3 oppervlakteKleurC(const vak & c)
+{
+	if(c.ijs > 0.01f)
+		return glm::vec3(1.0f);
+	if(c.waterHoogte > 0.01f)
+		return glm::vec3(0.1f, 0.3f, 0.9f) * std::clamp(1.0f - c.waterHoogte * 0.5f, 0.4f, 1.0f);
+	float h = std::clamp((c.grondHoogte - 10.0f) / (200.0f - 10.0f), 0.0f, 1.0f);
+	return glm::mix(glm::vec3(0.45f, 0.32f, 0.18f), glm::vec3(0.62f, 0.52f, 0.38f), h);
+}
+
 static float veldWaardeC(const vak & c, const std::string & veld)
 {
 	if(veld == "druk" || veld == "luchtdruk") return c.luchtdruk;
@@ -288,7 +299,7 @@ static float veldWaardeC(const vak & c, const std::string & veld)
 //aantal cellen, dus onafhankelijk van --diepte). temperatuur en wind gebruiken
 //dezelfde kleurkaarten als de T- en V-overlays; overige velden worden grijs.
 static void schrijfVeldKaart(const std::string & bestand, const vak * cellen, size_t aantal,
-                             planeet * geo, const std::string & veld)
+                             planeet * geo, const std::string & veld, int factor)
 {
 	const double PI = 3.14159265358979323846;
 
@@ -297,7 +308,7 @@ static void schrijfVeldKaart(const std::string & bestand, const vak * cellen, si
 		return veldWaardeC(cellen[i], veld);
 	};
 
-	const bool kleur = (veld == "temperatuur" || veld == "wind");
+	const bool kleur = (veld == "temperatuur" || veld == "wind" || veld == "oppervlakte");
 	float vmin = 0.0f, vmax = 1.0f;
 	if(!kleur)
 	{
@@ -315,6 +326,7 @@ static void schrijfVeldKaart(const std::string & bestand, const vak * cellen, si
 	double cellenRond = 2.0 * PI / theta;
 	int breedte = (int)(cellenRond * 3.4);
 	breedte = std::clamp(breedte, 600, 4800);
+	breedte = std::max(96, breedte / std::max(1, factor));
 	if(breedte % 2) breedte += 1;
 	int hoogte = breedte / 2;
 
@@ -339,6 +351,7 @@ static void schrijfVeldKaart(const std::string & bestand, const vak * cellen, si
 		glm::vec3 rgb;
 		if(veld == "temperatuur") rgb = temperatuurKleurC(cellen[i].temperatuur);
 		else if(veld == "wind")   rgb = windKleurC(cellen[i]);
+		else if(veld == "oppervlakte") rgb = oppervlakteKleurC(cellen[i]);
 		else
 		{
 			float t = std::clamp((waarde(i) - vmin) / (vmax - vmin), 0.0f, 1.0f);
@@ -375,8 +388,8 @@ struct veldKaartToestandje
 	size_t		grootte	= 0;
 	planeet	*	geo		= nullptr;
 	bool		klaar	= false;
-	std::string	veld;
-	std::string	bestand;
+	int			factor	= 1;
+	std::vector<std::pair<std::string, std::string>> kaarten;
 };
 
 static void veldKaartVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebruiker1, void * gebruiker2)
@@ -393,7 +406,8 @@ static void veldKaartVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void *
 
 	const vak * cellen = (const vak *)wgpuBufferGetMappedRange(t->buffer, 0, t->grootte);
 	const size_t aantal = t->grootte / sizeof(vak);
-	schrijfVeldKaart(t->bestand, cellen, aantal, t->geo, t->veld);
+	for(const auto & kaart : t->kaarten)
+		schrijfVeldKaart(kaart.second, cellen, aantal, t->geo, kaart.first, t->factor);
 	wgpuBufferUnmap(t->buffer);
 }
 
@@ -448,7 +462,8 @@ static void toonHelp()
 "  --stappen <n>         stop na n rondes (samen met --hoofdloos)\n"
 "  --schermafbeelding <bestand>  render een beeld naar een PNG (handig bij --hoofdloos)\n"
 "  --schermafbeeldingElkeFrames <n>  maak om de n frames een schermafbeelding\n"
-"  --veldKaart <veld> [bestand]  volledige-planeet heatmap als PNG (temperatuur, wind, druk, grond, water, ijs, wolken, ...)\n"
+"  --veldKaart <veld> [bestand]  volledige-planeet heatmap als PNG (temperatuur, wind, druk, oppervlakte, grond, water, ijs, wolken, ...); herhaalbaar voor meerdere kaarten in één draai\n"
+"  --kaartFactor <n>     veldkaart-resolutie gedeeld door n (standaard 1)\n"
 "  --luchtstappen <n>    sim-stappen per beeld (standaard 1; hoger = ze zichtbaar sneller zie je wolken bewegen)\n"
 "  --stil               bevries alles vanaf het begin (sim, zon- en modelrotatie)\n"
 "  --help, -h            toon deze hulp\n"
@@ -478,8 +493,8 @@ int main(int argc, char ** argv)
 	std::string csvBestand;
 	std::string schermafbeeldingBestand;
 	size_t schermElkeFrames = 0; //0 = alleen de eind-screenshot
-	std::string veldKaartVeld;       //--veldKaart <veld> [bestand]
-	std::string veldKaartBestand;
+	std::vector<std::pair<std::string, std::string>> veldKaarten; //--veldKaart <veld> [bestand], herhaalbaar
+	int kaartFactor = 1; //--kaartFactor <n>: veldkaart-resolutie gedeeld door n
 	int  luchtStappen = 1;      //aantal atmosfeer-simstappen per beeld (wolken zichtbaar laten bewegen)
 	bool bevroren = false;      //bevriest sim + zonrotatie + modelrotatie
 	bool zonRoteert = true;     //of de bezonning (dag/nacht) vooruitloopt
@@ -552,12 +567,18 @@ int main(int argc, char ** argv)
 		{
 			if(a + 1 < argc)
 			{
-				veldKaartVeld = argv[++a];
-				veldKaartBestand = veldKaartVeld + ".png";
+				std::string veld = argv[++a];
+				std::string bestand = veld + ".png";
 				if(a + 1 < argc && argv[a + 1][0] != '-')
-					veldKaartBestand = argv[++a];
+					bestand = argv[++a];
+				veldKaarten.emplace_back(veld, bestand);
 			}
 			else std::cerr << "--veldKaart verwacht een veldnaam (temperatuur, wind, druk, grond, ...)" << std::endl;
+		}
+		else if(vlag == "--kaartFactor")
+		{
+			if(a + 1 < argc) kaartFactor = std::clamp(std::atoi(argv[++a]), 1, 40);
+			else std::cerr << "--kaartFactor verwacht een getal (bijv. --kaartFactor 10)" << std::endl;
 		}
 		else
 		{
@@ -838,7 +859,7 @@ int main(int argc, char ** argv)
 	//Diagnose/Csv-buffers: aparte leesbare kopieën om de stand terug te lezen
 	const size_t diagGrootte = geo->aantalVakjes() * sizeof(vak);
 	WGPUBuffer diagLees = nullptr;
-	if(diagAan || !csvBestand.empty() || conservatieAan || !veldKaartBestand.empty())
+	if(diagAan || !csvBestand.empty() || conservatieAan || !veldKaarten.empty())
 	{
 		WGPUBufferDescriptor leesBeschrijving = WGPU_BUFFER_DESCRIPTOR_INIT;
 		leesBeschrijving.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
@@ -1257,14 +1278,14 @@ int main(int argc, char ** argv)
 
 	//--veldKaart: lees de laatste rekenstand terug en schrijf een volledige-planeet
 	//heatmap (temperatuur, wind, druk, ...) als equirectangulaire PNG.
-	if(!veldKaartBestand.empty() && diagLees)
+	if(!veldKaarten.empty() && diagLees)
 	{
 		veldKaartToestandje toestand;
 		toestand.buffer  = diagLees;
 		toestand.grootte = diagGrootte;
 		toestand.geo     = geo;
-		toestand.veld    = veldKaartVeld;
-		toestand.bestand = veldKaartBestand;
+		toestand.kaarten = veldKaarten;
+		toestand.factor  = kaartFactor;
 
 		WGPUCommandEncoder leesEncoder = wgpuDeviceCreateCommandEncoder(apparaat, nullptr);
 		wgpuCommandEncoderCopyBufferToBuffer(leesEncoder, geo->huidigeOpslag(), 0, diagLees, 0, diagGrootte);
