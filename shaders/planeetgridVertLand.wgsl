@@ -31,6 +31,7 @@ struct naarFrag {
     @location(10) temperatuur   : f32,
     @location(11) wind          : vec2f,
     @location(12) luchtdruk     : f32,
+    @location(13) modelPos      : vec3f,
 };
 
 @vertex
@@ -62,6 +63,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
 
     let hier = in.posV * (vakHoogte(ID, false) / extra.grondMult);
 
+    uit.modelPos = hier;
     uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, false), 0.0)).xyz);
     uit.hoeks = cross(normalize((matrices.modelZicht * vec4f(vakHoogteNormaal(buurID(ID, 0u), false), 0.0)).xyz), uit.normaal);
     uit.pos = matrices.modelZicht * vec4f(hier, 1.0);

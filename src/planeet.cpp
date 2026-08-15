@@ -142,6 +142,7 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakken[0][i].luchtdruk   = 1.0f;
 			_vakken[0][i].wind        = glm::vec2(0.0f);
 			_vakken[0][i].wolken      = 0.0f;
+			_vakken[0][i].zonZicht    = 1.0f; //volle zon tot de schaduwkaart het tegendeel zegt
 			//Vochtige start: 75% van de verzadigingsdampdruk (zelfde exponentiële
 			//formule als sat_temp in waterLucht.comp met basisVerzadiging 0.15),
 			//zodat wolken en neerslag ontstaan waar de dynamica koelt/convergeert.

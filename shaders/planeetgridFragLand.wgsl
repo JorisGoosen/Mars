@@ -1,6 +1,13 @@
 //WGSL fragment-shader voor de grond-pass van de planeet.
 #include "planeetStructen.wgsl"
 
+//De schaduwkaart van de zon (bind-groep 3; het framework bindt anders een 1x1 wit
+//hulpje, dat als diepte 1.0 leest = alles verlicht).
+@group(3) @binding(0) var zonSchaduwKaart : texture_2d<f32>;
+@group(3) @binding(1) var zonSchaduwSmp   : sampler;
+
+#include "zonSchaduwPCF.wgsl"
+
 struct matricesDaar {
     projectie  : mat4x4f,
     modelZicht : mat4x4f,
@@ -26,6 +33,7 @@ struct naarFrag {
     @location(10) temperatuur   : f32,
     @location(11) wind          : vec2f,
     @location(12) luchtdruk     : f32,
+    @location(13) modelPos      : vec3f,
 };
 
 //Temperatuuroverlay-kleurkaart: -25 °C (= 248 K) blauw, 0 °C (= 273 K) groen,
@@ -60,7 +68,15 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     //normaal (= na modelZicht). Geen 'puntbron' op de planeet meer.
     let zonModel = normalize(extra.zonPos.xyz);
     let zonView  = normalize((matrices.transInvMV * vec4f(zonModel, 0.0)).xyz);
-    let diffuus = max(0.0, dot(zonView, in.normaal));
+    let diffuus  = max(0.0, dot(zonView, in.normaal));
+
+    //Terrein-schaduw uit de schaduwkaart ( bergen/flanken die dit punt overschaduwen).
+    //Dezelfde analytische zon-projectie als de schaduw-pass en de reken-shaders.
+    var schaduw = 1.0;
+    if(extra.schaduwAan > 0.5 && diffuus > 0.0) {
+        let straal = zonStraal(extra.grondMult, extra.grondSchaal, extra.maxGrondHoogte);
+        schaduw = zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte);
+    }
 
     var kleur = mix(in.kleur * clamp(marsHoogte * 3.0, 0.35, 1.0), vec4f(0.0, 0.35, 0.0, 1.0), clamp(in.leven, 0.0, 1.0));
 
@@ -74,5 +90,5 @@ fn main(in : naarFrag) -> @location(0) vec4f {
         return vec4f(windKleur(in.wind, in.luchtdruk), 1.0);
     }
 
-    return kleur * max(0.2, diffuus);
+    return kleur * max(0.2, diffuus * schaduw);
 }

@@ -14,7 +14,7 @@
 #include <algorithm>
 
 //De parameters voor de reken-shaders (bind-groep 0, binding 3). Layout moet matchen
-//met het rekenParameters-struct in shaders/planeetStructen.wgsl (80 bytes).
+//met het rekenParameters-struct in shaders/planeetStructen.wgsl (96 bytes).
 struct rekenParameters
 {
 	float	grondSchaal,
@@ -25,8 +25,9 @@ struct rekenParameters
 	float	zonRicht[4];    //zonrichting (dagzijde; de planeet draait t.o.v. de zon)
 	float	condenseer[4];  //basisVerzadiging, hoogteKoel, neerslagFactor, orografieFactor
 	float	fasen[4];       //verwarmtijdconstante, maxGrondHoogte, grondMult, ongebruikt
+	float	schaduw[4];     //schaduwAan, schaduwKaartGrootte, ongebruikt, ongebruikt
 };
-static_assert(sizeof(rekenParameters) == 80, "rekenParameters moet 80 bytes zijn (gelijk aan WGSL)");
+static_assert(sizeof(rekenParameters) == 96, "rekenParameters moet 96 bytes zijn (gelijk aan WGSL)");
 
 //Diagnose (--diagnose): leest elke zoveel frames de laatste reken-stand terug van de
 //GPU en meldt de extremen + de eerste Niet-eindige (NaN/inf) cel.
@@ -161,7 +162,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 	if(t->teller == 0)
 	{
 		uit << "id,x,y,z,grond,rots,water,bodemVocht,leven,droesem,luchtVocht,"
-		       "temperatuur,luchtdruk,windX,windY,wolken,ijs,asym\n";
+		       "temperatuur,luchtdruk,windX,windY,wolken,ijs,zonZicht,asym\n";
 	}
 
 	for(size_t i = 0; i < aantal; i++)
@@ -173,7 +174,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 			<< cel.bodemVocht << "," << cel.leven << "," << cel.droesem << ","
 			<< cel.luchtVocht << "," << cel.temperatuur << "," << cel.luchtdruk << ","
 			<< cel.wind.x << "," << cel.wind.y << "," << cel.wolken << ","
-			<< cel.ijs << "," << t->geo->buurAsymmetrie(i) << "\n";
+			<< cel.ijs << "," << cel.zonZicht << "," << t->geo->buurAsymmetrie(i) << "\n";
 	}
 
 	wgpuBufferUnmap(t->buffer);
@@ -289,6 +290,7 @@ static float veldWaardeC(const vak & c, const std::string & veld)
 	if(veld == "wolken")   return c.wolken;
 	if(veld == "leven")    return c.leven;
 	if(veld == "droesem")  return c.droesem;
+	if(veld == "zonZicht" || veld == "zonlicht") return c.zonZicht;
 	if(veld == "bodemvocht") return c.bodemVocht;
 	if(veld == "luchtvocht") return c.luchtVocht;
 	return c.temperatuur;
@@ -456,6 +458,8 @@ static void toonHelp()
 "  --zonder-erosie       houdt het terrein stil (geen erosie/depositie)\n"
 "  --zonder-leven        zet plantengroei uit\n"
 "  --zonder-atmosfeer    houdt de lucht volledig stil (geen wind/verdamping/neerslag)\n"
+"  --zonder-schaduw      zet de schaduwkaart uit (geen terreinschaduwen, volle zoninstraling)\n"
+"  --schaduwGrootte <n>  resolutie van de schaduwkaart (standaard 4096; hoger = scherper, meer geheugen)\n"
 "  --procedureel         genereer het terrein met ruis i.p.v. de MOLA-hoogtekaart\n"
 "  --diepte <n>          icosahedron-onderverdelingsniveau (standaard 5)\n"
 "  --diagnose            print elke 25 frames de extremen van de reken-stand\n"
@@ -502,6 +506,8 @@ int main(int argc, char ** argv)
 	int  luchtStappen = 1;      //aantal atmosfeer-simstappen per beeld (wolken zichtbaar laten bewegen)
 	bool bevroren = false;      //bevriest sim + zonrotatie + modelrotatie
 	bool zonRoteert = true;     //of de bezonning (dag/nacht) vooruitloopt
+	bool schaduwAan = true;     //schaduwkaart: visuele schaduwen + zonlicht-benadering in de sim
+	int schaduwGrootte = 4096;  //resolutie van de schaduwkaart (pixels per zijde; 64 MB bij 4096)
 		bool conservatieAan = false; //--conservering <tol%>: controleer of het totale water constant blijft
 		double conservatieTol = 0.01; //relatieve tolerantie op de totale watermassa (standaard 1%)
 		int  conservatieElke = 200;   //om de zoveel frames één meting
@@ -528,6 +534,12 @@ int main(int argc, char ** argv)
 		else if(vlag == "--zonder-erosie")   erosieAan = false;
 		else if(vlag == "--zonder-leven")      levenAan = false;
 		else if(vlag == "--zonder-atmosfeer") atmosfeerAan = false;
+		else if(vlag == "--zonder-schaduw")    schaduwAan = false;
+		else if(vlag == "--schaduwGrootte")
+		{
+			if(a + 1 < argc) schaduwGrootte = std::clamp(std::atoi(argv[++a]), 256, 8192);
+			else std::cerr << "--schaduwGrootte verwacht een getal (bijv. --schaduwGrootte 4096)" << std::endl;
+		}
 		else if(vlag == "--procedureel")   procedural = true;
 		else if(vlag == "--diagnose")         diagAan = true;
 		else if(vlag == "--hoofdloos")     hoofdloos = true;
@@ -616,6 +628,17 @@ int main(int argc, char ** argv)
 	scherm.maakRekenShader(	"luchtStroming", 	"shaders/luchtStroming.comp"											);
 	scherm.maakRekenShader(	"vochtStroming", 	"shaders/vochtStroming.comp"											);
 	scherm.maakRekenShader(	"waterLucht", 		"shaders/waterLucht.comp"												);
+
+	//Schaduwkaart: een orthografische dieptekaart (Depth32Float) bekeken vanuit de
+	//zon, elke frame opnieuw gerenderd (de zon draait t.o.v. de planeet en het
+	//terrein erodeert). De kaart wordt drie keer gebruikt:
+	// 1) per-fragment PCF-schaduwen in de land/water-render,
+	// 2) per-cel zonlicht-benadering in luchtStroming.comp (instraling energiebalans),
+	// 3) verdamplings-licht in waterLucht.comp (via het zonZicht-veld).
+	//Ook in --hoofdloos zonder venster gerenderd: de simulatie heeft de kaart nodig.
+	scherm.maakDiepteShader("planeetSchaduw", "shaders/planeetgridVertSchaduw.wgsl");
+	scherm.maakTextuur("zonSchaduwKaart", schaduwGrootte, schaduwGrootte, false, false, false, GL_DEPTH_COMPONENT32F, nullptr);
+	scherm.bindSchaduwKaart("zonSchaduwKaart");
 
 	scherm.zetWeergaveKleur(0, 0, 0, 1);
 
@@ -759,6 +782,12 @@ int main(int argc, char ** argv)
 					std::cout << "Je hebt op B gedrukt: de zon " << (zonRoteert ? "loopt nu voort" : "staat nu stil")
 							  << ", dus de dag en de nacht " << (zonRoteert ? "wisselen" : "wisselen niet meer") << "." << std::endl;
 					break;
+				case GLFW_KEY_N:
+					schaduwAan = !schaduwAan;
+					std::cout << "Je hebt op N gedrukt: de schaduwkaart is nu "
+							  << (schaduwAan ? "aan (terreinschaduwen + gedempte instraling in de schaduw)"
+											 : "uit (volle zon overal)") << "." << std::endl;
+					break;
 				case GLFW_KEY_R:
 					roteerMaar = !roteerMaar;
 					std::cout << "Je hebt op R gedrukt: de planeet "
@@ -888,6 +917,15 @@ int main(int argc, char ** argv)
 		scherm.verbindRekenBuffer(3, rekenParBuffer);
 	};
 
+	//Voor luchtStroming: dezelfde opslag-buffers plus de schaduwkaart als textuur
+	//(bind-groep 1 van de reken-pipeline), zodat de instraling de terreinschaduw
+	//kan meenemen. Zonder schaduwkaart bindt het framework een 1x1 wit hulpje.
+	auto berekenShaderBindenMetSchaduw = [&]()
+	{
+		berekenShaderBinden();
+		scherm.bindTextuur(schaduwAan ? "zonSchaduwKaart" : "", 0);
+	};
+
 	//Off-screen framebuffer voor --schermafbeelding (renderen zonder venster)
 	const int  shotBreedte = 960, shotHoogte = 960;
 	WGPUTexture offScreen = nullptr;
@@ -910,6 +948,38 @@ int main(int argc, char ** argv)
 		shotLees = wgpuDeviceCreateBuffer(apparaat, &rb);
 	}
 
+	//Rendert het terrein in de schaduwkaart van de zon (depth-only, orthografisch).
+	//Moet vóór zowel de weergave-passes (visuele schaduwen) als de reken-passes
+	//(zonlicht-benadering) draaien. De projectie is analytisch (zonProjectie in de
+	//shader, uit extra.zonPos alleen), dus er hoeven geen matrices geschreven te
+	//worden. Front-face culling: de achterkanten van het terrein gaan de kaart in,
+	//zodat het terrein zichzelf niet per ongeluk overschaduwt (acne).
+	auto doeSchaduwPass = [&]()
+	{
+		if(!schaduwAan)
+			return;
+
+		weergaveInstellingen schaduwInstellingen;
+		schaduwInstellingen.cullMode = WGPUCullMode_Front;
+		scherm.zetWeergaveInstellingen(schaduwInstellingen);
+
+		//Zolang de kaart het dieptedoel is mag hij niet óók als textuur gebonden zijn
+		//(WebGPU: DEPTH_STENCIL_WRITE is exclusief), dus bind het witte hulpje.
+		scherm.bindSchaduwKaart("");
+
+		scherm.zetDiepteDoel(scherm.textuurId("zonSchaduwKaart"), glm::uvec2(schaduwGrootte, schaduwGrootte));
+		scherm.bereidRenderVoor("planeetSchaduw");
+		geo->bindVrwrkrOpslagen(scherm);
+		geo->tekenJezelf();
+		scherm.pasRondRenderAf();
+		scherm.rondRenderAf();
+		scherm.zetDiepteDoel(nullptr);
+		scherm.zetWeergaveInstellingen(weergaveInstellingen());
+		scherm.ontkoppelRekenBuffers();
+
+		scherm.bindSchaduwKaart("zonSchaduwKaart");
+	};
+
 	//De drie weergave-passen (grond, water, wolken) plus het klaarzetten van de
 	//weergave-parameters. Draait elke frame in venstermodus en één keer aan het
 	//einde in --hoofdloos + --schermafbeelding.
@@ -917,7 +987,6 @@ int main(int argc, char ** argv)
 	{
 		kijkPlek = glm::vec3(glm::inverse(scherm.modelZicht())[3]);
 		scherm.zetExtraFloats(extra, 16);
-
 		//grond-pass (achterkant-verwijdering aan)
 		weergaveInstellingen grondInstellingen;
 		grondInstellingen.cullMode = WGPUCullMode_Back;
@@ -1075,11 +1144,14 @@ int main(int argc, char ** argv)
 		//weergave-parameters in de extra-buffer schrijven
 		extra[0] 	= grondMult;
 		extra[1] 	= grondSchaal;
+		extra[2] 	= (float)schaduwGrootte;
 		extra[4] 	= kijkPlek.x;	extra[5] = kijkPlek.y;	extra[6] = kijkPlek.z;
 		extra[8] 	= zonPos.x;		extra[9] = zonPos.y;	extra[10] = zonPos.z;
 		extra[12] 	= geo->hoogsteGrond();
 		extra[13] 	= toonTemperatuur ? 1.0f : 0.0f;
 		extra[14] 	= toonWind ? 1.0f : 0.0f;
+		extra[15] 	= schaduwAan ? 1.0f : 0.0f;
+		scherm.zetExtraFloats(extra, 16); //ook nodig voor de schaduw-pass (headless rendert geen weergave-passes)
 
 		//parameters voor de reken-shaders
 		rekenPar.grondSchaal 	= grondSchaal;
@@ -1099,8 +1171,14 @@ int main(int argc, char ** argv)
 		rekenPar.fasen[1] 		= geo->hoogsteGrond();
 		rekenPar.fasen[2] 		= grondMult;
 		rekenPar.fasen[3] 		= std::pow(4.0f, (float)(subdiv - 6)); //diffusie-compensatie voor fijnere cellen (1.0 bij diepte 6)
+		rekenPar.schaduw[0] 	= schaduwAan ? 1.0f : 0.0f;
+		rekenPar.schaduw[1] 	= (float)schaduwGrootte;
 
 		wgpuQueueWriteBuffer(rij, rekenParBuffer, 0, &rekenPar, sizeof(rekenParameters));
+
+		//Eerst de schaduwkaart verversen (de zon draait en het terrein erodeert),
+		//dan pas de weergave-passes en de reken-passes die er allebei uit lezen.
+		doeSchaduwPass();
 
 		if(!hoofdloos)
 			doeRenderPassen();
@@ -1116,7 +1194,8 @@ int main(int argc, char ** argv)
 				scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
-				scherm.doeRekenVerwerker("luchtStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
+				scherm.doeRekenVerwerker("luchtStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBindenMetSchaduw);
+				scherm.bindTextuur("", 0); //schaduwkaart weer loslaten voor de volgende passes
 				scherm.doeRekenVerwerker("vochtStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("waterLucht", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				geo->volgendeRonde();

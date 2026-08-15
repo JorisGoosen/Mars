@@ -127,7 +127,7 @@ struct vak {
     temperatuur : f32,
     luchtdruk   : f32,
     wolken      : f32,
-    padLucht    : f32,
+    zonZicht    : f32, //fractie zonlicht die het terrein bereikt (uit de schaduwkaart; 1 = volle zon)
     pijpen      : array<f32, maxBuren>,
     vochtPijpenA : array<f32, maxBuren>, //flux van damp (luchtVocht) per buur, behoudend
     vochtPijpenB : array<f32, maxBuren>, //flux van wolken per buur, behoudend
@@ -157,13 +157,14 @@ struct rekenParameters {
     zonRicht    : vec4f, //zonrichting (dagzijde; vast in modelruimte, de planeet draait)
     condenseer  : vec4f, //(basisVerzadiging, hoogteKoel, neerslagFactor, orografieFactor)
     fasen       : vec4f, //(verwarmtijdconstante, maxGrondHoogte, grondMult, ongebruikt)
+    schaduw     : vec4f, //(schaduwAan, schaduwKaartGrootte, ongebruikt, ongebruikt)
 };
 
 //Parameters voor de weergave-shaders (bind-groep 0, binding 2)
 struct extraParameters {
     grondMult   : f32,
     grondSchaal : f32,
-    _padA       : f32,
+    schaduwGrootte : f32, //resolutie van de schaduwkaart (pixels per zijde)
     _padB       : f32,
     kijkPlek    : vec3f,
     _padC       : f32,
@@ -172,4 +173,5 @@ struct extraParameters {
     maxGrondHoogte : f32, //hoogste terreinpunt (bepaald bij het laden); basis voor het wolkendek
     toonTemperatuur : f32, //1 = temperatuuroverlay aan (toets T)
     toonWind        : f32, //1 = windoverlay aan (toets V)
+    schaduwAan      : f32, //1 = schaduwkaart aan (toets N)
 };

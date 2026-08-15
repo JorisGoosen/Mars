@@ -145,7 +145,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //Zonder verzadigings-plafond kan damp de verzadiging overschrijden, waarna de
     //condensatie er wolkwater van maakt i.p.v. dat het vocht in de lucht blijft hangen.
     let zon = select(vec3f(0.0, 1.0, 0.0), normalize(reken.zonRicht.xyz), length(reken.zonRicht.xyz) > zeerKlein);
-    let licht = max(0.0, dot(hier, zon));
+    //zonZicht (vorige ronde, door luchtStroming uit de schaduwkaart gehaald) dempt
+    //het licht waar terrein de cel overschaduwt.
+    let licht = max(0.0, dot(hier, zon)) * vakken0[ID].zonZicht;
     let vriest = select(0.0, 1.0, T < vriespuntK);
 
     //Sneeuw boven ijs/kou: onder het vriespunt wordt neerslag meteen ijs ("sneeuw")

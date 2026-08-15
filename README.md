@@ -43,6 +43,7 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 ## Controls
 - **Space**: Bevries/ontvries alles (watersim + zonrotatie + modelrotatie)
 - **B**: Toggle de zon (dag/nacht) wel/niet laten voortlopen
+- **N**: Toggle de schaduwkaart (terreinschaduwen + gedempte instraling in de schaduw)
 - **R**: Toggle planet rotation
 - **X**: Toggle water visibility
 - **C**: Toggle cloud visibility
@@ -66,6 +67,8 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - `--zonder-erosie`: houdt het terrein stil (geen erosie/depositie) zodat water gedrag bekeken kan worden zonder hoogteveranderingen.
 - `--zonder-leven`: zet plantengroei uit (geen groene begroeiing), handig om louter het rots/zand-erfgoed te bekijken.
 - `--zonder-atmosfeer`: houdt de lucht volledig stil (geen wind, verdamping of neerslag); het water stroomt nog.
+- `--zonder-schaduw`: zet de schaduwkaart uit (geen terreinschaduwen in beeld, volle zoninstraling in de simulatie).
+- `--schaduwGrootte <n>`: resolutie van de schaduwkaart in pixels per zijde (standaard **4096**; hoger = scherper maar meer geheugen, 64 MB bij 4096).
 - `--procedureel`: genereert het terrein met ruis i.p.v. de MOLA-hoogtekaart (geen PNG nodig). Ideaal voor snelle, kleine grids.
 - `--diepte <n>`: icosahedron-onderverdelingsniveau (standaard **5**; hoger = fijner, maar trager).
 - `--diagnose`: print elke 25 frames de extremen van de reken-stand terug (water, bodem/luchtvocht, droesem, temperatuur, luchtdruk, wind, wolken) en meldt niet-eindige cellen.
@@ -106,6 +109,28 @@ De wolk-advectie-afstand (`wolkSnelheid` in `waterLucht.comp`) moet boven de
 naaste stroomopwaartse buur (sub-cel diffusie) en lijkt hij stil te staan op zijn
 plek op te laaien. Zie ook `--luchtstappen` om de beweging per beeld te
 versnellen.
+
+## Schaduwkaart & binnenkomend zonlicht
+Elke frame wordt het terrein in een orthografische dieptekaart gerenderd, bekeken
+vanuit de zon (de *schaduwkaart*; toets **N**, `--zonder-schaduw`,
+`--schaduwGrootte`). De projectie is analytisch (`zonProjectie` in
+`shaders/zonSchaduw.wgsl`): dezelfde formule in de schaduw-pass, de fragment-shaders
+en de reken-shaders, dus geen matrices om uit de pas te lopen.
+
+De kaart wordt drie keer gebruikt:
+1. **Weergave**: de land/water-fragmentshader doet een 3×3 PCF-lookup en dempt het
+   diffuse licht waar bergen/flanken tussen het punt en de zon staan.
+2. **Energiebalans**: `luchtStroming.comp` projecteert elke cel op de kaart en
+   vermenigvuldigt de instraling met de gevonden zichtfactor — dalen en
+   kraterwanden in de schaduw van een berg warmen dus echt langzamer op. De fractie
+   wordt per cel bewaard in `zonZicht` (voorheen ongebruikte opvulling in `vak`).
+3. **Verdamping**: `waterLucht.comp` dempt het verdampingslicht met dezelfde
+   `zonZicht`-factor.
+
+`--veldKaart zonZicht` tekent de benaderde binnenkomende zonnestraling als heatmap
+(1 = volle zon, 0 = volledig overschaduwd); `--diagnoseCsv` heeft er een
+`zonZicht`-kolom bij. Wolken werpen voorlopig geen schaduw (hun albedo dempt de
+instraling wel via de bestaande energiebalans).
 
 ## Beweegtest (wolken)
 `Gereedschap/bewegingstest.py` bevestigt of de wolken *werkelijk* over de planeet

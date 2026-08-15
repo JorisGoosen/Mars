@@ -1,6 +1,13 @@
 //WGSL fragment-shader voor de water-pass van de planeet.
 #include "planeetStructen.wgsl"
 
+//De schaduwkaart van de zon (bind-groep 3; het framework bindt anders een 1x1 wit
+//hulpje, dat als diepte 1.0 leest = alles verlicht).
+@group(3) @binding(0) var zonSchaduwKaart : texture_2d<f32>;
+@group(3) @binding(1) var zonSchaduwSmp   : sampler;
+
+#include "zonSchaduwPCF.wgsl"
+
 struct matricesDaar {
     projectie  : mat4x4f,
     modelZicht : mat4x4f,
@@ -27,6 +34,7 @@ struct naarFrag {
     @location(11) ijs           : f32,
     @location(12) wind          : vec2f,
     @location(13) luchtdruk     : f32,
+    @location(14) modelPos      : vec3f,
 };
 
 fn berekenVervormdeNormaal(n : vec3f, hoeks : vec3f, vervorming : vec2f) -> vec3f {
@@ -80,7 +88,13 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     let mijnPlek = in.pos.xyz / max(in.pos.w, 0.0001);
     let oogRicht = normalize(-mijnPlek);           //camera zit in view-ruimte in de oorsprong
     let lichtSpiegel = reflect(zonView, vervormdN);
-    let diffuus     = max(0.0, dot(zonView, vervormdN));
+    var diffuus     = max(0.0, dot(zonView, vervormdN));
+
+    //Terrein-schaduw: bergen gooien hun schaduw ook op het water/ijs
+    if(extra.schaduwAan > 0.5 && diffuus > 0.0) {
+        let straal = zonStraal(extra.grondMult, extra.grondSchaal, extra.maxGrondHoogte);
+        diffuus *= zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte);
+    }
 
     var lichtheid = 0.0;
 

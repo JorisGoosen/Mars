@@ -29,6 +29,7 @@ struct naarFrag {
     @location(11) ijs           : f32,
     @location(12) wind          : vec2f,
     @location(13) luchtdruk     : f32,
+    @location(14) modelPos      : vec3f,
 };
 
 const waterSchaler = 2.0;
@@ -57,6 +58,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     //het water ligt boven op de grond: schijnbare waterhoogte telt mee
     let hier = in.posV * (vakHoogte(ID, true) / extra.grondMult);
 
+    uit.modelPos = hier;
     uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, true), 0.0)).xyz);
     uit.hoeks = cross(normalize((matrices.modelZicht * vec4f(vakHoogteNormaal(buurID(ID, 0u), true), 0.0)).xyz), uit.normaal);
     uit.pos = matrices.modelZicht * vec4f(hier, 1.0);
