@@ -8,7 +8,7 @@
 //de planeet: (1 + maxGrond · grondSchaal) / grondMult, met een kleine marge zodat
 //de rand van de planeet net buiten de kaart valt (alles buiten de kaart = verlicht).
 
-const schaduwBias = 0.0015;   //diepte-marge tegen zelf-schaduw (acne), in genormaliseerde diepte
+const schaduwBias = 0.0002;   //diepte-marge tegen zelf-schaduw (acne), in genormaliseerde diepte
 const schaduwMarge = 1.02;    //marge rond de planeet voor het orthografische kader
 
 //Deterministische orthonormale basis (u, v, zon) loodrecht op de zonrichting.

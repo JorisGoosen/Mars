@@ -119,7 +119,9 @@ fn main(in : naarFrag) -> @location(0) vec4f {
         }
     }
     else if(isIJs) {
-        kleur = vec4f(0.85, 0.9, 0.95, 0.95);
+        //IJs krijgt dezelfde belichting (incl. terreinschaduw) als de rest: anders
+        //gloeit de nachtkant wit en zijn schaduwen op het ijs onzichtbaar.
+        kleur = vec4f(vec3f(0.85, 0.9, 0.95) * max(0.2, diffuus), 0.95);
     }
 
     //Windoverlay (toets V): rood/groen = windrichting, blauw = luchtdruk
