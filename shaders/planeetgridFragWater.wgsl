@@ -35,6 +35,7 @@ struct naarFrag {
     @location(12) wind          : vec2f,
     @location(13) luchtdruk     : f32,
     @location(14) modelPos      : vec3f,
+    @location(15) diepWater     : f32,
 };
 
 fn berekenVervormdeNormaal(n : vec3f, hoeks : vec3f, vervorming : vec2f) -> vec3f {
@@ -75,7 +76,9 @@ fn main(in : naarFrag) -> @location(0) vec4f {
 
     var vervormdN = in.normaal;
 
-    if(length(in.snelheid) > zeerKlein) {
+    //Bump-golfjes alleen op echt vloeibaar water: op ijs en dunne films zou de
+    //bump de normaal scheeftrekken en daarmee de belichting (en schaduw) kapotmaken.
+    if(in.diepWater > 0.5 && length(in.snelheid) > zeerKlein) {
         let coral = naadloosTex + in.plek * 0.001;
         let vervorming = textureSampleLevel(waterBumpTex, waterBumpSmp, vec2f(sin(coral.x * 3.142 * 2.0) * 10.0, coral.y * 10.0), 0.0).xy;
         vervormdN = berekenVervormdeNormaal(in.normaal, in.hoeks, vervorming);

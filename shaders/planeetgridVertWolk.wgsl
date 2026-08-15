@@ -27,6 +27,7 @@ struct naarFrag {
     @location(2) wolken         : f32,
     @location(3) grondHoogte    : f32,
     @location(4) pos            : vec4f,
+    @location(5) modelPos       : vec3f,
 };
 
 @vertex
@@ -70,6 +71,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
 
     //Radiale normaal: gladde belichting over het dek (i.p.v. het terrein te volgen)
     uit.normaal = normalize((matrices.modelZicht * vec4f(in.posV, 0.0)).xyz);
+    uit.modelPos = hierWolk;
     uit.pos = matrices.modelZicht * vec4f(hierWolk, 1.0);
     uit.glPos = matrices.projectie * uit.pos;
 
