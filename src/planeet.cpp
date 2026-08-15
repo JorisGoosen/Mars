@@ -125,9 +125,10 @@ void planeet::burenAlsEigenschapWijzers()
 		}
 		else
 		{
-			_vakken[0][i].waterHoogte 	=  _beginMetWater ? 8.335f : 0.0f; //10x de oorspronkelijke 0.8335
+			_vakken[0][i].waterHoogte 	=  0.0f;
 			_vakken[0][i].bodemVocht	=  0.0f;
 			_vakken[0][i].luchtVocht	=  0.0f;
+			_vakken[0][i].ijs			=  1.0f;
 			_vakken[0][i].leven			=  0.0001f;
 			_vakken[0][i].droesem		=  0.0f;
 			_vakken[0][i].plek			= glm::vec2(0.0f);
@@ -143,10 +144,6 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakken[0][i].wind        = glm::vec2(0.0f);
 			_vakken[0][i].wolken      = 0.0f;
 			_vakken[0][i].zonZicht    = 1.0f; //volle zon tot de schaduwkaart het tegendeel zegt
-			//Vochtige start: 75% van de verzadigingsdampdruk (zelfde exponentiële
-			//formule als sat_temp in waterLucht.comp met basisVerzadiging 0.15),
-			//zodat wolken en neerslag ontstaan waar de dynamica koelt/convergeert.
-			_vakken[0][i].luchtVocht  = 0.75f * 0.15f * std::exp(0.07f * (_vakken[0][i].temperatuur - 250.0f));
 		}
 	}	
 }

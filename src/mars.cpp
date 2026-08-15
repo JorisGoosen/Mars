@@ -757,14 +757,14 @@ int main(int argc, char ** argv)
 	glm::vec3	kijkPlek		(0.0f)				,
 				zonPos			(0.0f)				;
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.002f;
+				verdamping		= 0.0001f;
 	float						zonKracht		= 60.0f,
 				rotatieOmega	= 0.009f,   //dag/nacht (3x sneller dan 0.003)
 				coriolisOmega	= 1.0f,     //Coriolis-rotatie; losgekoppeld van dag/nacht
 				wrijving		= 0.03f,
 				diffusie		= 0.25f,
 				verwarmtijd		= 0.5f;
-	float		basisVerzadiging= 0.15f,
+	float		basisVerzadiging= 0.10f,
 				hoogteKoel		= 0.4f,
 				neerslagFactor	= 0.3f,
 				orografieFactor	= 0.4f;
@@ -851,11 +851,11 @@ int main(int argc, char ** argv)
 					std::cout << "Je hebt op ] gedrukt: de dag-en-nachtsnelheid is nu " << rotatieOmega << "." << std::endl;
 					break;
 				case GLFW_KEY_G:
-					coriolisOmega = glm::max(0.0f, coriolisOmega - 0.001f);
+					coriolisOmega = glm::max(0.0f, coriolisOmega - 0.05f);
 					std::cout << "Je hebt op G gedrukt: de Coriolis-sterkte is nu " << coriolisOmega << "." << std::endl;
 					break;
 				case GLFW_KEY_H:
-					coriolisOmega = glm::min(2.0f, coriolisOmega + 0.001f);
+					coriolisOmega = glm::min(2.0f, coriolisOmega + 0.05f);
 					std::cout << "Je hebt op H gedrukt: de Coriolis-sterkte is nu " << coriolisOmega << "." << std::endl;
 					break;
 				case GLFW_KEY_U:

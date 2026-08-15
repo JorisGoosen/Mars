@@ -155,18 +155,35 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //wolken/buien boven ijskappen gewoon en vult neerslag de ijskap direct aan. ijs zit
     //in het waterbudget, dus dit is een pure reservoir-overdracht (behoudend).
     let sneeuw     = select(0.0, regen, vriest > 0.0);
-    let regenWater = regen - sneeuw;
+    var regenWater = regen - sneeuw;
+
+    //Waterplafond: een wolk mag nooit zoveel water dumpen dat het wateroppervlak
+    //boven het wolkendek uitkomt. Wat niet past blijft als wolkwater hangen
+    //(behoudend). Het dek ligt op straal rWolk; terugrekenen naar hoogte:
+    //hoogte = (straal * grondMult - 1) / grondSchaal. Een bergtop die boven het
+    //dek uitsteekt houdt hoogstens een dunne laag (maxWaterBergtop), zodat de
+    //"wolkendek onder de grond"-dump daar geen waterpieken maakt.
+    let dekHoogte      = (rWolk * grondMult - 1.0) / reken.grondSchaal;
+    let maxWaterDiepte = select(maxWaterBergtop, max(0.0, dekHoogte - vakken0[ID].grondHoogte), grondR < rWolk);
+    let waterRuimte    = max(0.0, maxWaterDiepte - vakken1[ID].waterHoogte);
+    let nietPast       = max(0.0, regenWater - waterRuimte);
+    regenWater         = min(regenWater, waterRuimte);
+    wolk               += nietPast;
+
     var ijsNieuw   = vakken1[ID].ijs + sneeuw;
 
     var waterNieuw = vakken1[ID].waterHoogte + regenWater;
-    let stoom = luchtAan * (1.0 - vriest) * min(reken.verdamping * licht * min(1.0, waterNieuw * 5.0), waterNieuw);
+    //IJsdeksel: ligt er ijs op de cel, dan is het water eronder afgesloten van
+    //de lucht en verdampt het niet (pas als al het ijs is weggedooid, dampt het).
+    let ijsDeksel = select(0.0, 1.0, ijsNieuw <= zeerKlein);
+    let stoom = luchtAan * (1.0 - vriest) * ijsDeksel * min(reken.verdamping * licht, waterNieuw);
     waterNieuw -= stoom;
     damp += stoom;
 
     //Sublimatie: ook bevroren oppervlak (ijs/sneeuw) levert langzaam damp aan de
     //lucht, anders verdrogen de polen permanent (geen andere vochtbron daar).
     let ijsBeschikbaar = vakken1[ID].ijs;
-    let sublim = luchtAan * vriest * min(reken.verdamping * licht * min(1.0, ijsBeschikbaar * 5.0), ijsBeschikbaar);
+    let sublim = luchtAan * vriest * min(reken.verdamping * licht, ijsBeschikbaar);
     ijsNieuw -= sublim;
     damp += sublim;
 

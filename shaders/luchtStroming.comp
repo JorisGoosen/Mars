@@ -27,9 +27,9 @@
 //élke cel tegelijk tegen de cap maxWindsnel wordt geperst (waar de richtingen
 //onderling uitmiddelen tot ~0 en de wolken niets om te dragen hebben).
 const maxWindsnel  = 10.0;    //abs. windsnelheidsgrens
-const drukGevolg   = 0.001;    //hoe sterk wind-divergentie de druk verandert
+const drukGevolg   = 0.01;    //hoe sterk wind-divergentie de druk verandert
 const coriolisKracht = 0.25; //rotatiehoek per ronde = f·k; klein genoeg voor coherente afbuiging (exacte rotatie = stabiel)
-const terrainKracht  = 0.01;  //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
+const terrainKracht  = 0.0015; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
 
 //Temperatuur en druk advecteren veel zwakker mee dan het vocht: alleen een zachte
 //meetrek-beweging (sub-cel), zodat de diffusie/uitstraling kan overheersen en er

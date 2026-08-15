@@ -12,7 +12,7 @@ const tijdVerschil    = 0.1;
 const zwaartekracht   = 0.8;
 const pijpDoorsnee    = 0.5;
 const pijpLengte      = 1.0;
-const oplosheid       = 0.60;  //hoe snel water materiaal oplost/erodeert (4x de vorige 0.15)
+const oplosheid       = 0.70;  //hoe snel water materiaal oplost/erodeert
 const bezinkheid      = 0.30;  //hoe snel materiaal weer bezinkt (sedimentatie; verdubbeld)
 const droesemheid     = 0.45;
 const vertrager       = 1.0 / 3.0;
@@ -26,7 +26,7 @@ const minWaterSed     = 0.1;
 //Zand/sediment dient als snelle, makkelijk verplaatste deklaag; de diepste
 //ondergrond (rots) erodeert rotsVertragingKeer langzamer dan zand.
 const zandErosie   = 1.0;
-const rotsErosie   = 0.01; //100x langzamer dan zand
+const rotsErosie   = 0.05; //5x sneller dan voorheen, nog 20x langzamer dan zand
 const hellingKracht = 5.0;   //hoe sterk de helling de draagcapaciteit verhoogt
 const maxDichtheid = 0.5;    //max. zwevend sediment t.o.v. de waterhoogte
 
@@ -51,9 +51,10 @@ const maxLuchtVocht  = 1.0e12;
 //atmosferische vochtigheid (advectie door de wind, regent uit boven verzadiging
 //en op bergflanken).
 const veldCapaciteit    = 0.5; //max. bodemvocht dat een cel kan vasthouden
-const infiltratie       = 0.01;  //fractie staand water dat per ronde de grond in zakt
-const evapotranspiratie = 0.05; //hoe snel vochtige grond verdroogt naar droge lucht
+const infiltratie       = 0.01; //fractie staand water dat per ronde de grond in zakt
+const evapotranspiratie = 0.0025;   //hoe snel vochtige grond verdroogt naar droge lucht
 const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekbegrenzer)
+const maxWaterBergtop   = 0.1;  //max. waterlaag op een piek boven het wolkendek (waterplafond)
 
 //IJsvorming (zie waterDruk.comp): onder 273 K bevriest water tot ijs, daarboven
 //dooit het terug. Hoe kouder, hoe sneller. IJs telt als grond voor de stroming.
@@ -84,8 +85,8 @@ const ruimteK         = 180.0;  //effectieve hemeltemperatuur (K) zonder broeika
 const broeikasK       = 96.0;   //CO2-groeikaseffect: verhoogt de effectieve hemel-T
 const drukKracht     = 0.03;    //drukgradiëntkracht-coëfficiënt (wind versnelling, met ware gradient)
 const drukRelax      = 0.3;   //hoe snel de druk naar het thermische evenwicht zakt
-const drukDiffusie   = 0.35; //sterk gladstrijken van de druk: doodt grid-schaal P-ruis terwijl grootschalige contrasten blijven (diffusie is schaalselectief)
-const rotatieWind    = 2.0;  //vaste zonale (oostwaartse) basiswind evenaar-sterk, polen 0 (vertegenwoordigt planeetrotatie)
+const drukDiffusie   = 0.4; //sterk gladstrijken van de druk: doodt grid-schaal P-ruis terwijl grootschalige contrasten blijven (diffusie is schaalselectief)
+const rotatieWind    = 3.0;  //vaste zonale (oostwaartse) basiswind evenaar-sterk, polen 0 (vertegenwoordigt planeetrotatie)
 const minLuchtdruk   = 0.2;    //klemmen op de druk zodat P>0 blijft
 const maxLuchtdruk   = 5.0;
 
@@ -108,7 +109,7 @@ const wolkIsolatie  = 0.55;   //hoe sterk het wolkendek de uitstraling tegenhoud
 //gecondenseerde water. Regen valt uitsluitend uit wolken.
 const condensTempo   = 0.5;    //fractie oververzadigde damp die per ronde condenseert
 const wolkVerdamp    = 0.015;  //fractie wolkwater dat per ronde in droge lucht terugverdampt
-const regenTempo     = 0.0666; //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt
+const regenTempo     = 0.01332; //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
 const wolkDraagKracht = 0.25;  //max. wolkwater per eenheid; daarboven regent het uit
 const wolkDiffusie   = 0.15;   //nabije wolkpatchjes vloeien samen tot grotere dekken
