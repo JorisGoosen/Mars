@@ -51,7 +51,7 @@ const maxLuchtVocht  = 1.0e12;
 //atmosferische vochtigheid (advectie door de wind, regent uit boven verzadiging
 //en op bergflanken).
 const veldCapaciteit    = 0.5; //max. bodemvocht dat een cel kan vasthouden
-const infiltratie       = 0.001; //fractie staand water dat per ronde de grond in zakt
+const infiltratie       = 0.01;  //fractie staand water dat per ronde de grond in zakt
 const evapotranspiratie = 0.05; //hoe snel vochtige grond verdroogt naar droge lucht
 const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekbegrenzer)
 
