@@ -65,12 +65,15 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     var afId = ID;
     var besteAf = -1.0;
     var divU = 0.0;
+    var somWolk = 0.0;
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
         let mee = dot(vakMetas[ID].buurRicht[buur], wind);
         if(mee > besteAf) { besteAf = mee; afId = vakMetas[ID].buren[buur]; }
         divU += windUC(ID, buur);
+        somWolk += vakken0[vakMetas[ID].buren[buur]].wolken;
     }
     divU /= max(n, 1.0);
+    somWolk /= max(n, 1.0);
 
     //Orografische stijging: stroomafwaarts stijgt het oppervlak => de lucht wordt
     //omhooggeduwd, koelt en kan minder damp houden (lagere verzadiging).
@@ -109,6 +112,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     var regen = max(0.0, wolk - wolkDraagKracht) * regenTempo * (reken.condenseer.z / 0.3) * luchtAan;
     regen = min(regen, max(0.0, wolk));
     wolk -= regen;
+
+    //---- wolkdiffusie: nabije patchjes vloeien samen tot grotere wolkendekken ----
+    wolk += wolkDiffusie * (somWolk - wolk);
 
     //---- wolkendek onder de grond: een cel mag nooit vocht bevatten dat hoger
     //reikt dan het wolkendek. Ligt het lokale dek onder de grond (bergtop steekt

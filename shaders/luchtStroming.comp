@@ -89,9 +89,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     // 3) uitstraling naar de ruimte, afgeremd door het wolkendek,
     // 4) CO2-broeikaseffect zodat niet de hele planeet bevriest.
     //De lucht-T telt door van de vorige stap en wordt advecteerd met de wind.
-    let lokaalAlbedo = select(albedoIJs, select(albedoWolken, select(albedoWater, albedoGrond,
-                          vakken0[ID].waterHoogte > 0.5), vakken0[ID].wolken > 0.003),
-                          vakken0[ID].ijs > 0.01);
+    //LET OP select(f,t,c) = c ? t : f: onderstaande keten stond eerder omgekeerd,
+    //waardoor bijna de hele planeet albedoIJs kreeg en de oppervlakte-albedo's
+    //niets deden. Nu correct, met gradueel wolk-albedo: dunne wolken reflecteren
+    //gedeeltelijk, dikke dekken volledig.
+    let ondergrond   = select(albedoGrond, albedoWater, vakken0[ID].waterHoogte > 0.5);
+    let metWolk      = mix(ondergrond, albedoWolken, clamp(vakken0[ID].wolken / 0.2, 0.0, 1.0));
+    let lokaalAlbedo = select(metWolk, albedoIJs, vakken0[ID].ijs > 0.01);
     let albedo = mix(lokaalAlbedo, albedoBegroei, clamp(vakken0[ID].leven, 0.0, 1.0));
 
     let zonWarmte = reken.atmosfeer.x * (1.0 - albedo) * ins;

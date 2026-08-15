@@ -734,7 +734,7 @@ int main(int argc, char ** argv)
 				wrijving		= 0.03f,
 				diffusie		= 0.25f,
 				verwarmtijd		= 0.5f;
-	float		basisVerzadiging= 0.1f,
+	float		basisVerzadiging= 0.15f,
 				hoogteKoel		= 0.4f,
 				neerslagFactor	= 0.3f,
 				orografieFactor	= 0.4f;

@@ -78,7 +78,7 @@ const maxBuren = 6u;
 const luchtBaseTemp   = 250.0;  //start/referentietemperatuur (K) van de lucht
 const lapseKoeling    = 30.0;   //gematigde koeling per genormaliseerde hoogtelaag
 const opnameTempo     = 0.30;   //hoe snel zonne-energie de lucht opwarmt
-const stralingKracht  = 0.025;  //hoe snel de planeet afkoelt naar het omringende (uitstraling)
+const stralingKracht  = 0.05;  //hoe snel de planeet afkoelt naar het omringende (uitstraling)
 const tempDiffusie    = 0.1; //temperatuur gladstrijken (stabiel: monotone limiter vangt clusters op)
 const ruimteK         = 180.0;  //effectieve hemeltemperatuur (K) zonder broeikas
 const broeikasK       = 96.0;   //CO2-groeikaseffect: verhoogt de effectieve hemel-T
@@ -107,10 +107,11 @@ const wolkIsolatie  = 0.55;   //hoe sterk het wolkendek de uitstraling tegenhoud
 //luchtVocht is de damp (capaciteit volgt de temperatuur), wolken is het
 //gecondenseerde water. Regen valt uitsluitend uit wolken.
 const condensTempo   = 0.5;    //fractie oververzadigde damp die per ronde condenseert
-const wolkVerdamp    = 0.02;   //fractie wolkwater dat per ronde in droge lucht terugverdamt
-const regenTempo     = 0.5;    //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt
+const wolkVerdamp    = 0.015;  //fractie wolkwater dat per ronde in droge lucht terugverdampt
+const regenTempo     = 0.25;   //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
-const wolkDraagKracht = 0.1;   //max. wolkwater per eenheid; daarboven regent het uit
+const wolkDraagKracht = 0.25;  //max. wolkwater per eenheid; daarboven regent het uit
+const wolkDiffusie   = 0.15;   //nabije wolkpatchjes vloeien samen tot grotere dekken
 
 struct vak {
     grondSoort  : i32,

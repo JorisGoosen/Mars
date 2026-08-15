@@ -142,10 +142,10 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakken[0][i].luchtdruk   = 1.0f;
 			_vakken[0][i].wind        = glm::vec2(0.0f);
 			_vakken[0][i].wolken      = 0.0f;
-			//Vochtige start: 85% van de verzadigingsdampdruk (zelfde exponentiële
-			//formule als sat_temp in waterLucht.comp met basisVerzadiging 0.25),
+			//Vochtige start: 75% van de verzadigingsdampdruk (zelfde exponentiële
+			//formule als sat_temp in waterLucht.comp met basisVerzadiging 0.15),
 			//zodat wolken en neerslag ontstaan waar de dynamica koelt/convergeert.
-			_vakken[0][i].luchtVocht  = 0.85f * 0.1f * std::exp(0.07f * (_vakken[0][i].temperatuur - 250.0f));
+			_vakken[0][i].luchtVocht  = 0.75f * 0.15f * std::exp(0.07f * (_vakken[0][i].temperatuur - 250.0f));
 		}
 	}	
 }
