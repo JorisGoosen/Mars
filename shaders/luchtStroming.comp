@@ -28,7 +28,7 @@
 //onderling uitmiddelen tot ~0 en de wolken niets om te dragen hebben).
 const maxWindsnel  = 10.0;    //abs. windsnelheidsgrens
 const drukGevolg   = 0.0005;   //hoe sterk wind-divergentie de druk verandert
-const coriolisKracht = 0.25; //rotatiehoek per ronde = f·k; klein genoeg voor coherente afbuiging
+const coriolisKracht = 0.5; //rotatiehoek per ronde = f·k; versterkt voor een sterker horizontaal (zonaal) rotatiecomponent; exacte rotatie = onvoorwaardelijk stabiel
 const terrainKracht  = 0.001; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
 
 //Temperatuur en druk advecteren veel zwakker mee dan het vocht: alleen een zachte
