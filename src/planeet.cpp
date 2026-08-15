@@ -142,6 +142,10 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakken[0][i].luchtdruk   = 1.0f;
 			_vakken[0][i].wind        = glm::vec2(0.0f);
 			_vakken[0][i].wolken      = 0.0f;
+			//Vochtige start: 85% van de verzadigingsdampdruk (zelfde exponentiële
+			//formule als sat_temp in waterLucht.comp met basisVerzadiging 0.25),
+			//zodat wolken en neerslag ontstaan waar de dynamica koelt/convergeert.
+			_vakken[0][i].luchtVocht  = 0.85f * 0.1f * std::exp(0.07f * (_vakken[0][i].temperatuur - 250.0f));
 		}
 	}	
 }
@@ -227,18 +231,23 @@ void planeet::gaHetKlokjeRondMetDeBuren(size_t ID)
 	using glm::mat2;
 	mat2 C(0.0f);
 	size_t nBuren = _vakMetas[ID].burenAantal;
+	float somAfstand = 0.0f;
 	for(size_t i = 0; i < nBuren; i++)
 	{
 		size_t nb = sorteerDeze[i].buurNo;
 		vec3 delta = _punten->ggvPunt3(nb) - midden;
 		vec2 r = vec2(dot(east, delta), dot(noordT, delta));
 		float dist = length(r);
+		somAfstand += dist;
 		if(dist > 1.0e-8f) {
 			C[0][0] += r.x * r.x / dist;
 			C[0][1] += r.x * r.y / dist;
 			C[1][1] += r.y * r.y / dist;
 		}
 	}
+	//De LS-gradient/divergentie uit de shader is O(gemiddelde buurafstand); met
+	//2/d̄ als factor wordt dat de ware (diepte-onafhankelijke) waarde.
+	_vakMetas[ID].gradSchaal = (somAfstand > 1.0e-8f) ? 2.0f * float(nBuren) / somAfstand : 0.0f;
 	float det = C[0][0] * C[1][1] - C[0][1] * C[0][1];
 	if(det > 1.0e-10f) {
 		float invDet = 1.0f / det;

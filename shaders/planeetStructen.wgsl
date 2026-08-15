@@ -79,12 +79,12 @@ const luchtBaseTemp   = 250.0;  //start/referentietemperatuur (K) van de lucht
 const lapseKoeling    = 30.0;   //gematigde koeling per genormaliseerde hoogtelaag
 const opnameTempo     = 0.30;   //hoe snel zonne-energie de lucht opwarmt
 const stralingKracht  = 0.025;  //hoe snel de planeet afkoelt naar het omringende (uitstraling)
-const tempDiffusie    = 0.2; //temperatuur gladstrijken (stabiel: monotone limiter vangt clusters op)
+const tempDiffusie    = 0.1; //temperatuur gladstrijken (stabiel: monotone limiter vangt clusters op)
 const ruimteK         = 180.0;  //effectieve hemeltemperatuur (K) zonder broeikas
 const broeikasK       = 96.0;   //CO2-groeikaseffect: verhoogt de effectieve hemel-T
-const drukKracht     = 0.8;    //drukgradiëntkracht-coëfficiënt (wind versnelling)
-const drukRelax      = 0.05;   //hoe snel de druk naar het thermische evenwicht zakt
-const drukDiffusie   = tempDiffusie; //extra gladstrijken van de druk (gelijk aan de T-diffusie)
+const drukKracht     = 0.03;    //drukgradiëntkracht-coëfficiënt (wind versnelling, met ware gradient)
+const drukRelax      = 0.3;   //hoe snel de druk naar het thermische evenwicht zakt
+const drukDiffusie   = 0.35; //sterk gladstrijken van de druk: doodt grid-schaal P-ruis terwijl grootschalige contrasten blijven (diffusie is schaalselectief)
 const rotatieWind    = 2.0;  //vaste zonale (oostwaartse) basiswind evenaar-sterk, polen 0 (vertegenwoordigt planeetrotatie)
 const minLuchtdruk   = 0.2;    //klemmen op de druk zodat P>0 blijft
 const maxLuchtdruk   = 5.0;
@@ -106,9 +106,9 @@ const wolkIsolatie  = 0.55;   //hoe sterk het wolkendek de uitstraling tegenhoud
 //Twee-fasen vocht (zie waterLucht.comp): damp <-> wolk <-> regen.
 //luchtVocht is de damp (capaciteit volgt de temperatuur), wolken is het
 //gecondenseerde water. Regen valt uitsluitend uit wolken.
-const condensTempo   = 0.05;   //fractie oververzadigde damp die per ronde condenseert
-const wolkVerdamp    = 0.05;   //fractie wolkwater dat per ronde in droge lucht terugverdampf
-const regenTempo     = 0.04;   //fractie wolkwater dat per ronde als regen uitvalt
+const condensTempo   = 0.5;    //fractie oververzadigde damp die per ronde condenseert
+const wolkVerdamp    = 0.02;   //fractie wolkwater dat per ronde in droge lucht terugverdamt
+const regenTempo     = 0.5;    //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
 const wolkDraagKracht = 0.1;   //max. wolkwater per eenheid; daarboven regent het uit
 
@@ -143,7 +143,7 @@ struct vakMeta {
     buurRicht   : array<vec2f, maxBuren>,
     buren       : array<u32, maxBuren>,
     burenAantal : u32,
-    opvulling   : u32,
+    gradSchaal  : f32,        //2 / gemiddelde buurafstand: schaalt LS-gradient/divergentie naar de ware waarde
 };
 
 //Parameters die de reken-shaders krijgen (bind-groep 0, binding 3)

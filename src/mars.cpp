@@ -310,7 +310,11 @@ static void schrijfVeldKaart(const std::string & bestand, const vak * cellen, si
 
 	const bool kleur = (veld == "temperatuur" || veld == "wind" || veld == "oppervlakte");
 	float vmin = 0.0f, vmax = 1.0f;
-	if(!kleur)
+	if(veld == "wolken")
+	{
+		vmin = 0.0f; vmax = 0.3f; //vaste schaal: anders stretchen losse piekcellen de autoschaal zwart
+	}
+	else if(!kleur)
 	{
 		vmin = 1.0e30f; vmax = -1.0e30f;
 		for(size_t i = 0; i < aantal; i++)
@@ -723,14 +727,14 @@ int main(int argc, char ** argv)
 	glm::vec3	kijkPlek		(0.0f)				,
 				zonPos			(0.0f)				;
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.0001f;
+				verdamping		= 0.002f;
 	float						zonKracht		= 30.0f,
 				rotatieOmega	= 0.009f,   //dag/nacht (3x sneller dan 0.003)
-				coriolisOmega	= 0.0f,     //Coriolis-rotatie; losgekoppeld van dag/nacht (standaard uit)
-				wrijving		= 0.05f,
-				diffusie		= 0.02f,
+				coriolisOmega	= 1.0f,     //Coriolis-rotatie; losgekoppeld van dag/nacht
+				wrijving		= 0.03f,
+				diffusie		= 0.25f,
 				verwarmtijd		= 0.5f;
-	float		basisVerzadiging= 0.25f,
+	float		basisVerzadiging= 0.1f,
 				hoogteKoel		= 0.4f,
 				neerslagFactor	= 0.3f,
 				orografieFactor	= 0.4f;
@@ -1094,7 +1098,7 @@ int main(int argc, char ** argv)
 		rekenPar.fasen[0] 		= verwarmtijd;
 		rekenPar.fasen[1] 		= geo->hoogsteGrond();
 		rekenPar.fasen[2] 		= grondMult;
-		rekenPar.fasen[3] 		= 0.0f;
+		rekenPar.fasen[3] 		= std::pow(4.0f, (float)(subdiv - 6)); //diffusie-compensatie voor fijnere cellen (1.0 bij diepte 6)
 
 		wgpuQueueWriteBuffer(rij, rekenParBuffer, 0, &rekenPar, sizeof(rekenParameters));
 

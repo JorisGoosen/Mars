@@ -18,19 +18,17 @@
 //(grootschalige, samenhangende) circulatie-ellipsen/banden ontstaan i.p.v. dat
 //élke cel tegelijk tegen de cap maxWindsnel wordt geperst (waar de richtingen
 //onderling uitmiddelen tot ~0 en de wolken niets om te dragen hebben).
-const winddemping  = 0.15;   //fractie wind die per ronde door wrijving remt (groter = rustiger/gebalanceerd)
 const maxWindsnel  = 10.0;    //abs. windsnelheidsgrens
-const windDiffusie = 0.1;   //hoe sterk de wind naar het buurgemiddelde toe smoort (verwijdert grid-ruis → coherente banden)
-const drukGevolg   = 0.1;   //hoe sterk wind-divergentie de druk verandert
-const coriolisKracht = 3.0; //schaal van de Coriolis-afbuiging (laat geostrofisch evenwicht + jets ontstaan)
-const terrainKracht  = 0.3; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
-const rotatieK       = 0.5; //hoe sterk de wind naar de rotatiewind wordt getrokken (zichtbare co-rotatie)
+const drukGevolg   = 0.0005;   //hoe sterk wind-divergentie de druk verandert
+const coriolisKracht = 0.25; //rotatiehoek per ronde = f·k; klein genoeg voor coherente afbuiging
+const terrainKracht  = 0.001; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
 
 //Temperatuur en druk advecteren veel zwakker mee dan het vocht: alleen een zachte
 //meetrek-beweging (sub-cel), zodat de diffusie/uitstraling kan overheersen en er
 //geen fijnschalige draaikolken/ruis in T/P ontstaan. Het vocht (damp/wolk) advecteert
 //voluit via vochtStroming; hier voldoet een zwakke druk/waarde meebewegen.
 const TPAdvectieZwakte = 0.12;
+const windAdvectie  = 0.1;  //hoe sterk de wind zijn eigen impulsie stroomafwaarts meeneemt (jets/richtingswind die uitlopen in buurcellen)
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid : vec3u) {
@@ -41,6 +39,17 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let hier = vakMetas[ID].normaal.xyz;
     let burenAantal = vakMetas[ID].burenAantal;
     let n = f32(burenAantal);
+
+    //Wrijving en wind-diffusie komen uit de rekenparameters (toetsen O/P en de
+    //vlaggen), zodat de demping interactief te tunen is.
+    let winddemping  = max(0.0, reken.atmosfeer.z);
+    //Diffusie smoort fysiek ~coëfficiënt·d² per ronde; bij fijnere cellen (hogere
+    //--diepte) moet de cel-coëfficiënt dus mee schalen (4^(diepte-6), geklemd op
+    //0.8 voor expliciete stabiliteit) om dezelfde fysieke schalen te dempen.
+    let resSchaal      = max(0.25, reken.fasen.w);
+    let windDiffusieS  = min(0.8, max(0.0, reken.atmosfeer.w) * resSchaal);
+    let drukDiffusieS  = min(0.8, drukDiffusie * resSchaal);
+    let tempDiffusieS  = tempDiffusie; //niet resolutieschalen: T-ruis wordt door de drukdiffusie onschadelijk gemaakt, en ongeschaald blijft het dag/nacht- en albedocontrast op hoge diepte staan
 
     //Masterschakelaar: zonkracht (reken.atmosfeer.x) > 0 zet de circulatie aan.
     //Met 0 blijft de lucht volledig stil (handig als --no-atmosfeer-parachute).
@@ -67,10 +76,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //rotatiewind als het Coriolis-veld (max aan de evenaar, niets aan de polen).
     let zonal = sqrt(max(0.0, 1.0 - breedte * breedte));
 
-    //Vaste, kleine basiswind die de planeetrotatie vertegenwoordigt: oostwaarts
-    //(positieve eerste raakvlak-component = draairichting), evenaar-sterk, polen 0.
-    //Gated achter luchtAan, zodat --zonder-atmosfeer écht windstil blijft.
-    let V_rot = vec2f(rotatieWind * zonal, 0.0) * luchtAan;
+    //In het planeet-vaste frame is co-rotatie gewoon wind≈0; rotatie werkt alleen
+    //via Coriolis en de dag/nachtcyclus. Een opgelegde oostwind (zoals voorheen)
+    //wordt door Coriolis op beide halfronden naar de evenaar gepompt en zuigt zo
+    //alle vocht in één band — vandaar geen V_rot-attractor meer.
+    let V_rot = vec2f(0.0);
 
     //Echte energiebalans (geen breedte-verzonnen evenwicht meer):
     // 1) zoninstraling met invalshoek (ins = cos van de zonhoogte; scherende
@@ -94,35 +104,35 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //(lapse rate) ingebouwd in het stralingsevenwicht: hoger -> kouder doel.
     let ruimteEffectief = ruimteK + broeikasK - lapseKoeling * hoogteFrac;
 
-    //---- advectie van T en P met de huidige wind (semi-Lagrangiaans) ----
-    //Vroeger eerste-orde upwind: één donorcel, mengstapje geklemd op 0.35, waardoor
-    //T/P nauwelijks meetrokken en de wolken (die wél de volle semi-Lagrangiaanse
-    //tracer gebruiken) een eigen, losgekoppeld pad volgden. Nu volgen T en P dézelfde
-    //multi-cel achterwaartse traject-interpolatie als het vocht in waterLucht, zodat
-    //temperatuur, druk én wolken met één samenhangend luchtpakket meereizen.
-    //---- advectie van T en P met de wind (fluxvormig, donor-cel) ----
-    //Eén gezamenlijke "luchtcel" verplaatst zich: temperatuur en druk reizen met
-    //díézelfde face-snelheid (windU) als het vocht in vochtStroming, zodat alle
-    //atmosferische grootheden als één gemengd luchtpakket meebewegen. Elke scalar
-    //heeft een eigen claim-limit (K) die alleen de UITGAANDE flux beperkt, zodat
-    //een cel nooit meer wegstuurt dan hij bezit (geen onder-uitschot).
+    //---- advectie van T, P en impulsie met de wind (fluxvormig, donor-cel) ----
+    //Eén gezamenlijke "luchtcel" verplaatst zich: temperatuur, druk én impulsie
+    //reizen met díézelfde face-snelheid (windUC) als het vocht in vochtStroming,
+    //zodat alle atmosferische grootheden als één gemengd luchtpakket meebewegen.
+    //Impulsie-advectie laat richtingswind/jets stroomafwaarts uitlopen in de
+    //buurcellen i.p.v. dat elke cel alleen op lokale krachten reageert.
+    //De verschilvorm (don - eigen) is compressievrij: de residu-compressie van
+    //het discrete windveld wordt niet vermenigvuldigd met de absolute waarde.
+    let oost0  = vakMetas[ID].oost.xyz;
+    let noord0 = vakMetas[ID].noord.xyz;
+    let V3_0   = V0.x * oost0 + V0.y * noord0;
     var netT = 0.0;
     var netP = 0.0;
+    var netW3 = vec3f(0.0);
     var minTN = T0; var maxTN = T0;
     var minPN = P0; var maxPN = P0;
     for(var av = 0u; av < burenAantal && av < maxBuren; av++) {
         let avU  = windUC(ID, av);
         let avNb = vakMetas[ID].buren[av];
         let c    = dtAdvPerL() * TPAdvectieZwakte;
+        let cW   = dtAdvPerL() * windAdvectie;
         let Tnb  = vakken0[avNb].temperatuur;
         let Pnb  = vakken0[avNb].luchtdruk;
         let Tdon = select(Tnb, T0, avU >= 0.0);
         let Pdon = select(Pnb, P0, avU >= 0.0);
-        //(Tdon - T0) i.p.v. Tdon: de kale fluxvorm leest de residu-compressie van
-        //het discrete windveld (Σ ũ ≈ 0 maar niet exact) vermenigvuldigd met de
-        //absolute waarde T0/P0 als valse bron; de verschilvorm is compressievrij.
+        let V3don = select(wind3(avNb), V3_0, avU >= 0.0);
         netT -= avU * (Tdon - T0) * c;
         netP -= avU * (Pdon - P0) * c;
+        netW3 -= avU * (V3don - V3_0) * cW;
         minTN = min(minTN, Tnb); maxTN = max(maxTN, Tnb);
         minPN = min(minPN, Pnb); maxPN = max(maxPN, Pnb);
     }
@@ -132,15 +142,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //zolang de limiter enkel overshoot afknipt; dit is de FCT-achtige garantie.
     let T_adv = clamp(T0 + netT, minTN, maxTN);
     let P_adv = clamp(P0 + netP, minPN, maxPN);
+    let W_adv = lokaal2(ID, netW3);
 
     //---- wind: drukgradiënt + Coriolis + wrijving + diffusie + terrein ----
     //Vectorgrootheden (wind, windverschillen) worden in 3D gecombineerd: de
     //lokale raakvlak-basisjes draaien tussen buren, dus componenten rechtstreeks
     //optellen leest die rotatie als valse divergentie/diffusie, systematisch
     //langs de icosahedron-hoofdvlakken (sterpatroon in druk, ruiten in wind).
-    let oost0  = vakMetas[ID].oost.xyz;
-    let noord0 = vakMetas[ID].noord.xyz;
-    let V3_0   = V0.x * oost0 + V0.y * noord0;
     var somW3    = vec3f(0.0);
     var gradiënt = vec2f(0.0);
     var somP     = 0.0;
@@ -168,9 +176,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //wind als valse divergentie, en die anisotropie ligt systematisch langs de
     //icosahedron-hoofdvlakken (sterpatroon in druk/wind/temperatuur).
     let wDiv = vakMetas[ID].gradWeights;
-    let div  = wDiv.x * rawDivX.x + wDiv.y * (rawDivX.y + rawDivY.x) + wDiv.z * rawDivY.y;
-    let gradP = applyGradWeights(ID, gradiënt);
-    let gradH = applyGradWeights(ID, terreinGrad);
+    let div  = (wDiv.x * rawDivX.x + wDiv.y * (rawDivX.y + rawDivY.x) + wDiv.z * rawDivY.y) * vakMetas[ID].gradSchaal;
+    let gradP = applyGradWeights(ID, gradiënt) * vakMetas[ID].gradSchaal;
+    let gradH = applyGradWeights(ID, terreinGrad) * vakMetas[ID].gradSchaal;
 
     //---- temperatuur-update: warmte erbij (zon), af (uitstraling) + diffusie ----
     //Zonder atmosfeer (reken.atmosfeer.x = 0) blijft de temperatuur stil.
@@ -181,16 +189,12 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         T_adv
         + opnameTempo * zonWarmte * tijdVerschil
         - afkoelen * (T_adv - ruimteEffectief) * tijdVerschil
-        + tempDiffusie * (somT - T_adv),
+        + tempDiffusieS * (somT - T_adv),
         luchtAan > 0.0);
 
-    //Coriolis: f = 2 Omega * zonal; max aan de evenaar, niets aan de polen (i.p.v.
-    //2 Omega * breedte dat polair versterkte en poolkolken maakte). 90°-draaiing
-    //in het raakvlak. In het (west, noord)-raakvlak is de 90°-draaiing
-    //"-draaiing (-V.y, V.x)". Let op: de lokale noord-as van het raakvlak
-    //(buurRicht.y, zie planeet.cpp) wijst naar het ZUIDEN.
-    let fgeo = 2.0 * reken.atmosfeer.y * zonal;
-    let cor  = vec2f(-V0.y, V0.x) * fgeo * coriolisKracht;
+    //Coriolis: f = 2 Omega * sin(breedte) — fysiek correct nul op de evenaar en
+    //maximaal aan de polen (breedte = normaal·noordas = sin(breedtegraad)).
+    let fgeo = 2.0 * reken.atmosfeer.y * breedte;
 
     //Terrein-forcering: het vaste hoogteveld buigt de stroming om bergen/flanken
     //heen en werkt als een permanente (fysieke) ruisbron. Flow die een helling
@@ -201,11 +205,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     var V1 = V0
            - drukKracht * gradP                       //drukgradiëntkracht
-           + cor                                         //coriolis
            + terreinForce                                 //terrein (wervels/omleiding)
-           - winddemping * (V0 - V_rot)                 //Rayleigh-wrijving richting de rotatiewind (co-rotatie)
-           + rotatieK * (V_rot - V0)                     //sterke attractor: evenaar haalt de volle rotatiewind
-           + windDiffusie * (somW - V0);                 //diffusie: smoot de wind tot grootschalige, coherente stroming
+           - winddemping * (V0 - V_rot)                 //Rayleigh-wrijving
+           + windDiffusieS * (somW - V0)                 //diffusie: smoot de wind tot grootschalige, coherente stroming
+           + W_adv;                                     //impulsie-advectie: richtingswind loopt uit in buurcellen
+
+    //Coriolis als exacte rotatie na alle krachten: onvoorwaardelijk stabiel,
+    //in tegenstelling tot een expliciete loodrechte krachtterm. Rechtsom op het
+    //noordelijk halfrond (f>0) => afbuiging rechts van de bewegingsrichting.
+    let theta = fgeo * coriolisKracht;
+    let ct = cos(theta);
+    let st = sin(theta);
+    V1 = vec2f(V1.x * ct + V1.y * st, -V1.x * st + V1.y * ct);
 
     //abs. begrenzing van de wind
     let lV = length(V1);
@@ -216,10 +227,14 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //---- druk: thermische bron (warm = lage luchtdruk) + continuïteit + diffusie ----
     //Warme lucht zet uit en verlaagt de oppervlaktedruk t.o.v. het omringende;
     //dat onderhoudt voortdurend het drukgradiënt dat de circulatie in stand houdt.
-    let thermKracht = 0.008;  //P-verlaging per K dat een cel warmer is dan zijn omgeving
+    //pSchaal = 1/resSchaal houdt de drukgolf-Courant (c·dt/d) gelijk over resolutes:
+    //zonder dit lopen de gecombineerde gradP/div-koppeling bij hoge --diepte uit
+    //de hand (hoge-frequentie ruis), omdat d kleiner wordt maar dt per ronde niet.
+    let pSchaal = 1.0 / resSchaal;
+    let thermKracht = 0.05;  //P-verlaging per K dat een cel warmer is dan zijn omgeving
     let P_doel = P0 * (1.0 - luchtAan * thermKracht * (T1 - somT));
-    var P1 = P_adv + drukRelax * (P_doel - P_adv) - drukGevolg * div;
-    P1 += drukDiffusie * (somP - P1);
+    var P1 = P_adv + drukRelax * (P_doel - P_adv) - drukGevolg * div * pSchaal;
+    P1 += drukDiffusieS * (somP - P1);
 
     vakken1[ID].temperatuur = goed(T1, T0, 120.0, 2000.0);
     vakken1[ID].luchtdruk   = goed(clamp(P1, minLuchtdruk, maxLuchtdruk), P0, minLuchtdruk, maxLuchtdruk);

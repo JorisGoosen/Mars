@@ -8,11 +8,13 @@
 //verse wind, temperatuur, waterHoogte en bodemVocht van deze ronde.
 #include "planeetDefinities.wgsl"
 
-//Verzadigingsdampdruk, temperatuur-afhankelijk (lineaire benadering van
-//Clausius-Clapeyron in het kleine werkbereik). Warme lucht houdt meer damp.
-const dynamischLift = 6.0; //hoe sterk convergentie de verzadiging verlaagt (wolkvorming)
+//Verzadigingsdampdruk, temperatuur-afhankelijk (exponentiële, Clausius-Clapeyron-
+//achtige benadering: ~7%/K). Blijft positief bij elke temperatuur, zodat ook
+//koude lucht een kleine maar reële dampcapaciteit houdt (een lineaire benadering
+//klapt onder ~257 K door nul en laat dan de hele koude planeet droog staan).
+const dynamischLift = 10.0; //hoe sterk convergentie de verzadiging verlaagt (wolkvorming)
 fn sat_temp(T : f32) -> f32 {
-    let q = reken.condenseer.x * (1.0 + 0.08 * (T - 270.0));
+    let q = reken.condenseer.x * exp(0.07 * (T - 250.0));
     return max(0.0001, q);
 }
 
@@ -62,13 +64,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //Stroomafwaartse buur (waar de wind heen gaat) voor orografische stijging.
     var afId = ID;
     var besteAf = -1.0;
-    var ligDiv = 0.0;
+    var divU = 0.0;
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
         let mee = dot(vakMetas[ID].buurRicht[buur], wind);
         if(mee > besteAf) { besteAf = mee; afId = vakMetas[ID].buren[buur]; }
-        ligDiv += dot(vakMetas[ID].buurRicht[buur], wind);
+        divU += windUC(ID, buur);
     }
-    ligDiv /= max(n, 1.0);
+    divU /= max(n, 1.0);
 
     //Orografische stijging: stroomafwaarts stijgt het oppervlak => de lucht wordt
     //omhooggeduwd, koelt en kan minder damp houden (lagere verzadiging).
@@ -76,10 +78,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let stijgOp     = max(0.0, min(oppervlakAf - oppervlak, 1.0));
     let stijgTerm   = clamp(reken.condenseer.w * stijgOp, 0.0, 0.9);
 
-    //Dynamische opwaartse stroming: waar de wind convergeert (negatieve divergentie)
-    //wordt lucht omhooggeduwd, koelt af en condenseert. Dit vormt bewolking in
-    //echte circulatie-systemen i.p.v. louter onder de zon.
-    let convergentie = -ligDiv;
+    //Dynamische opwaartse stroming: waar de wind convergeert (negatieve divergentie
+    //van de compressie-gecorrigeerde face-snelheid) wordt lucht omhooggeduwd, koelt
+    //af en condenseert. Dit vormt bewolking in echte circulatie-systemen i.p.v.
+    //louter onder de zon.
+    let convergentie = -divU;
     let dynLift      = clamp(convergentie * dynamischLift, 0.0, 0.95);
 
     var verzadiging = sat_temp(T) * (1.0 - stijgTerm - (1.0 - stijgTerm) * dynLift) - reken.condenseer.y * hoogteFrac;
@@ -103,7 +106,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     }
 
     //---- regen uitsluitend uit wolken (boven de draagkracht valt het uit) ----
-    var regen = max(0.0, wolk - wolkDraagKracht) * regenTempo * luchtAan;
+    var regen = max(0.0, wolk - wolkDraagKracht) * regenTempo * (reken.condenseer.z / 0.3) * luchtAan;
     regen = min(regen, max(0.0, wolk));
     wolk -= regen;
 
@@ -145,19 +148,27 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //in het waterbudget, dus dit is een pure reservoir-overdracht (behoudend).
     let sneeuw     = select(0.0, regen, vriest > 0.0);
     let regenWater = regen - sneeuw;
-    let ijsNieuw   = vakken1[ID].ijs + sneeuw;
+    var ijsNieuw   = vakken1[ID].ijs + sneeuw;
 
     var waterNieuw = vakken1[ID].waterHoogte + regenWater;
     let stoom = luchtAan * (1.0 - vriest) * min(reken.verdamping * licht * min(1.0, waterNieuw * 5.0), waterNieuw);
     waterNieuw -= stoom;
     damp += stoom;
 
+    //Sublimatie: ook bevroren oppervlak (ijs/sneeuw) levert langzaam damp aan de
+    //lucht, anders verdrogen de polen permanent (geen andere vochtbron daar).
+    let ijsBeschikbaar = vakken1[ID].ijs;
+    let sublim = luchtAan * vriest * min(reken.verdamping * licht * min(1.0, ijsBeschikbaar * 5.0), ijsBeschikbaar);
+    ijsNieuw -= sublim;
+    damp += sublim;
+
     //---- evapotranspiratie: vochtige bodem verdroogt naar droge lucht ----
     //Conservatief: damp krijgt nooit meer dan de bodem écht inlevert (min met de
     //beschikbare bodemvocht), zodat er nooit vocht uit het niets ontstaat.
-    //Geschaald met reken.verdamping / 0.0001, zodat de K/L-toets óók de
-    //bodemverdamping raakt (anders bleven er wolken komen als verdamping=0).
-    let evapot = evapotranspiratie * reken.verdamping / 0.0001;
+    //Geschaald met reken.verdamping / 0.002 (de standaardverdamping), zodat de
+    //K/L-toets óók de bodemverdamping raakt (anders bleven er wolken komen als
+    //verdamping=0).
+    let evapot = evapotranspiratie * reken.verdamping / 0.002;
     let verdroogt = luchtAan * evapot * vakken1[ID].bodemVocht * max(0.0, verzadiging - damp);
     var bodemVochtNieuw = vakken1[ID].bodemVocht;
     if(verdroogt > zeerKlein) {

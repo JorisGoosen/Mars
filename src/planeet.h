@@ -47,8 +47,8 @@ struct vakMeta
 	float		_padGrad		;	// opvulling: WGSL vec3f heeft align 16, C++ glm::vec3 heeft align 4
 	glm::vec2	buurRicht[6]	;	// 3 * 4
 	glm::uint32	buren[6]		,	//     6 
-				burenAantal		,	// 	   1
-				opvulling		;	//     1
+				burenAantal		;	// 	   1
+	float		gradSchaal		;	// 2 / gemiddelde buurafstand: schaalt de LS-gradient/divergentie naar de ware waarde (diepte-onafhankelijk)
 };									//
 
 class planeet : public geodesisch
