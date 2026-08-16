@@ -43,9 +43,13 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     uit.texDraaien = vec3f(in.tex.y, fract(in.tex.x), fract(in.tex.x + 0.5) - 0.5);
     uit.grondHoogte = vakken0[ID].grondHoogte;
 
-    let lokaalWater = select(vakken0[ID].waterHoogte / waterSchaler, 1.0, vakken0[ID].waterHoogte > waterSchaler);
+let lokaalWater = select(vakken0[ID].waterHoogte / waterSchaler, 1.0, vakken0[ID].waterHoogte > waterSchaler);
     let droesemVerhouding = select(vakken0[ID].droesem / max(droesemheid * vakken0[ID].waterHoogte, zeerKlein), 0.0, vakken0[ID].waterHoogte <= zeerKlein);
-    uit.kleur = vec4f(droesemVerhouding, length(vakken0[ID].snelheid) * vertrager, 0.4, 0.3 + (lokaalWater * 0.7));
+    //Resulterende stroming = lengte van de flux-afgeleide snelheid (in waterDruk.comp
+    //al gemiddeld over de buren); daar schalen we het wit-schuim mee.
+    let stroomKracht = clamp(length(vakken0[ID].snelheid) * 0.5, 0.0, 1.0);
+    //droesemVerhouding (0..1) in kleur.r, stroomKracht in kleur.g:
+    uit.kleur = vec4f(clamp(droesemVerhouding, 0.0, 1.0), stroomKracht, 0.0, 0.3 + (lokaalWater * 0.7));
 
     uit.waterHoogte = vakken0[ID].waterSchijn;
     uit.snelheid = vakken0[ID].snelheid;

@@ -106,7 +106,7 @@ void planeet::burenAlsEigenschapWijzers()
 		//De planeet begint met een zanddeksel: een deklaag zand boven op de rots.
 		//Waar die laag ligt is het oppervlak zand (maakPingPongOpslagen zet dat als
 		//grondSoort); diepere ondergrond is rots, die 100x langzamer erodeert.
-		const float zandDeklaag = 0.75f;
+		const float zandDeklaag = 2.0f;
 		_vakken[0][i].rotsHoogte = glm::clamp(_vakken[0][i].grondHoogte - zandDeklaag, minGrondHoogte, maxGrondHoogte);
 		
 		vec3 n = normalize(_punten->ggvPunt3(i));
@@ -126,10 +126,10 @@ void planeet::burenAlsEigenschapWijzers()
 		else
 		{
 			_vakken[0][i].waterHoogte 	=  0.0f;
-			_vakken[0][i].bodemVocht	=  0.0f;
+			_vakken[0][i].bodemVocht	=  1.0f;
 			_vakken[0][i].luchtVocht	=  0.0f;
 			_vakken[0][i].ijs			=  1.0f;
-			_vakken[0][i].leven			=  0.0001f;
+			_vakken[0][i].leven			=  0.0002f;
 			_vakken[0][i].droesem		=  0.0f;
 			_vakken[0][i].plek			= glm::vec2(0.0f);
 

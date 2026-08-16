@@ -34,6 +34,8 @@ struct naarFrag {
     @location(11) wind          : vec2f,
     @location(12) luchtdruk     : f32,
     @location(13) modelPos      : vec3f,
+    @location(14) overlayVelden : vec4f, //(bodemVocht, ijs, wolken, luchtVocht)
+    @location(15) zonZicht      : f32,
 };
 
 //Temperatuuroverlay-kleurkaart: -25 °C (= 248 K) blauw, 0 °C (= 273 K) groen,
@@ -55,6 +57,50 @@ fn windKleur(W : vec2f, P : f32) -> vec3f {
     let g = clamp(W.y / wScale * 0.5 + 0.5, 0.0, 1.0); //noord-zuid
     let b = clamp((P - 0.2) / 4.8, 0.0, 1.0);          //luchtdruk
     return vec3f(r, g, b);
+}
+
+//Enkel-veld-overlay: een stuk luchtdruk/temperatuur-gevoel geeft meer contrast.
+fn enkelVeldKleur(v : f32) -> vec3f {
+    let t = clamp(v, 0.0, 1.0);
+    //donker lila (0) -> donkergroen (0.5) -> fel geel (1)
+    var kleur = mix(vec3f(0.45, 0.2, 0.6), vec3f(0.1, 0.5, 0.15), smoothstep(0.0, 0.5, t));
+    kleur = mix(kleur, vec3f(1.0, 0.9, 0.1), smoothstep(0.5, 1.0, t));
+    return kleur;
+}
+
+fn grijs(fel : f32) -> vec3f {
+    let f = clamp(fel, 0.0, 1.0);
+    return vec3f(0.05 + 0.95 * f);
+}
+
+//Overlay voor het (o)verlaag-keuzeveld: index naar kleur.
+fn overlayKleurKeuze(in : naarFrag) -> vec3f {
+    let bodemVocht = in.overlayVelden.x;
+    let ijs        = in.overlayVelden.y;
+    let wolken     = in.overlayVelden.z;
+    let luchtVocht = in.overlayVelden.w;
+    switch(i32(extra.overlayKeuze)) {
+        case 1: { return temperatuurKleur(in.temperatuur); }
+        case 2: { return windKleur(in.wind, in.luchtdruk); }
+        case 3: { return enkelVeldKleur(bodemVocht * 2.0); } //0..veldCapaciteit (0.5)
+        case 4: { //blauw = luchtvocht, groen = wolken(condens), rood = luchtdruk
+            let b = clamp(luchtVocht / 0.5, 0.0, 1.0);
+            let g = clamp(wolken * 2.0, 0.0, 1.0);
+            let r = clamp((in.luchtdruk - 0.2) / 4.8, 0.0, 1.0);
+            return vec3f(r, g, b);
+        }
+        case 5: { //rood = ijs, groen = bodemvocht, blauw = water
+            let r = clamp(ijs * 5.0, 0.0, 1.0);
+            let g = clamp(bodemVocht * 2.0, 0.0, 1.0);
+            let b = clamp(in.waterHoogte * 2.0, 0.0, 1.0);
+            return vec3f(r, g, b);
+        }
+        case 6: { return mix(vec3f(0.4, 0.45, 0.55), vec3f(1.0, 0.99, 0.96), clamp(wolken * 3.0, 0.0, 1.0)); }
+        case 7: { return grijs(in.zonZicht); }
+        case 8: { return vec3f(0.0, in.leven, 0.0) + vec3f(0.02); } //groen naar dichtheid leven
+        case 9: { return grijs(clamp(in.grondHoogte / extra.maxGrondHoogte, 0.0, 1.0)); } //terreinhoogte
+        default: { return vec3f(1.0, 0.0, 1.0); } //magenta = onbekende keuze
+    }
 }
 
 @fragment
@@ -80,14 +126,9 @@ fn main(in : naarFrag) -> @location(0) vec4f {
 
     var kleur = mix(in.kleur * clamp(marsHoogte * 3.0, 0.35, 1.0), vec4f(0.0, 0.35, 0.0, 1.0), clamp(in.leven, 0.0, 1.0));
 
-    //Temperatuuroverlay (toets T): vervang de oppervlaktekleur door de temp-kleurkaart
-    if(extra.toonTemperatuur > 0.5) {
-        return vec4f(temperatuurKleur(in.temperatuur), 1.0);
-    }
-
-    //Windoverlay (toets V): rood/groen = windrichting, blauw = luchtdruk
-    if(extra.toonWind > 0.5) {
-        return vec4f(windKleur(in.wind, in.luchtdruk), 1.0);
+    //Overlay (cijfertoetsen 1-0): vervang de oppervlaktekleur door de kleurkaart
+    if(extra.overlayKeuze > 0.5) {
+        return vec4f(overlayKleurKeuze(in), 1.0);
     }
 
     return kleur * max(0.2, diffuus * schaduw);

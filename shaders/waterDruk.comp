@@ -32,13 +32,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
                 let stroomBinnen = vakken1[buurIDv].pijpen[buurBuur] - vakken1[ID].pijpen[buur];
 
                 stroming += stroomBinnen;
-                //Bodemvocht-diffusie: symmetrisch per buurpaar, zodat de totale
-                //hoeveelheid bodemvocht behouden blijft. Gewicht = harmonisch gemiddelde
-                //van beide buur-aantallen (5 of 6 buren) BEIDE uit dezelfde (oude) stand,
-                //zodat de fluxen per pijp netjes anti-symmetrisch zijn (geen lek).
-                let buurCount  = f32(vakMetas[buurIDv].burenAantal);
-                let weegFactor = 2.0 / (f32(burenAantal) + buurCount);
-                buurBodemVocht += (vakken0[buurIDv].bodemVocht - mijnBodemVocht) * weegFactor;
+                //Bodemvocht-diffusie uitgezet (diffusieFactor = 0): bodemvocht verplaatst dan
+                //alleen nog via infiltratie/verdamping, niet door de grond heen.
+                buurBodemVocht += 0.0;
                 buurLeven += vakken1[buurIDv].leven;
                 snelheid += vakMetas[ID].buurRicht[buur] * stroomBinnen;
 
@@ -200,10 +196,10 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     let isZand = vakken1[ID].grondSoort == i32(gsZand) || vakken1[ID].grondSoort == i32(gsLoess);
 
-    let rotsGroei = 1.0001;
+    let rotsGroei = 1.00005;
     let rotsBuur  = 0.003333;
-    let zandGroei = 1.01;
-    let zandBuur  = 0.03333;
+    let zandGroei = 1.001;
+    let zandBuur  = 0.05;
     let groei     = select(rotsGroei, zandGroei, isZand);
     let buurG     = select(rotsBuur,  zandBuur,  isZand);
 
@@ -216,18 +212,29 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let groeiTemp = smoothstep(levenBevriesK, levenBevriesK + levenGroeiBand, T_kelvin);
     let koudFract = clamp((levenKoudBegin - T_kelvin) / max(levenKoudBegin - levenKoudSnel, zeerKlein), 0.0, 1.0);
 
-    //Bestaande vocht-afhankelijke groei, maar nu geschaald met de temperatuur:
-    //onder 0 °C (groeiTemp=0) groeit er niets meer.
+    //Vochtmaat: leven gedijt tot de veldcapaciteit, daarboven helpt extra vocht niet.
+    let vochtmaat = clamp(vakken1[ID].bodemVocht / veldCapaciteit, 0.0, 1.0);
+
+    //Bestaande vocht-afhankelijke groei, nu ook geschaald met temperatuur en vocht:
+    //onder 0 °C (groeiTemp=0) of zonder grondvocht (vochtmaat=0) groeit er niets.
+    let groeiFactor = (1.0 + (groei - 1.0) * groeiTemp) * vochtmaat;
+    var nieuw = leven * max(groeiFactor, 1.0) + (buurLeven * buurG) * groeiTemp * vochtmaat;
+
+    //Onder water sterft leven sneller, en hoe dieper hoe sneller (geen licht).
+    let waterDood = clamp((vakken1[ID].waterHoogte - 2.0) / 6.0, 0.0, 1.0) * 0.9;
+    nieuw *= mix(0.85, 0.3, waterDood);
+    //Ondiep water (net onder het oppervlak): lichte demping
+    if(vakken1[ID].waterHoogte > 0.05 && vakken1[ID].waterHoogte <= 2.0) {
+        nieuw *= mix(1.0, 0.95, groeiTemp);
+    }
+
+    //Droogte doodt langzaam (traag en geleidelijk) i.p.v. een harde cap: droge grond
+    //laat het leven geleidelijk sterven, niet plotseling verdwijnen.
     if(vakken1[ID].waterHoogte <= 0.05) {
-        leven = max(0.0, min(vakken1[ID].bodemVocht,
-                  max(leven * (1.0 + (groei - 1.0) * groeiTemp), leven + (buurLeven * buurG) * groeiTemp)));
+        nieuw *= 1.0 - (1.0 - vochtmaat) * levenDroogTempo;
     }
-    else if(vakken1[ID].waterHoogte > 2.0) {
-        leven *= mix(1.0, 0.85, groeiTemp);
-    }
-    else {
-        leven *= mix(1.0, 0.95, groeiTemp);
-    }
+
+    leven = max(0.0, nieuw);
 
     //Koude-dood (uniform): vanaf -20 °C begint leven te sterven, kwadratisch opbouwend
     //naar heel snel bij -60 °C en daaronder. Bij volledige koude-dood wordt leven 0.

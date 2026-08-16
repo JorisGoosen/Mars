@@ -92,44 +92,40 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     let oogRicht = normalize(-mijnPlek);           //camera zit in view-ruimte in de oorsprong
     let lichtSpiegel = reflect(zonView, vervormdN);
     var diffuus     = max(0.0, dot(zonView, vervormdN));
+    var schaduw     = 1.0;
 
     //Terrein-schaduw: bergen gooien hun schaduw ook op het water/ijs
     if(extra.schaduwAan > 0.5 && diffuus > 0.0) {
         let straal = zonStraal(extra.grondMult, extra.grondSchaal, extra.maxGrondHoogte);
-        diffuus *= zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte);
+        schaduw = zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte);
+        diffuus *= schaduw;
     }
 
     var lichtheid = 0.0;
 
     if(diffuus > 0.0) {
-        lichtheid = pow(max(0.0, dot(lichtSpiegel, oogRicht)), 200.0) * 0.8;
+        //De spiegel wordt óók gedimd met het schaduwbedrag: in halfschaduw niet
+        //vol stonderschaduw, in volle schaduw volledig uit.
+        lichtheid = pow(max(0.0, dot(lichtSpiegel, oogRicht)), 200.0) * 0.8 * schaduw;
     }
 
-    var kleur = mix(vec4f(in.kleur.xyz * max(0.2, diffuus), in.kleur.a), vec4f(vec3f(1.0), in.kleur.a), lichtheid);
-    kleur *= vec4f(1.0, 1.0, 1.0, 0.85);
+    //Basiswaterkleur: blauw, maar mengt naar modderbruin naarmate er droesem in zit.
+    let modder = clamp(in.kleur.r, 0.0, 1.0);
+    let waterKleur = mix(vec3f(0.05, 0.15, 0.6), vec3f(0.45, 0.32, 0.2), modder);
+    //Swirflow-wit (uit kleur.g) wordt eerst in de kleur gemengd en daarna pas door de
+    //diff belicht/verduisterd: het wit volgt dus óók de nachtzijde (lichtval).
+    var waterRgb = mix(waterKleur, vec3f(1.0), in.kleur.g) * max(0.15, diffuus);
+    waterRgb = mix(waterRgb, vec3f(1.0), lichtheid);
+    var kleur = vec4f(waterRgb, in.kleur.a);
 
     //IJs: wit deksel; met temperatuurview aan toont ook ijs zijn temperatuurkleur,
     //met een dunne witte contour op de rand (fwidth) zodat je ijs toch herkent.
     let ijsRand = fwidth(select(0.0, 1.0, in.ijs > 0.01));
 
-    if(extra.toonTemperatuur > 0.5) {
-        //temperatuurkleur voor zowel water als ijs
-        kleur = vec4f(temperatuurKleur(in.temperatuur), 0.85);
-        if(isIJs) {
-            kleur = mix(vec4f(temperatuurKleur(in.temperatuur), 0.9),
-                        vec4f(1.0, 1.0, 1.0, 0.95),
-                        smoothstep(0.03, 0.2, ijsRand));
-        }
-    }
-    else if(isIJs) {
+    if(isIJs) {
         //IJs krijgt dezelfde belichting (incl. terreinschaduw) als de rest: anders
         //gloeit de nachtkant wit en zijn schaduwen op het ijs onzichtbaar.
         kleur = vec4f(vec3f(0.85, 0.9, 0.95) * max(0.2, diffuus), 0.95);
-    }
-
-    //Windoverlay (toets V): rood/groen = windrichting, blauw = luchtdruk
-    if(extra.toonWind > 0.5) {
-        kleur = vec4f(windKleur(in.wind, in.luchtdruk), 0.85);
     }
 
     kleur.a = max(kleur.a, lichtheid);

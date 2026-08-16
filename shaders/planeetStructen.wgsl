@@ -13,9 +13,9 @@ const zwaartekracht   = 0.8;
 const pijpDoorsnee    = 0.5;
 const pijpLengte      = 1.0;
 const oplosheid       = 0.70;  //hoe snel water materiaal oplost/erodeert
-const bezinkheid      = 0.30;  //hoe snel materiaal weer bezinkt (sedimentatie; verdubbeld)
-const droesemheid     = 0.45;
-const vertrager       = 1.0 / 3.0;
+const bezinkheid      = 0.50;  //hoe snel materiaal weer bezinkt (sedimentatie; verdubbeld)
+const droesemheid     = 1.0;
+const vertrager       = 1.0;
 const zeerKlein       = 0.0001;
 const minGrondHoogte  = 10.0;
 const maxGrondHoogte  = 200.0;
@@ -51,8 +51,8 @@ const maxLuchtVocht  = 1.0e12;
 //atmosferische vochtigheid (advectie door de wind, regent uit boven verzadiging
 //en op bergflanken).
 const veldCapaciteit    = 0.5; //max. bodemvocht dat een cel kan vasthouden
-const infiltratie       = 0.01; //fractie staand water dat per ronde de grond in zakt
-const evapotranspiratie = 0.0025;   //hoe snel vochtige grond verdroogt naar droge lucht
+const infiltratie       = 0.001; //fractie staand water dat per ronde de grond in zakt
+const evapotranspiratie = 0.00025;   //hoe snel vochtige grond verdroogt naar droge lucht
 const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekbegrenzer)
 const maxWaterBergtop   = 0.1;  //max. waterlaag op een piek boven het wolkendek (waterplafond)
 
@@ -70,6 +70,7 @@ const levenGroeiBand  = 6.0;     //K boven vriespunt waarover de groei naar vol 
 const levenKoudBegin  = 253.15;  //-20 °C: de dood begint hier langzaam
 const levenKoudSnel   = 213.15;  //-60 °C: hier doodt het heel snel
 const levenKoudTempo  = 0.5;     //fractie leven die per ronde sterft bij -60 °C
+const levenDroogTempo = 0.005;   //fractie leven dat per ronde afsterft bij volkomen droogte (traag, geen plotseling verdwijnen)
 
 const maxBuren = 6u;
 
@@ -101,7 +102,7 @@ const albedoIJs     = 0.60;
 const albedoWolken  = 0.55;
 const albedoWater   = 0.08;
 const albedoGrond   = 0.30;
-const albedoBegroei = 0.18;   //donkerder door leven (groen)
+const albedoBegroei = 0.16;   //leven: tussen water (0.08) en grond (0.30) in, duidelijk anders dan rots
 const wolkIsolatie  = 0.55;   //hoe sterk het wolkendek de uitstraling tegenhoudt
 
 //Twee-fasen vocht (zie waterLucht.comp): damp <-> wolk <-> regen.
@@ -172,7 +173,7 @@ struct extraParameters {
     zonPos      : vec3f,
     _padD       : f32,
     maxGrondHoogte : f32, //hoogste terreinpunt (bepaald bij het laden); basis voor het wolkendek
-    toonTemperatuur : f32, //1 = temperatuuroverlay aan (toets T)
-    toonWind        : f32, //1 = windoverlay aan (toets V)
+    overlayKeuze    : f32, //weergave-overlay (cijfertoetsen): 0 = normaal, 1 = temperatuur, 2 = wind+druk, 3 = bodemvocht, 4 = luchtvocht/wolken/druk, 5 = ijs/water/bodemvocht, 6 = wolken, 7 = zonZicht, 8 = leven, 9 = terreinhoogte
+    _padE           : f32,
     schaduwAan      : f32, //1 = schaduwkaart aan (toets N)
 };

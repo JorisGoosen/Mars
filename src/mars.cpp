@@ -704,7 +704,8 @@ int main(int argc, char ** argv)
 	}
 	delete[] bumpData;
 
-	float		grondMult	= 100.0;
+	float 		grondMult	= 100.0;
+	int 		overlayKeuze	= 0;
 	planeet	*	geo			= nullptr;
 
 	if(procedural)
@@ -734,8 +735,13 @@ int main(int argc, char ** argv)
 		};
 		std::function<float(glm::vec3)> proceduraalHoogte = [&](glm::vec3 pos) -> float
 		{
-			float h = 115.0f + 70.0f * (fbm(pos * 2.2f) * 2.0f - 1.0f) + 18.0f * (fbm(pos * 7.0f) * 2.0f - 1.0f);
-			return glm::clamp(h, 10.0f, 200.0f);
+			//Deviatie rond de basis in [-1, 1].
+			float n = fbm(pos * 2.2f) * 2.0f - 1.0f;
+			//Niet-lineaire versterking: middengebieden (kleine |n|) groeien ~2x,
+			//pieken/dalen (grote |n|) groeien ~3x mee.
+			float versterking = 2.0f + std::abs(n);
+			float h = 80.0f + 5.0f * n * versterking;
+			return glm::clamp(h, 40.0f, 90.0f);
 		};
 		geo = new planeet(subdiv, std::move(proceduraalHoogte), beginMetWater);
 	}
@@ -750,17 +756,15 @@ int main(int argc, char ** argv)
 				waterStroomt	= true,
 				waterStap		= false,
 				tekenWater		= true,
-				tekenWolken		= true,
-				toonTemperatuur	= false,
-				toonWind		= false;
+				tekenWolken		= true;
 
 	glm::vec3	kijkPlek		(0.0f)				,
 				zonPos			(0.0f)				;
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.0001f;
-	float						zonKracht		= 60.0f,
+				verdamping		= 0.0006f;
+	float						zonKracht		= 40.0f,
 				rotatieOmega	= 0.009f,   //dag/nacht (3x sneller dan 0.003)
-				coriolisOmega	= 1.0f,     //Coriolis-rotatie; losgekoppeld van dag/nacht
+				coriolisOmega	= 0.2f,     //Coriolis-rotatie; losgekoppeld van dag/nacht
 				wrijving		= 0.03f,
 				diffusie		= 0.25f,
 				verwarmtijd		= 0.5f;
@@ -810,17 +814,60 @@ int main(int argc, char ** argv)
 					std::cout << "Je hebt op C gedrukt: de wolken zijn nu "
 							  << (tekenWolken ? "zichtbaar" : "onzichtbaar") << "." << std::endl;
 					break;
-				case GLFW_KEY_T:
-					toonTemperatuur = !toonTemperatuur;
-					std::cout << "Je hebt op T gedrukt: de temperatuuroverlay is nu "
-							  << (toonTemperatuur ? "aan" : "uit")
-							  << " (blauw is koud, groen is 0 °C, rood is warm)." << std::endl;
+				case GLFW_KEY_ESCAPE:
+					if(overlayKeuze != 0)
+					{
+						//Overlay was open: ga niet afsluiten, maar terug naar de
+						//normale weergave. De overschrijf-vlag pakt Escape af van de
+						//standaard afsluit-functor.
+						weergaveScherm::zetEscapeOverladen();
+						overlayKeuze = 0;
+						std::cout << "Overlay uit: normale weergave." << std::endl;
+					}
+					//In de normale weergave valt Escape terug op de standaard
+					//afsluit-functor (window sluiten).
 					break;
+				case GLFW_KEY_1:
+				case GLFW_KEY_T:
+					overlayKeuze = 0;
+					std::cout << "Overlay uit: normale weergave." << std::endl;
+					break;
+				case GLFW_KEY_2:
+					overlayKeuze = 1;
+					std::cout << "Temperatuuroverlay aan (blauw = koud, groen = 0 °C, rood = warm)." << std::endl;
+					break;
+				case GLFW_KEY_3:
 				case GLFW_KEY_V:
-					toonWind = !toonWind;
-					std::cout << "Je hebt op V gedrukt: de windoverlay is nu "
-							  << (toonWind ? "aan" : "uit")
-							  << " (rood = oost-west, groen = noord-zuid, blauw = luchtdruk)." << std::endl;
+					overlayKeuze = 2;
+					std::cout << "Wind+drukoverlay aan (rood = oost-west, groen = noord-zuid, blauw = luchtdruk)." << std::endl;
+					break;
+				case GLFW_KEY_4:
+					overlayKeuze = 3;
+					std::cout << "Bodemvochtoverlay aan (lila = droog, groen = nat)." << std::endl;
+					break;
+				case GLFW_KEY_5:
+					overlayKeuze = 4;
+					std::cout << "Luchtvocht/wolken/druk-overlay aan (blauw = luchtvocht, groen = wolken, rood = druk)." << std::endl;
+					break;
+				case GLFW_KEY_6:
+					overlayKeuze = 5;
+					std::cout << "IJs/water/bodemvocht-overlay aan (rood = ijs, groen = bodemvocht, blauw = water)." << std::endl;
+					break;
+				case GLFW_KEY_7:
+					overlayKeuze = 6;
+					std::cout << "Wolkenoverlay aan." << std::endl;
+					break;
+				case GLFW_KEY_8:
+					overlayKeuze = 7;
+					std::cout << "ZonZicht-overlay aan (donker = schaduw, fel = volle zon)." << std::endl;
+					break;
+				case GLFW_KEY_9:
+					overlayKeuze = 8;
+					std::cout << "Levens-overlay aan (donker = kaal, fel groen = dicht leven)." << std::endl;
+					break;
+				case GLFW_KEY_0:
+					overlayKeuze = 9;
+					std::cout << "Terreinhoogte-overlay aan (donker = laag, fel = hoog)." << std::endl;
 					break;
 				case GLFW_KEY_ENTER:
 					waterStap = true;
@@ -1012,7 +1059,7 @@ int main(int argc, char ** argv)
 		scherm.pasRondRenderAf();
 
 		//water-pass (blendt over de grond, deelt dezelfde diepte-buffer)
-		if(tekenWater)
+		if(tekenWater && overlayKeuze == 0)
 		{
 			weergaveInstellingen waterInstellingen;
 			waterInstellingen.blenden 			= true;
@@ -1030,7 +1077,7 @@ int main(int argc, char ** argv)
 
 		//wolk-pass (boven het water; STRENGE diepte-test zodat verste wolken die
 		//net achter de planeet staan niet door het maanoppervlak heen schijnen).
-		if(tekenWolken)
+		if(tekenWolken && overlayKeuze == 0)
 		{
 			weergaveInstellingen wolkInstellingen;
 			wolkInstellingen.blenden 			= true;
@@ -1160,8 +1207,8 @@ int main(int argc, char ** argv)
 		extra[4] 	= kijkPlek.x;	extra[5] = kijkPlek.y;	extra[6] = kijkPlek.z;
 		extra[8] 	= zonPos.x;		extra[9] = zonPos.y;	extra[10] = zonPos.z;
 		extra[12] 	= geo->hoogsteGrond();
-		extra[13] 	= toonTemperatuur ? 1.0f : 0.0f;
-		extra[14] 	= toonWind ? 1.0f : 0.0f;
+		extra[13] 	= (float)overlayKeuze;
+		extra[14] 	= 0.0f;
 		extra[15] 	= schaduwAan ? 1.0f : 0.0f;
 		scherm.zetExtraFloats(extra, 16); //ook nodig voor de schaduw-pass (headless rendert geen weergave-passes)
 
