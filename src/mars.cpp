@@ -630,7 +630,6 @@ int main(int argc, char ** argv)
 
 	scherm.maakRekenShader(	"waterStroming", 	"shaders/waterStroming.comp"											);
 	scherm.maakRekenShader(	"waterDruk", 		"shaders/waterDruk.comp"												);
-	scherm.maakRekenShader(	"grondGelijkmaker", "shaders/grondGelijkmaker.comp"										);
 	scherm.maakRekenShader(	"waterGemiddelde", 	"shaders/waterGemiddelde.comp"											);
 	scherm.maakRekenShader(	"luchtStroming", 	"shaders/luchtStroming.comp"											);
 	scherm.maakRekenShader(	"vochtStroming", 	"shaders/vochtStroming.comp"											);
@@ -1311,7 +1310,6 @@ int main(int argc, char ** argv)
 			{
 				scherm.doeRekenVerwerker("waterStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("waterDruk", 			glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
-				scherm.doeRekenVerwerker("grondGelijkmaker", 	glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("waterGemiddelde", 	glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 				scherm.doeRekenVerwerker("luchtStroming", 		glm::uvec3(rekenGroepen, 1, 1), berekenShaderBindenMetSchaduw);
 				scherm.bindTextuur("", 0); //schaduwkaart weer loslaten voor de volgende passes

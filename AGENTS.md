@@ -14,7 +14,7 @@
 
 ## Architectuur-valkuilen
 - C++↔WGSL structs moeten byte-identiek blijven: `vak` (152 B), `vakMeta` (144 B), `rekenParameters` (96 B), `extraParameters` (exact 16 floats). `static_assert`s in `src/mars.cpp`/`src/planeet.cpp`; wijzig beide kanten tegelijk.
-- Rekenketen (vaste volgorde in de loop van mars.cpp): waterStroming → waterDruk → grondGelijkmaker → waterGemiddelde → luchtStroming → vochtStroming → waterLucht, dan `volgendeRonde()` (pingpong vakken0↔vakken1). Elk veld wordt door precies één shader per ronde geschreven.
+- Rekenketen (vaste volgorde in de loop van mars.cpp): waterStroming → waterDruk → waterGemiddelde → luchtStroming → vochtStroming → waterLucht, dan `volgendeRonde()` (pingpong vakken0↔vakken1). Elk veld wordt door precies één shader per ronde geschreven; erosie/depositie én de zand-rusthelling zitten samen in waterDruk.
 - Bind-groepen: render 0=uniforms (`extra` = de 16 floats), 1=textuur+lineaire sampler, 2=vier opslag-buffers, 3=schaduwkaart+nearest sampler; compute 0=opslag, 1=schaduw-layout-textuur (binden via `bindTextuur(...)` vóór de dispatch, daarna `bindTextuur("", 0)`).
 - Schaduwkaart: orthografische projectie **analytisch** uit de zonrichting (`zonProjectie` in `shaders/zonSchaduw.wgsl`) — dezelfde formule in shadow-vertex, fragment-lookups én compute, anders krijg je gespiegelde/verplaatste schaduwen. NDC y+ landt in texel-rij 0 → v-as omklappen bij de lookup (`zonSchaduwUV`).
 - Shadow-pass: `cullMode Front` (voorkant eruit, anders zelf-vergelijking), casters = terrein+ijs (water telt niet mee), casters worden `schaduwEpsilon` van de zon af geduwd. Diepte-texturen zijn unfilterable → nearest sampler + handmatige PCF.

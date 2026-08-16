@@ -142,10 +142,9 @@ void planeet::burenAlsEigenschapWijzers()
 			//watervolume (≈ ijs=1 per cel voorheen) hetzelfde: 4·(1/4) = 1 per cel.
 			float ijsDik = 4.0f * glm::abs(breedte) * glm::abs(breedte) * glm::abs(breedte);
 			_vakken[0][i].ijs			=  ijsDik;
-			//Waar de planeet ijsloos begint (ijs onder de renderdrempel ≈ miniJs uit WGSL,
-			//= de plek waar de ijskap visueel ophoudt) leggen we een waterlaag van 1 hoog
-			//neer: de evenaargebieden starten als ondiepe oceaan i.p.v. als droge woestijn.
-			_vakken[0][i].waterHoogte	= (ijsDik < 0.01f) ? 1.0f : 0.0f;
+			//De jonge planeet start overal met een ondiepe oceaan: 1,5 hoog water op elke
+			//cel (ook onder de ijskappen), zodat er meteen zee is i.p.v. droge woestijn.
+			_vakken[0][i].waterHoogte	=  1.5f;
 			_vakken[0][i].bodemVocht	=  1.0f;
 			_vakken[0][i].luchtVocht	=  0.0f;
 			_vakken[0][i].leven			=  0.00001f;

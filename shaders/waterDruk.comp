@@ -18,6 +18,8 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     var droesem = 0.0;
     var snelheid = vec2f(0.0);
     var maxHelling = 0.0;
+    var netZand = 0.0;
+    let mijnZand = max(0.0, vakken0[ID].grondHoogte - vakken0[ID].rotsHoogte);
 
     //Ga de buren telkens opzoeken zodat we normalen kunnen berekenen en zo veel meer
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
@@ -26,6 +28,21 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
         //helling: het grootste grondhoogteverschil met een buur, genormaliseerd over de pijplengte
         maxHelling = max(maxHelling, abs(vakken0[buurIDv].grondHoogte - vakken0[ID].grondHoogte) / pijpLengte);
+
+        //Zand-rusthelling (angle of repose, hierheen gehaald uit grondGelijkmaker.comp zodat
+        //de erosie niet door een latere pass wordt overschreven): symmetrische, behoudende
+        //zand-uitwisseling met deze buur — alleen de zandlaag (grondHoogte - rotsHoogte) zakt.
+        let buurGrond = vakken0[buurIDv].grondHoogte;
+        let buurZand  = max(0.0, buurGrond - vakken0[buurIDv].rotsHoogte);
+        let verskil   = vakken0[ID].grondHoogte - buurGrond;
+        if(verskil > zandRepose) {
+            let oorskot = verskil - zandRepose;
+            netZand -= min(zandZakhoek * oorskot, mijnZand);
+        }
+        else if(verskil < -zandRepose) {
+            let oorskot = -verskil - zandRepose;
+            netZand += min(zandZakhoek * oorskot, buurZand);
+        }
 
         for(var buurBuur = 0u; buurBuur < buurBuren; buurBuur++) {
             if(vakMetas[buurIDv].buren[buurBuur] == ID) {
@@ -181,8 +198,10 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //piek ophoopt.
     let droesemCap = droesemMax;
     vakken1[ID].droesem     = goed(min(droesemAangespoeld - afzet + weg, droesemCap), vakken0[ID].droesem, 0.0, maxDroesem);
-    vakken1[ID].grondHoogte = vakken0[ID].grondHoogte + afzet - weg;
-    vakken1[ID].rotsHoogte  = vakken0[ID].rotsHoogte - rotsWeg;
+    //Erosie/depositie (afzet/weg/rotsWeg) én de zand-rusthelling (netZand) worden hier
+    //samen op het terrein toegepast: één schrijver per ronde, zodat niets wordt overschreven.
+    vakken1[ID].grondHoogte = goed(vakken0[ID].grondHoogte + netZand + afzet - weg, vakken0[ID].grondHoogte, minGrondHoogte, maxGrondHoogte);
+    vakken1[ID].rotsHoogte  = goed(vakken0[ID].rotsHoogte - rotsWeg, vakken0[ID].rotsHoogte, minGrondHoogte, maxGrondHoogte);
 
     //het oppervlak is zand zodra er een deklaagje boven de rots ligt, anders rots
     if(vakken1[ID].grondHoogte - vakken1[ID].rotsHoogte > zeerKlein) {

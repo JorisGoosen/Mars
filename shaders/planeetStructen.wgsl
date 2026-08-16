@@ -14,27 +14,27 @@ const pijpDoorsnee    = 0.5;
 const pijpLengte      = 1.0;
 const oplosheid       = 0.70;  //hoe snel water materiaal oplost/erodeert
 const bezinkheid      = 0.10;  //hoe snel materiaal weer bezinkt (sedimentatie; verdubbeld)
-const droesemheid     = 1.0;
-const vertrager       = 1.0;
+const droesemheid     = 0.5;
+const vertrager       = 0.05;  //vertraging van het eroderen: schaalt de draagcapaciteit omlaag (rustige erosie)
 const zeerKlein       = 0.0001;
 const minGrondHoogte  = 10.0;
 const maxGrondHoogte  = 200.0;
 const toonSediment    = 0.003; //boven deze waarde wordt grondSoort zand
-const minWaterSed     = 0.1;
+const minWaterSed     = 0.01;  //onder deze waterdiepte erodeert een cel niet meer (lager = ook ondiepe rivier/overland-stroming schuurt het terrein uit)
 
 //Materiaal-afhankelijke erosiesnelheden (zie waterDruk.comp).
 //Zand/sediment dient als snelle, makkelijk verplaatste deklaag; de diepste
 //ondergrond (rots) erodeert rotsVertragingKeer langzamer dan zand.
-const zandErosie   = 1.0;
-const rotsErosie   = 0.05; //5x sneller dan voorheen, nog 20x langzamer dan zand
-const hellingKracht = 5.0;   //hoe sterk de helling de draagcapaciteit verhoogt
-const maxDichtheid = 0.5;    //max. zwevend sediment t.o.v. de waterhoogte
+const zandErosie   = 0.6;
+const rotsErosie   = 0.10; //10x langzamer dan zand (was 20x)
+const hellingKracht = 2.0;    //hoe sterk de helling de draagcapaciteit verhoogt
+const maxDichtheid = 1.0;    //max. zwevend sediment t.o.v. de waterhoogte
 
-//Zand-rusthelling (angle of repose, zie grondGelijkmaker.comp): zand zakt naar een
+//Zand-rusthelling (angle of repose, toegepast in waterDruk.comp): zand zakt naar een
 //stabiele helling. zandRepose = maximale hoogte-drempel (in dezelfde eenheden als
 //grondHoogte) voordat zand naar een lagere buur mag 'vallen'; zandZakhoek is de
 //fractie van het overschot die per ronde daadwerkelijk verplaatst wordt.
-const zandRepose  = 2.0;
+const zandRepose  = 0.8;
 const zandZakhoek = 1.0 / 6.0;
 
 //Extreem hoge kleppen: puur bescherming tegen Niet-eindige waarden en
@@ -133,7 +133,7 @@ const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
 const wolkDraagKracht = 0.40;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken dragen meer water vóór ze regenen)
 const wolkDiffusie   = 0.25;   //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen)
 const dekDump        = 0.08;   //fractie wolk die per ronde op een bergtop boven het wolkendek neerslaat (rate-limit: geen tsunami-dump in één ronde)
-const maxRegenPerRonde = 0.1;  //het absolute neerslagplafond per cel per ronde: mild (rustige buien), hoog genoeg om ophoogzwelling te voorkomen en laag genoeg dat een dikke wolk nooit in één slag leegloopt (geleidelijke aflaat)
+const maxRegenPerRonde = 0.6;  //het absolute neerslagplafond per cel per ronde (piekbegrenzer: een dikke wolk loopt geleidelijk leeg, nooit in één slag)
 
 struct vak {
     grondSoort  : i32,
