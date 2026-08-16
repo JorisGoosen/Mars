@@ -125,14 +125,6 @@ void planeet::burenAlsEigenschapWijzers()
 		}
 		else
 		{
-			_vakken[0][i].waterHoogte 	=  0.0f;
-			_vakken[0][i].bodemVocht	=  1.0f;
-			_vakken[0][i].luchtVocht	=  0.0f;
-			_vakken[0][i].ijs			=  1.0f;
-			_vakken[0][i].leven			=  0.0002f;
-			_vakken[0][i].droesem		=  0.0f;
-			_vakken[0][i].plek			= glm::vec2(0.0f);
-
 			//Luchttoestand: evenwichtstemperatuur naar breedte (palen koud, evenaar
 			//warm) en hoogte (lapse-rate), neutrale druk, stilstaande wind, geen wolken.
 			//Mars begint koud: evenaar rond -20 °C (253.15 K).
@@ -144,6 +136,21 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakken[0][i].wind        = glm::vec2(0.0f);
 			_vakken[0][i].wolken      = 0.0f;
 			_vakken[0][i].zonZicht    = 1.0f; //volle zon tot de schaduwkaart het tegendeel zegt
+
+			//IJskap: dik op de polen, nagenoeg nul bij de evenaar. Het gemiddelde
+			//van |breedte|^3 over de bol is 1/4, dus met ijs = 4·b³ blijft het totale
+			//watervolume (≈ ijs=1 per cel voorheen) hetzelfde: 4·(1/4) = 1 per cel.
+			float ijsDik = 4.0f * glm::abs(breedte) * glm::abs(breedte) * glm::abs(breedte);
+			_vakken[0][i].ijs			=  ijsDik;
+			//Waar de planeet ijsloos begint (ijs onder de renderdrempel ≈ miniJs uit WGSL,
+			//= de plek waar de ijskap visueel ophoudt) leggen we een waterlaag van 1 hoog
+			//neer: de evenaargebieden starten als ondiepe oceaan i.p.v. als droge woestijn.
+			_vakken[0][i].waterHoogte	= (ijsDik < 0.01f) ? 1.0f : 0.0f;
+			_vakken[0][i].bodemVocht	=  1.0f;
+			_vakken[0][i].luchtVocht	=  0.0f;
+			_vakken[0][i].leven			=  0.00001f;
+			_vakken[0][i].droesem		=  0.0f;
+			_vakken[0][i].plek			= glm::vec2(0.0f);
 		}
 	}	
 }
