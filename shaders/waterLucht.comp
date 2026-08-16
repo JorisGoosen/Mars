@@ -24,7 +24,6 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let aantal = arrayLength(&vakken0);
     if(ID >= aantal) { return; }
 
-    let hier = vakMetas[ID].normaal.xyz;
     let burenAantal = vakMetas[ID].burenAantal;
     let n = f32(burenAantal);
 
@@ -109,9 +108,12 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     }
 
     //---- regen uitsluitend uit wolken (boven de draagkracht valt het uit) ----
-    var regen = max(0.0, wolk - wolkDraagKracht) * regenTempo * (reken.condenseer.z / 0.3) * luchtAan;
-    regen = min(regen, max(0.0, wolk));
-    wolk -= regen;
+    //Twee bronnen: uitregening boven de draagkracht, en op bergtoppen boven het
+    //wolkendek een rate-gelimiteerde neerslag (dekDump). Alles wordt tenslotte op
+    //maxRegenPerRonde geklemd: wolken mogen dik zijn, maar er valt per cel nooit
+    //meer dan een beperkte dagbui per ronde (geen tsunami en geen sneeuwbal-dump).
+    var regen = max(0.0, wolk - wolkDraagKracht) * regenTempo
+              * (reken.condenseer.z / 0.3) * luchtAan;
 
     //---- wolkdiffusie: nabije patchjes vloeien samen tot grotere wolkendekken ----
     wolk += wolkDiffusie * (somWolk - wolk);
@@ -136,18 +138,24 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let rWolk     = 1.0 + dekFract * (rPlafond - 1.0);
     let grondR    = (1.0 + vakken0[ID].grondHoogte * reken.grondSchaal) / grondMult;
     if(luchtAan > 0.0 && grondR >= rWolk && wolk > zeerKlein) {
-        regen += wolk;
-        wolk  = 0.0;
+        //Rate-limit: dump niet ál het wolkwater in één ronde (was een tsunami die de
+        //waterhoogte in één slag liet stuiteren), maar een fractie per ronde.
+        regen += wolk * dekDump;
     }
 
-    //---- oppervlakte-verdamping boven water (zon-afhankelijk) ----
-    //Bevroren water verdampt niet: onder het vriespunt staat de stoom-productie uit.
+    //---- piekbegrenzer: nooit meer dan maxRegenPerRonde per cel per ronde ----
+    //Wolken mogen dik blijven (ze regenen ook zonder cap geleidelijk uit), en een
+    //dikke stapel loost nooit in één slag: per cel blijft de dagbui beperkt.
+    regen = min(regen, maxRegenPerRonde);
+    regen = min(regen, max(0.0, wolk));
+    wolk  -= regen;
+
+    //---- oppervlakte-verdamping boven water (temperatuur-afhankelijk) ----
+    //Verdamping hangt NIET van het licht af: alleen het opwarmen (lucht/stream)
+    //en de plantengroei (waterDruk) gebruiken zonlicht. Damp-productie volgt de
+    //temperatuur: boven 0 °C dampt warmer water sneller; bevroren water niet.
     //Zonder verzadigings-plafond kan damp de verzadiging overschrijden, waarna de
     //condensatie er wolkwater van maakt i.p.v. dat het vocht in de lucht blijft hangen.
-    let zon = select(vec3f(0.0, 1.0, 0.0), normalize(reken.zonRicht.xyz), length(reken.zonRicht.xyz) > zeerKlein);
-    //zonZicht (vorige ronde, door luchtStroming uit de schaduwkaart gehaald) dempt
-    //het licht waar terrein de cel overschaduwt.
-    let licht = max(0.0, dot(hier, zon)) * vakken0[ID].zonZicht;
     let vriest = select(0.0, 1.0, T < vriespuntK);
 
     //Sneeuw boven ijs/kou: onder het vriespunt wordt neerslag meteen ijs ("sneeuw")
@@ -172,34 +180,47 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     var ijsNieuw   = vakken1[ID].ijs + sneeuw;
 
-    var waterNieuw = vakken1[ID].waterHoogte + regenWater;
+var waterNieuw = vakken1[ID].waterHoogte + regenWater;
     //IJsdeksel: ligt er ijs op de cel, dan is het water eronder afgesloten van
     //de lucht en verdampt het niet (pas als al het ijs is weggedooid, dampt het).
     let ijsDeksel = select(0.0, 1.0, ijsNieuw <= zeerKlein);
-    let stoom = luchtAan * (1.0 - vriest) * ijsDeksel * min(reken.verdamping * licht, waterNieuw);
+    //Dampsterkte volgt de temperatuur: 0 onder de 0 °C, oplopend naar vol boven 0 °C.
+    let dampTemp = smoothstep(vriespuntK, vriespuntK + 12.0, T);
+    let stoom = luchtAan * (1.0 - vriest) * ijsDeksel * min(reken.verdamping * dampTemp, waterNieuw);
     waterNieuw -= stoom;
     damp += stoom;
 
     //Sublimatie: ook bevroren oppervlak (ijs/sneeuw) levert langzaam damp aan de
     //lucht, anders verdrogen de polen permanent (geen andere vochtbron daar).
     let ijsBeschikbaar = vakken1[ID].ijs;
-    let sublim = luchtAan * vriest * min(reken.verdamping * licht, ijsBeschikbaar);
+    let sublim = luchtAan * vriest * min(reken.verdamping * dampTemp, ijsBeschikbaar);
     ijsNieuw -= sublim;
     damp += sublim;
 
-    //---- evapotranspiratie: vochtige bodem verdroogt naar droge lucht ----
+    //---- evapotranspiratie: vochtige bodem verdroogt als open water, maar veel zwakker ----
+    //zelfde structuur als de stoom-productie hierboven (vriest + ijsDeksel + dampTemp),
+    //alleen met de diagere evapotranspiratie-schaal i.p.v. de volle verdamping/ronde.
     //Conservatief: damp krijgt nooit meer dan de bodem écht inlevert (min met de
-    //beschikbare bodemvocht), zodat er nooit vocht uit het niets ontstaat.
-    //Geschaald met reken.verdamping / 0.002 (de standaardverdamping), zodat de
-    //K/L-toets óók de bodemverdamping raakt (anders bleven er wolken komen als
-    //verdamping=0).
-    let evapot = evapotranspiratie * reken.verdamping / 0.002;
-    let verdroogt = luchtAan * evapot * vakken1[ID].bodemVocht * max(0.0, verzadiging - damp);
+    //beschikbare bodemvocht).
+    let evapot = evapotranspiratie * reken.verdamping;
+    let verdroogt = luchtAan * (1.0 - vriest) * ijsDeksel * min(evapot * dampTemp, vakken1[ID].bodemVocht);
     var bodemVochtNieuw = vakken1[ID].bodemVocht;
     if(verdroogt > zeerKlein) {
         let af = min(verdroogt, bodemVochtNieuw);
         bodemVochtNieuw = bodemVochtNieuw - af;
         damp += af;
+    }
+
+    //---- transpiratie via leven: waar er leven op de cel staat, neemt het bodemvocht
+    //op en geeft het als damp af — maar alleen boven 0 °C (bevroren planten ademen
+    //niet). Geschaald met de levensdichtheid; proportioneel, dus meer leven = meer.
+    let levensTemp = select(0.0, 1.0, T > vriespuntK);
+    let levenHier  = clamp(vakken1[ID].leven, 0.0, 1.0);
+    let transpiratie = levensDamp * levensTemp * levenHier * bodemVochtNieuw;
+    if(transpiratie > zeerKlein) {
+        let gone = min(transpiratie, bodemVochtNieuw);
+        bodemVochtNieuw -= gone;
+        damp += gone;
     }
 
     vakken1[ID].waterHoogte = goed(waterNieuw,  vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);

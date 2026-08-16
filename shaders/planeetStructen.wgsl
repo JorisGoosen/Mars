@@ -13,7 +13,7 @@ const zwaartekracht   = 0.8;
 const pijpDoorsnee    = 0.5;
 const pijpLengte      = 1.0;
 const oplosheid       = 0.70;  //hoe snel water materiaal oplost/erodeert
-const bezinkheid      = 0.50;  //hoe snel materiaal weer bezinkt (sedimentatie; verdubbeld)
+const bezinkheid      = 0.10;  //hoe snel materiaal weer bezinkt (sedimentatie; verdubbeld)
 const droesemheid     = 1.0;
 const vertrager       = 1.0;
 const zeerKlein       = 0.0001;
@@ -55,7 +55,6 @@ const bodemDiffusie     = 0.5; //lichter bodemvocht verspreidt zich wat door de 
 const infiltratie       = 0.3; //fractie staand water dat per ronde de grond in zakt
 const evapotranspiratie = 0.001;   //hoe snel vochtige grond verdroogt naar droge lucht (rechtstreeks * verdamping; laag: grond houdt vocht vast, dáárvoor is er transpiratie via leven)
 const levensDamp        = 0.02;  //hoeveel bodemvocht een cel MET leven per ronde opneemt en als damp afgeeft (20x t.o.v. 0.001: leven is de actieve waterpomp)
-const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekbegrenzer)
 const maxWaterBergtop   = 0.1;  //max. waterlaag op een piek boven het wolkendek (waterplafond)
 
 //IJsvorming (zie waterDruk.comp): onder 273 K bevriest water tot ijs, daarboven
@@ -111,7 +110,7 @@ const albedoWolken  = 0.55;
 const albedoWater   = 0.08;
 const albedoGrond   = 0.30;
 const albedoBegroei = 0.16;   //leven: tussen water (0.08) en grond (0.30) in, duidelijk anders dan rots
-const wolkIsolatie  = 0.55;   //hoe sterk het wolkendek de uitstraling tegenhoudt
+const wolkIsolatie  = 0.45;   //hoe sterk het wolkendek de uitstraling tegenhoudt (0.55 gaf een positieve terugkoppeling: dikke wolken isoleerden hete cellen, die werden heter, hielden meer damp vast en stapelden nog meer wolk — extreem-hete ophopingspunten)
 
 //Thermische traagheid (warmtecapaciteit) per oppervlaktetype: boven water/ijs/natte
 //bodem reageert de luchttemperatuur trager op zon en nachtelijke uitstraling dan
@@ -127,12 +126,14 @@ const bodemBuffer   = 0.6;   //natte bodem (bodemVocht richting veldCapaciteit) 
 //Twee-fasen vocht (zie waterLucht.comp): damp <-> wolk <-> regen.
 //luchtVocht is de damp (capaciteit volgt de temperatuur), wolken is het
 //gecondenseerde water. Regen valt uitsluitend uit wolken.
-const condensTempo   = 0.5;    //fractie oververzadigde damp die per ronde condenseert
+const condensTempo   = 0.15;   //fractie oververzadigde damp die per ronde condenseert (lager: damp blijft langer damp, wolkopbouw geleidelijker i.p.v. abrupte buien)
 const wolkVerdamp    = 0.006;  //fractie wolkwater dat per ronde in droge lucht terugverdampt (lager = langlevendere wolken die ver worden meegeblazen)
-const regenTempo     = 0.01332; //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt
+const regenTempo     = 0.06;   //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt (hoog genoeg om de instroom bij te houden: wolken blijven beperkt, geen ophopende stapels)
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
-const wolkDraagKracht = 0.35;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken houden hun water langer bij, waardoor ze als pakket ver worden meegeblazen)
-const wolkDiffusie   = 0.06;   //nabije wolkpatchjes vloeien samen (zwakker: patchjes blijven langer als reizende systemen i.p.v. lokaal samen te klitten)
+const wolkDraagKracht = 0.40;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken dragen meer water vóór ze regenen)
+const wolkDiffusie   = 0.18;   //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen)
+const dekDump        = 0.08;   //fractie wolk die per ronde op een bergtop boven het wolkendek neerslaat (rate-limit: geen tsunami-dump in één ronde)
+const maxRegenPerRonde = 0.1;  //het absolute neerslagplafond per cel per ronde: mild (rustige buien), hoog genoeg om ophoogzwelling te voorkomen en laag genoeg dat een dikke wolk nooit in één slag leegloopt (geleidelijke aflaat)
 
 struct vak {
     grondSoort  : i32,
