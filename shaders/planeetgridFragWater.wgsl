@@ -43,10 +43,10 @@ fn berekenVervormdeNormaal(n : vec3f, hoeks : vec3f, vervorming : vec2f) -> vec3
     return normalize(n + vervorming.x * hoeks + vervorming.y * haaks);
 }
 
-//Temperatuuroverlay-kleurkaart (zelfde als het land): -25 °C blauw, 0 °C groen,
-//+25 °C rood, kouder dan -25 °C klemt op blauw.
+//Temperatuuroverlay-kleurkaart (zelfde als het land): -35 °C blauw, 0 °C groen,
+//+35 °C rood, kouder dan -35 °C klemt op blauw.
 fn temperatuurKleur(TC : f32) -> vec3f {
-    let t = clamp((TC - 248.0) / 50.0, 0.0, 1.0);
+    let t = clamp((TC - 238.0) / 70.0, 0.0, 1.0);
     var kleur = mix(vec3f(0.2, 0.35, 1.0), vec3f(0.2, 0.85, 0.2), smoothstep(0.0, 0.5, t));
     kleur = mix(kleur, vec3f(1.0, 0.25, 0.1), smoothstep(0.5, 1.0, t));
     return kleur;
