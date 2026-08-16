@@ -27,16 +27,16 @@
 //élke cel tegelijk tegen de cap maxWindsnel wordt geperst (waar de richtingen
 //onderling uitmiddelen tot ~0 en de wolken niets om te dragen hebben).
 const maxWindsnel  = 10.0;    //abs. windsnelheidsgrens
-const drukGevolg   = 0.01;    //hoe sterk wind-divergentie de druk verandert
-const coriolisKracht = 0.25; //rotatiehoek per ronde = f·k; klein genoeg voor coherente afbuiging (exacte rotatie = stabiel)
-const terrainKracht  = 0.0015; //schaal van de terrein-forcering (wervels rond bergen, minder ruis)
+const drukGevolg   = 0.001;   //hoe sterk wind-divergentie de druk verandert (ómdat de wind op cel-schaal ruist, monotoon de continuïteitsterm doorspekt: in de praktijk moet de druk P nagenoeg uitsluitend uit de thermodynamica komen (P_doel), anders slaat het veld tegen de klemmen)
+const coriolisKracht = 0.12; //rotatiehoek per ronde = f·k; klein genoeg voor coherente afbuiging zonder per-cel gekronk; met de grootschalige drukgradiënten ontstaan er zonale banden (exacte rotatie = stabiel)
+const terrainKracht  = 0.0008; //schaal van de terrein-forcering (was 0.0015: lager wervelt het minder per berg, zodat niet elk hoogte-detail een eigen weersysteem schrijft)
 
 //Temperatuur en druk advecteren veel zwakker mee dan het vocht: alleen een zachte
 //meetrek-beweging (sub-cel), zodat de diffusie/uitstraling kan overheersen en er
 //geen fijnschalige draaikolken/ruis in T/P ontstaan. Het vocht (damp/wolk) advecteert
 //voluit via vochtStroming; hier voldoet een zwakke druk/waarde meebewegen.
 const TPAdvectieZwakte = 0.12;
-const windAdvectie  = 0.1;  //hoe sterk de wind zijn eigen impulsie stroomafwaarts meeneemt (jets/richtingswind die uitlopen in buurcellen)
+const windAdvectie  = 0.05; //hoe sterk de wind zijn eigen impulsie stroomafwaarts meeneemt (jets/richtingswind die uitlopen in buurcellen; lager = minder fijnschalige uitstrooiing van ruis)
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) gid : vec3u) {
@@ -86,14 +86,20 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //(zonZicht, 0..1) wordt ook opgeslagen zodat de verdamping en de diagnose het
     //kunnen gebruiken. Buiten de dagzijde is er geen instraling en dus niets te
     //overschaduwen (zonZicht blijft dan 1.0: geen terrein-schaduw).
-    var zonZicht = 1.0;
-    if(reken.schaduw.x > 0.5 && dagKant > 0.0 && reken.schaduw.y > 0.5) {
-        let straal = zonStraal(reken.fasen.z, reken.grondSchaal, reken.fasen.y);
-        //zelfde oppervlak als de schaduw-pass: terrein + ijs (water telt niet mee)
-        let kolomHoogte = vakken0[ID].grondHoogte + vakken0[ID].ijs;
-        let plek   = hier * ((1.0 + kolomHoogte * reken.grondSchaal) / reken.fasen.z);
-        let pr     = zonProjectie(plek, zon, straal);
-        zonZicht   = zonSchaduwFactor(pr, reken.schaduw.y);
+    //zonZicht is de fractie volle zon die het terrein bereikt: 1.0 dag met geen schaduw,
+    //lager als terreinschaduw het blokkeert. Op de nachtzijde is er géén zon, dus 0.0
+    //(anders zou leven er 's nachts nog kunnen groeien).
+    var zonZicht = 0.0;
+    if(dagKant > 0.0) {
+        zonZicht = 1.0;
+        if(reken.schaduw.x > 0.5 && reken.schaduw.y > 0.5) {
+            let straal = zonStraal(reken.fasen.z, reken.grondSchaal, reken.fasen.y);
+            //zelfde oppervlak als de schaduw-pass: terrein + ijs (water telt niet mee)
+            let kolomHoogte = vakken0[ID].grondHoogte + vakken0[ID].ijs;
+            let plek   = hier * ((1.0 + kolomHoogte * reken.grondSchaal) / reken.fasen.z);
+            let pr     = zonProjectie(plek, zon, straal);
+            zonZicht   = zonSchaduwFactor(pr, reken.schaduw.y);
+        }
     }
 
     let ins     = pow(max(0.0, clamp(dagKant, 0.0, 1.0)), 2.0) * zonZicht;
@@ -262,10 +268,22 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //zonder dit lopen de gecombineerde gradP/div-koppeling bij hoge --diepte uit
     //de hand (hoge-frequentie ruis), omdat d kleiner wordt maar dt per ronde niet.
     let pSchaal = 1.0 / resSchaal;
-    let thermKracht = 0.05;  //P-verlaging per K dat een cel warmer is dan zijn omgeving
-    let P_doel = P0 * (1.0 - luchtAan * thermKracht * (T1 - somT));
+    let thermKracht = 0.05;  //P-verlaging per K dat een cel warmer is dan zijn omgeving (lokaal/scherp)
+    //P-doel uit de ABSOLUTE temperatuur (ideaalgas-stijl, drukTempKoppel): warme lucht -> thermische
+    //lagedruk. Zo wordt de reizende dag/nacht-golf en de evenaar→pool-gradaciënt een écht drukgradiënt
+    //i.p.v. dat alleen de lokale T-afwijking (T1 - somT) telt, die op dit gladde veld per-cel ruis is.
+    let P_doel = P0 * (
+          1.0
+        - luchtAan * drukTempKoppel * (T1 / drukTempRef - 1.0)
+        - luchtAan * thermKracht  * (T1 - somT)
+    );
     var P1 = P_adv + drukRelax * (P_doel - P_adv) - drukGevolg * div * pSchaal;
     P1 += drukDiffusieS * (somP - P1);
+    //Zacht anker aan een vast planeetniveau: zonder globale reductie kan de
+    //thermische koppeling de basisschaal trap op afvoeren tot de klemmen; dit
+    //trekt de druk op klimaattijdsschaal langzaam naar drukReferent terug zonder
+    //de dag/nacht- en poolstructuur weg te smoren (anker ≪ relax/koppeling).
+    P1 += drukAnker * (drukReferent - P1);
 
     vakken1[ID].temperatuur = goed(T1, T0, 120.0, 2000.0);
     vakken1[ID].luchtdruk   = goed(clamp(P1, minLuchtdruk, maxLuchtdruk), P0, minLuchtdruk, maxLuchtdruk);

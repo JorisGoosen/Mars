@@ -50,9 +50,11 @@ const maxLuchtVocht  = 1.0e12;
 //grondwatervoorraad (vult via infiltratie, voedt het leven), luchtvocht is de
 //atmosferische vochtigheid (advectie door de wind, regent uit boven verzadiging
 //en op bergflanken).
-const veldCapaciteit    = 0.5; //max. bodemvocht dat een cel kan vasthouden
-const infiltratie       = 0.001; //fractie staand water dat per ronde de grond in zakt
-const evapotranspiratie = 0.00025;   //hoe snel vochtige grond verdroogt naar droge lucht
+const veldCapaciteit    = 1.0; //max. bodemvocht dat een cel kan vasthouden
+const bodemDiffusie     = 0.5; //lichter bodemvocht verspreidt zich wat door de grond
+const infiltratie       = 0.3; //fractie staand water dat per ronde de grond in zakt
+const evapotranspiratie = 0.1;   //hoe snel vochtige grond verdroogt naar droge lucht (rechtstreeks * verdamping)
+const levensDamp        = 0.001;  //hoeveel bodemvocht een cel MET leven per ronde opneemt en als damp afgeeft
 const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekbegrenzer)
 const maxWaterBergtop   = 0.1;  //max. waterlaag op een piek boven het wolkendek (waterplafond)
 
@@ -70,7 +72,9 @@ const levenGroeiBand  = 6.0;     //K boven vriespunt waarover de groei naar vol 
 const levenKoudBegin  = 253.15;  //-20 °C: de dood begint hier langzaam
 const levenKoudSnel   = 213.15;  //-60 °C: hier doodt het heel snel
 const levenKoudTempo  = 0.5;     //fractie leven die per ronde sterft bij -60 °C
-const levenDroogTempo = 0.005;   //fractie leven dat per ronde afsterft bij volkomen droogte (traag, geen plotseling verdwijnen)
+const levenDroogTempo = 0.0005;  //fractie leven dat per ronde afsterft bij volkomen droogte (taai: geen plotseling verdwijnen)
+const levenVerwelk    = 0.25;    //verwelkdrempel: pas onder deze vochtmaat doodt droogte (daarboven overleeft het, maar groeit het niet)
+const levenMax        = 1.0;     //verzadigingsgrens: leven benadert dit asymptotisch (volop vegetatie)
 
 const maxBuren = 6u;
 
@@ -81,12 +85,16 @@ const luchtBaseTemp   = 250.0;  //start/referentietemperatuur (K) van de lucht
 const lapseKoeling    = 30.0;   //gematigde koeling per genormaliseerde hoogtelaag
 const opnameTempo     = 0.30;   //hoe snel zonne-energie de lucht opwarmt
 const stralingKracht  = 0.05;  //hoe snel de planeet afkoelt naar het omringende (uitstraling)
-const tempDiffusie    = 0.1; //temperatuur gladstrijken (stabiel: monotone limiter vangt clusters op)
+const tempDiffusie    = 0.025; //temperatuur gladstrijken (stabiel: monotone limiter vangt clusters op)
 const ruimteK         = 180.0;  //effectieve hemeltemperatuur (K) zonder broeikas
 const broeikasK       = 96.0;   //CO2-groeikaseffect: verhoogt de effectieve hemel-T
-const drukKracht     = 0.03;    //drukgradiëntkracht-coëfficiënt (wind versnelling, met ware gradient)
-const drukRelax      = 0.3;   //hoe snel de druk naar het thermische evenwicht zakt
-const drukDiffusie   = 0.4; //sterk gladstrijken van de druk: doodt grid-schaal P-ruis terwijl grootschalige contrasten blijven (diffusie is schaalselectief)
+const drukKracht     = 0.06;    //drukgradiëntkracht-coëfficiënt (wind versnelling, met ware gradient)
+const drukRelax      = 0.5;   //hoe snel de druk naar het thermische evenwicht zakt
+const drukDiffusie   = 0.15; //zachte gladstrijking van de druk: neem de grid-schaal P-ruis weg, maar laat de grote dag/nacht- en poolgradaciënt staan (diffusie is schaalselectief)
+const drukTempKoppel = 0.10;    //ideaalgas-koppeling: P reageert (anti-proportioneel) op de absolute T rond drukTempRef — de dag/nacht-golf en de evenaar→pool-gradaciënt worden zo échte drukgradiënten i.p.v. dat alleen lokale T-afwijking telt (0.14 gaf een meridionale hitte-export die de evenaar niet meer liet smelten: sneeuwbal-instabiliteit)
+const drukTempRef    = 271.0;   //referentie-T = planeetklimaatgemiddelde (gemeten rond 265-270 K); overdrijven drijft P tegen de klemmen
+const drukReferent   = 2.5;    //vast planeetniveau waar de druk zacht aan verankerd wordt (zonder reductie over de hele planeet): eerst de thermische koppeling anders de basisschaal kan laten wegdrijven naar de klemmen
+const drukAnker      = 0.012;   //langzame terugtrek naar drukReferent (klimaattschaal, de dag/nacht- en poolstructuur rijdt er ongehinderd bovenop)
 const rotatieWind    = 3.0;  //vaste zonale (oostwaartse) basiswind evenaar-sterk, polen 0 (vertegenwoordigt planeetrotatie)
 const minLuchtdruk   = 0.2;    //klemmen op de druk zodat P>0 blijft
 const maxLuchtdruk   = 5.0;
@@ -98,7 +106,7 @@ const maxLuchtdruk   = 5.0;
 const advectieSnelheid = 4.0;
 
 //Albedo's van het oppervlak/weer (moduleren hoe veel zonnestraling wordt geabsorbeerd).
-const albedoIJs     = 0.60;
+const albedoIJs     = 0.52;   //(0.60 was een sneeuwbal-val: met de coherente meridionale hitte-export bleef het ijs staan en koelde de planeet uit; iets lager houdt het ijs in de warme tak)
 const albedoWolken  = 0.55;
 const albedoWater   = 0.08;
 const albedoGrond   = 0.30;
@@ -109,11 +117,11 @@ const wolkIsolatie  = 0.55;   //hoe sterk het wolkendek de uitstraling tegenhoud
 //luchtVocht is de damp (capaciteit volgt de temperatuur), wolken is het
 //gecondenseerde water. Regen valt uitsluitend uit wolken.
 const condensTempo   = 0.5;    //fractie oververzadigde damp die per ronde condenseert
-const wolkVerdamp    = 0.015;  //fractie wolkwater dat per ronde in droge lucht terugverdampt
+const wolkVerdamp    = 0.006;  //fractie wolkwater dat per ronde in droge lucht terugverdampt (lager = langlevendere wolken die ver worden meegeblazen)
 const regenTempo     = 0.01332; //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
-const wolkDraagKracht = 0.25;  //max. wolkwater per eenheid; daarboven regent het uit
-const wolkDiffusie   = 0.15;   //nabije wolkpatchjes vloeien samen tot grotere dekken
+const wolkDraagKracht = 0.35;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken houden hun water langer bij, waardoor ze als pakket ver worden meegeblazen)
+const wolkDiffusie   = 0.06;   //nabije wolkpatchjes vloeien samen (zwakker: patchjes blijven langer als reizende systemen i.p.v. lokaal samen te klitten)
 
 struct vak {
     grondSoort  : i32,

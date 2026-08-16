@@ -257,7 +257,7 @@ static float gladStap(float e0, float e1, float x)
 
 static glm::vec3 temperatuurKleurC(float TC)
 {
-	float t = std::clamp((TC - 248.0f) / 50.0f, 0.0f, 1.0f);
+	float t = std::clamp((TC - 238.0f) / 70.0f, 0.0f, 1.0f);
 	glm::vec3 blauw(0.2f, 0.35f, 1.0f), groen(0.2f, 0.85f, 0.2f), rood(1.0f, 0.25f, 0.1f);
 	glm::vec3 kleur = glm::mix(blauw, groen, gladStap(0.0f, 0.5f, t));
 	return glm::mix(kleur, rood, gladStap(0.5f, 1.0f, t));
@@ -761,12 +761,12 @@ int main(int argc, char ** argv)
 	glm::vec3	kijkPlek		(0.0f)				,
 				zonPos			(0.0f)				;
 	float		grondSchaal		= 1.0,
-				verdamping		= 0.0006f;
-	float						zonKracht		= 40.0f,
+				verdamping		= 0.0012f;
+	float						zonKracht		= 50.0f,
 				rotatieOmega	= 0.009f,   //dag/nacht (3x sneller dan 0.003)
 				coriolisOmega	= 0.2f,     //Coriolis-rotatie; losgekoppeld van dag/nacht
-				wrijving		= 0.03f,
-				diffusie		= 0.25f,
+				wrijving		= 0.05f,
+				diffusie		= 0.65f,
 				verwarmtijd		= 0.5f;
 	float		basisVerzadiging= 0.10f,
 				hoogteKoel		= 0.4f,

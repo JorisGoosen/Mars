@@ -32,9 +32,12 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
                 let stroomBinnen = vakken1[buurIDv].pijpen[buurBuur] - vakken1[ID].pijpen[buur];
 
                 stroming += stroomBinnen;
-                //Bodemvocht-diffusie uitgezet (diffusieFactor = 0): bodemvocht verplaatst dan
-                //alleen nog via infiltratie/verdamping, niet door de grond heen.
-                buurBodemVocht += 0.0;
+                //Heel lichte bodemvocht-diffusie: symmetrisch per buurpaar (behoudend),
+                //gewogen met het harmonisch gemiddelde en geschaald met bodemDiffusie
+                //(klein, zodat het stabiel blijft en bodemvocht vooral via infiltratie/
+                //verdamping verplaatst).
+                let weegFactor = bodemDiffusie * 2.0 / (f32(burenAantal) + f32(buurBuren));
+                buurBodemVocht += (vakken0[buurIDv].bodemVocht - mijnBodemVocht) * weegFactor;
                 buurLeven += vakken1[buurIDv].leven;
                 snelheid += vakMetas[ID].buurRicht[buur] * stroomBinnen;
 
@@ -196,9 +199,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     let isZand = vakken1[ID].grondSoort == i32(gsZand) || vakken1[ID].grondSoort == i32(gsLoess);
 
-    let rotsGroei = 1.00005;
+    let rotsGroei = 1.000025;
     let rotsBuur  = 0.003333;
-    let zandGroei = 1.001;
+    let zandGroei = 1.0005;
     let zandBuur  = 0.05;
     let groei     = select(rotsGroei, zandGroei, isZand);
     let buurG     = select(rotsBuur,  zandBuur,  isZand);
@@ -215,31 +218,47 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //Vochtmaat: leven gedijt tot de veldcapaciteit, daarboven helpt extra vocht niet.
     let vochtmaat = clamp(vakken1[ID].bodemVocht / veldCapaciteit, 0.0, 1.0);
 
+    //Lichtmaat: fotosynthese — leven groeit alleen in het zonlicht, en dan
+    //proportioneel aan hoeveel licht er valt (schaduw dempt de groei).
+    let lichtmaat = clamp(vakken0[ID].zonZicht, 0.0, 1.0);
+    let groeiSchaal = groeiTemp * vochtmaat * lichtmaat;
+
     //Bestaande vocht-afhankelijke groei, nu ook geschaald met temperatuur en vocht:
-    //onder 0 °C (groeiTemp=0) of zonder grondvocht (vochtmaat=0) groeit er niets.
-    let groeiFactor = (1.0 + (groei - 1.0) * groeiTemp) * vochtmaat;
-    var nieuw = leven * max(groeiFactor, 1.0) + (buurLeven * buurG) * groeiTemp * vochtmaat;
+    //onder 0 °C (groeiTemp=0), zonder grondvocht (vochtmaat=0) of zonder licht
+    //(lichtmaat=0) groeit er niets.
+    let groeiFactor = (1.0 + (groei - 1.0) * groeiSchaal) * vochtmaat;
+    //Logistische verzadiging: de groeitoename wordt geschaald met de restruimte
+    //(levenMax - leven), zodat leven asymptotisch naar levenMax toe loopt i.p.v.
+    //onbegrensd door te groeien.
+    let headroom   = max(0.0, levenMax - leven);
+    let groeiToename = leven * max(groeiFactor - 1.0, 0.0) + (buurLeven * buurG) * groeiSchaal;
+    var nieuw      = leven + groeiToename * headroom;
 
     //Onder water sterft leven sneller, en hoe dieper hoe sneller (geen licht).
-    let waterDood = clamp((vakken1[ID].waterHoogte - 2.0) / 6.0, 0.0, 1.0) * 0.9;
-    nieuw *= mix(0.85, 0.3, waterDood);
-    //Ondiep water (net onder het oppervlak): lichte demping
-    if(vakken1[ID].waterHoogte > 0.05 && vakken1[ID].waterHoogte <= 2.0) {
+    //Alleen als er echt (diep)water staat: droog land mag geen 0.85-slag krijgen.
+    if(vakken1[ID].waterHoogte > 1.0) {
+        let waterDood = clamp((vakken1[ID].waterHoogte - 1.0) / 6.0, 0.0, 1.0) * 0.9;
+        nieuw *= mix(0.85, 0.3, waterDood);
+    }
+    //Ondiep water (net onder het oppervlak tot aan diepwater-grens): lichte demping
+    if(vakken1[ID].waterHoogte > 0.05 && vakken1[ID].waterHoogte <= 1.0) {
         nieuw *= mix(1.0, 0.95, groeiTemp);
     }
 
-    //Droogte doodt langzaam (traag en geleidelijk) i.p.v. een harde cap: droge grond
-    //laat het leven geleidelijk sterven, niet plotseling verdwijnen.
+    //Droogte doodt pas onder de verwelkdrempel (levenVerwelk): al is de grond nog wat vochtig,
+    //dan overleeft het leven dat (het groeit alleen niet door — groeiSchaal volgt vochtmaat).
+    //Onder de drempel sterft het taai en geleidelijk (levenDroogTempo), nooit abrupt.
     if(vakken1[ID].waterHoogte <= 0.05) {
-        nieuw *= 1.0 - (1.0 - vochtmaat) * levenDroogTempo;
+        let verdor = clamp((levenVerwelk - vochtmaat) / levenVerwelk, 0.0, 1.0);
+        nieuw *= 1.0 - verdor * levenDroogTempo;
     }
 
-    leven = max(0.0, nieuw);
+    leven = clamp(nieuw, 0.0, levenMax);
 
     //Koude-dood (uniform): vanaf -20 °C begint leven te sterven, kwadratisch opbouwend
     //naar heel snel bij -60 °C en daaronder. Bij volledige koude-dood wordt leven 0.
     let doodSterkte = koudFract * koudFract * levenKoudTempo;
-    leven = max(0.0, leven * (1.0 - doodSterkte));
+    leven = clamp(leven * (1.0 - doodSterkte), 0.0, levenMax);
 
     //--no-life: geen plantengroei, dus leven blijft op 0 (geen groene begroeiing)
     if(reken.levenAan <= 0.5) {
