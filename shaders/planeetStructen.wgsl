@@ -131,7 +131,7 @@ const wolkVerdamp    = 0.006;  //fractie wolkwater dat per ronde in droge lucht 
 const regenTempo     = 0.06;   //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt (hoog genoeg om de instroom bij te houden: wolken blijven beperkt, geen ophopende stapels)
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
 const wolkDraagKracht = 0.40;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken dragen meer water vóór ze regenen)
-const wolkDiffusie   = 0.18;   //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen)
+const wolkDiffusie   = 0.25;   //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen)
 const dekDump        = 0.08;   //fractie wolk die per ronde op een bergtop boven het wolkendek neerslaat (rate-limit: geen tsunami-dump in één ronde)
 const maxRegenPerRonde = 0.1;  //het absolute neerslagplafond per cel per ronde: mild (rustige buien), hoog genoeg om ophoogzwelling te voorkomen en laag genoeg dat een dikke wolk nooit in één slag leegloopt (geleidelijke aflaat)
 
