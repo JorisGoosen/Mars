@@ -222,10 +222,20 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //Diffusie (somT - T_adv) verdeelt de warmte over de buren: zonder dit blijft
     //de dagzijde te heet en te droog en de nachtzijde te koud, waardoor damp nooit
     //in de buurt van verzadiging komt en er geen wolken ontstaan.
+    //Thermische traagheid: water/ijs/natte bodem hebben een grotere warmtecapaciteit
+    //dan kale grond, dus de zon- en stralingstermen delen door C. Omdat BEIDE termen
+    //door dezelfde C gaan blijft het stralingsevenwicht (T*) identiek — alleen de
+    //respons op dag/nacht wordt boven zee/ijs/grondvocht gedempt (mariene bufering).
+    let waterD = max(0.0, vakken0[ID].waterHoogte);
+    let ijsD   = max(0.0, vakken0[ID].ijs);
+    let bodemF = clamp(vakken0[ID].bodemVocht / veldCapaciteit, 0.0, 1.0);
+    let C = 1.0
+          + zeebuffer  * clamp((waterD - waterDrempel) / waterBereik, 0.0, 1.0)
+          + ijsBuffer  * clamp(ijsD / ijsBereik, 0.0, 1.0)
+          + bodemBuffer* bodemF;
     let T1 = select(T_adv,
         T_adv
-        + opnameTempo * zonWarmte * tijdVerschil
-        - afkoelen * (T_adv - ruimteEffectief) * tijdVerschil
+        + (opnameTempo * zonWarmte - afkoelen * (T_adv - ruimteEffectief)) * tijdVerschil / C
         + tempDiffusieS * (somT - T_adv),
         luchtAan > 0.0);
 

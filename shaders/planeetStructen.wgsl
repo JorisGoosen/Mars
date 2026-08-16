@@ -53,8 +53,8 @@ const maxLuchtVocht  = 1.0e12;
 const veldCapaciteit    = 1.0; //max. bodemvocht dat een cel kan vasthouden
 const bodemDiffusie     = 0.5; //lichter bodemvocht verspreidt zich wat door de grond
 const infiltratie       = 0.3; //fractie staand water dat per ronde de grond in zakt
-const evapotranspiratie = 0.1;   //hoe snel vochtige grond verdroogt naar droge lucht (rechtstreeks * verdamping)
-const levensDamp        = 0.001;  //hoeveel bodemvocht een cel MET leven per ronde opneemt en als damp afgeeft
+const evapotranspiratie = 0.001;   //hoe snel vochtige grond verdroogt naar droge lucht (rechtstreeks * verdamping; laag: grond houdt vocht vast, dáárvoor is er transpiratie via leven)
+const levensDamp        = 0.02;  //hoeveel bodemvocht een cel MET leven per ronde opneemt en als damp afgeeft (20x t.o.v. 0.001: leven is de actieve waterpomp)
 const maxRegenPerRonde  = 0.02; //hoogstens zoveel diepte regen per ronde (piekbegrenzer)
 const maxWaterBergtop   = 0.1;  //max. waterlaag op een piek boven het wolkendek (waterplafond)
 
@@ -112,6 +112,17 @@ const albedoWater   = 0.08;
 const albedoGrond   = 0.30;
 const albedoBegroei = 0.16;   //leven: tussen water (0.08) en grond (0.30) in, duidelijk anders dan rots
 const wolkIsolatie  = 0.55;   //hoe sterk het wolkendek de uitstraling tegenhoudt
+
+//Thermische traagheid (warmtecapaciteit) per oppervlaktetype: boven water/ijs/natte
+//bodem reageert de luchttemperatuur trager op zon en nachtelijke uitstraling dan
+//boven kale grond (beide diabate termen delen door C, dus het evenwichteinde blijft
+//gelijk — alleen de dag/nacht-amplitude wordt gedempt, zoals echte bufering).
+const zeebuffer     = 2.5;   //max. extra traagheid t.o.v. kale grond boven (diep)water
+const waterDrempel  = 0.5;   //waterdeksel waar de buffering begint (≈ albedo-drempel)
+const waterBereik   = 2.0;   //waterdiepte waarover zeebuffer naar vol loopt
+const ijsBuffer     = 1.0;   //extra traagheid van ijsdekken (latente-warmte-achtig, mild)
+const ijsBereik     = 1.0;   //ijsdikte waarover ijsbuffer verzadigt
+const bodemBuffer   = 0.6;   //natte bodem (bodemVocht richting veldCapaciteit) buffert wat
 
 //Twee-fasen vocht (zie waterLucht.comp): damp <-> wolk <-> regen.
 //luchtVocht is de damp (capaciteit volgt de temperatuur), wolken is het
