@@ -126,7 +126,7 @@ const bodemBuffer   = 0.6;   //natte bodem (bodemVocht richting veldCapaciteit) 
 //Twee-fasen vocht (zie waterLucht.comp): damp <-> wolk <-> regen.
 //luchtVocht is de damp (capaciteit volgt de temperatuur), wolken is het
 //gecondenseerde water. Regen valt uitsluitend uit wolken.
-const condensTempo   = 0.15;   //fractie oververzadigde damp die per ronde condenseert (lager: damp blijft langer damp, wolkopbouw geleidelijker i.p.v. abrupte buien)
+const condensTempo   = 0.01;   //fractie oververzadigde damp die per ronde condenseert (zeer laag: damp blijft lang damp, wolkopbouw heel geleidelijk)
 const wolkVerdamp    = 0.006;  //fractie wolkwater dat per ronde in droge lucht terugverdampt (lager = langlevendere wolken die ver worden meegeblazen)
 const regenTempo     = 0.30;   //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt (hoog genoeg om de instroom bij te houden: wolken blijven beperkt, geen ophopende stapels)
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos

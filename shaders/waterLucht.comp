@@ -92,6 +92,22 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //---- condensatie: oververzadigde damp wordt wolkwater ----
     var damp = dampAan;
     var wolk = wolkAan;
+
+    //---- wolkdiffusie: nabije patchjes vloeien samen tot grotere wolkendekken ----
+    //Behoudend op elke graadverdeling: somWolk telt per buur wolkⱼ/nⱼ (elke buur
+    //spreidt zijn wolk gelijk over zíjn buren). SOMWOLK IS HIER opgebouwd uit de
+    //vakken0-wolk (lijn ~72, vóór condensatie); wolk hier is nog wolkAan =
+    //vakken0.wolk + netWolk. Advectie is fluxbehoudend (Σ netWolk = 0), dus
+    //Σ wolkAan = Σ vakken0.wolk = Σ somWolk en daarmee Σᵢ(somWolkᵢ − wolkᵢ) = 0:
+    //de totale wolk blijft exact constant.
+    //
+    //BELANGRIJK: DEZE REGEL MOET VÓÓR CONDENSATIE STAAN. De eerdere versie paste
+    //diffusie toe op de wolk NÁ condensatie/wolkverdamping. Toen was
+    //Σᵢ(somWolkᵢ − wolkᵢ) = −(Σ condensatie − Σ wolkverdamping) ≠ 0: diffusie
+    //vernietigde (of creëerde) op elke ronde wolkDiffusie × netto-condensatie aan
+    //wolkwater — een enorm massalek (gemeten: 87% verlies in 10000 stappen).
+    wolk += wolkDiffusie * (somWolk - wolk);
+
     if(luchtAan > 0.0 && damp > verzadiging + zeerKlein) {
         let overschot = (damp - verzadiging) * condensTempo;
         wolk += overschot;
@@ -113,14 +129,6 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //meer dan een beperkte dagbui per ronde (geen tsunami en geen sneeuwbal-dump).
     var regen = max(0.0, wolk - wolkDraagKracht) * regenTempo
               * (reken.condenseer.z / 0.3) * luchtAan;
-
-    //---- wolkdiffusie: nabije patchjes vloeien samen tot grotere wolkendekken ----
-    //Behoudend op elke graadverdeling: somWolk telt per buur wolkⱼ/nⱼ (elke buur
-    //spreidt zijn wolk gelijk over zíjn buren), en de uitstroom is wolk zelf (elke
-    //cel geeft wolk/nᵢ aan elk van zijn nᵢ buren). Σᵢ(somWolkᵢ − wolkᵢ) = 0, dus de
-    //totale wolk blijft exact constant; op een uniform hexagon-grid (n=6) is dit
-    //identiek aan het oude gemiddelde-van-buren minus eigen waarde.
-    wolk += wolkDiffusie * (somWolk - wolk);
 
     //---- wolkendek onder de grond: een cel mag nooit vocht bevatten dat hoger
     //reikt dan het wolkendek. Ligt het lokale dek onder de grond (bergtop steekt
