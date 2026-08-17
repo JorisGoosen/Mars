@@ -808,6 +808,7 @@ int main(int argc, char ** argv)
 				verdamping		= 0.006f;
 	float						zonKracht		= 50.0f,
 				rotatieOmega	= 0.009f,   //dag/nacht (3x sneller dan 0.003)
+				winterZonneKracht	= 15.0f,
 				coriolisOmega	= 0.2f,     //Coriolis-rotatie; losgekoppeld van dag/nacht
 				wrijving		= 0.05f,
 				diffusie		= 0.65f,
@@ -817,7 +818,8 @@ int main(int argc, char ** argv)
 				neerslagFactor	= 0.3f,
 				orografieFactor	= 0.4f;
 	float		obliquity		= 0.4f;
-	float		dagHoek			= 0.0f;
+	float		dagHoek			= 0.0f,
+				seizoenTeller	= 0.0f;
 
 	if(!hoofdloos)
 	{
@@ -934,12 +936,28 @@ int main(int argc, char ** argv)
 					std::cout << "Je hebt op L gedrukt: de verdampingssnelheid is nu " << verdamping << "." << std::endl;
 					break;
 				case GLFW_KEY_LEFT_BRACKET:
-					rotatieOmega = glm::max(0.0f, rotatieOmega - 0.002f);
-					std::cout << "Je hebt op [ gedrukt: de dag-en-nachtsnelheid is nu " << rotatieOmega << "." << std::endl;
+					if(mods & GLFW_MOD_SHIFT)
+					{
+						winterZonneKracht = glm::max(0.0f, winterZonneKracht - 5.0f);
+						std::cout << "Je hebt op { gedrukt: de winterzonkracht is nu " << winterZonneKracht << "." << std::endl;
+					}
+					else
+					{
+						rotatieOmega = glm::max(0.0f, rotatieOmega - 0.002f);
+						std::cout << "Je hebt op [ gedrukt: de dag-en-nachtsnelheid is nu " << rotatieOmega << "." << std::endl;
+					}
 					break;
 				case GLFW_KEY_RIGHT_BRACKET:
-					rotatieOmega = glm::min(0.2f, rotatieOmega + 0.002f);
-					std::cout << "Je hebt op ] gedrukt: de dag-en-nachtsnelheid is nu " << rotatieOmega << "." << std::endl;
+					if(mods & GLFW_MOD_SHIFT)
+					{
+						winterZonneKracht = glm::min(zonKracht, winterZonneKracht + 5.0f);
+						std::cout << "Je hebt op } gedrukt: de winterzonkracht is nu " << winterZonneKracht << "." << std::endl;
+					}
+					else
+					{
+						rotatieOmega = glm::min(0.2f, rotatieOmega + 0.002f);
+						std::cout << "Je hebt op ] gedrukt: de dag-en-nachtsnelheid is nu " << rotatieOmega << "." << std::endl;
+					}
 					break;
 				case GLFW_KEY_G:
 					coriolisOmega = glm::max(0.0f, coriolisOmega - 0.05f);
@@ -1225,7 +1243,10 @@ int main(int argc, char ** argv)
 		//equivalent aan een planeet die om haar noord-as draait. Obliquity blijft vast.
 		//Bevroren (Space) of zonRoteert uit (B) houdt de bezonning stil.
 		if(!bevroren && zonRoteert)
+		{
 			dagHoek += rotatieOmega;
+			seizoenTeller += rotatieOmega;
+		}
 		dagHoek = glm::mod(dagHoek, 6.28318530718f); //houd de hoek klein (geen precisie-jitter)
 		glm::mat4 zonRoteerder =
 			glm::rotate(
@@ -1261,7 +1282,19 @@ int main(int argc, char ** argv)
 		rekenPar.verdamping 	= verdamping;
 		rekenPar.erosie 		= erosieAan ? 1.0f : 0.0f;
 		rekenPar.levenAan 		= levenAan ? 1.0f : 0.0f;
-		rekenPar.atmosfeer[0] 	= atmosfeerAan ? zonKracht : 0.0f;
+		//seizoenscyclus: 4 dagen (8π), zomer→herfst→winter→lente
+		float seizoenPos = glm::mod(seizoenTeller, 25.1327412f) / 12.5663706f; //0..1 over 4 dagen
+		float winterVerhouding = zonKracht > 0.001f ? winterZonneKracht / zonKracht : 0.0f;
+		float seizoenFactor = 1.0f;
+		if(seizoenPos < 0.25f)
+			seizoenFactor = 1.0f; //zomer
+		else if(seizoenPos < 0.5f)
+			seizoenFactor = winterVerhouding + (1.0f - winterVerhouding) * (1.0f - (seizoenPos - 0.25f) / 0.25f); //herfst dalend
+		else if(seizoenPos < 0.75f)
+			seizoenFactor = winterVerhouding; //winter
+		else
+			seizoenFactor = winterVerhouding + (1.0f - winterVerhouding) * (seizoenPos - 0.75f) / 0.25f; //lente oplopend
+		rekenPar.atmosfeer[0] 	= atmosfeerAan ? zonKracht * seizoenFactor : 0.0f;
 		rekenPar.atmosfeer[1] 	= coriolisOmega;
 		rekenPar.atmosfeer[2] 	= atmosfeerAan ? wrijving : 0.0f;
 		rekenPar.atmosfeer[3] 	= atmosfeerAan ? diffusie : 0.0f;

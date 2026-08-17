@@ -25,8 +25,8 @@ const minWaterSed     = 0.01;  //onder deze waterdiepte erodeert een cel niet me
 //Materiaal-afhankelijke erosiesnelheden (zie waterDruk.comp).
 //Zand/sediment dient als snelle, makkelijk verplaatste deklaag; de diepste
 //ondergrond (rots) erodeert rotsVertragingKeer langzamer dan zand.
-const zandErosie   = 0.6;
-const rotsErosie   = 0.10; //10x langzamer dan zand (was 20x)
+const zandErosie   = 0.1;
+const rotsErosie   = 0.01; //10x langzamer dan zand (was 20x)
 const hellingKracht = 0.5;    //hoe sterk de helling de draagcapaciteit verhoogt
 const maxDichtheid = 1.0;    //max. zwevend sediment t.o.v. de waterhoogte
 
@@ -128,7 +128,7 @@ const bodemBuffer   = 0.6;   //natte bodem (bodemVocht richting veldCapaciteit) 
 //gecondenseerde water. Regen valt uitsluitend uit wolken.
 const condensTempo   = 0.15;   //fractie oververzadigde damp die per ronde condenseert (lager: damp blijft langer damp, wolkopbouw geleidelijker i.p.v. abrupte buien)
 const wolkVerdamp    = 0.006;  //fractie wolkwater dat per ronde in droge lucht terugverdampt (lager = langlevendere wolken die ver worden meegeblazen)
-const regenTempo     = 0.06;   //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt (hoog genoeg om de instroom bij te houden: wolken blijven beperkt, geen ophopende stapels)
+const regenTempo     = 0.30;   //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt (hoog genoeg om de instroom bij te houden: wolken blijven beperkt, geen ophopende stapels)
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
 const wolkDraagKracht = 0.40;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken dragen meer water vóór ze regenen)
 const wolkDiffusie   = 0.25;   //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen)

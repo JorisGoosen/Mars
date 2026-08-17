@@ -167,7 +167,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         let behoefte = -balans * oplosheid;
 
         //eerst het snelle zand: rots is pas bereikbaar als het zand weg is
-        let vanZand = min(behoefte, zandlaag);
+        let vanZand = min(behoefte, zandlaag) * zandErosie;
         weg += vanZand;
 
         let over = behoefte - vanZand;
@@ -262,7 +262,14 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //Alleen als er echt (diep)water staat: droog land mag geen 0.85-slag krijgen.
     if(vakken1[ID].waterHoogte > 1.0) {
         let waterDood = clamp((vakken1[ID].waterHoogte - 1.0) / 6.0, 0.0, 1.0) * 0.9;
-        nieuw *= mix(0.85, 0.3, waterDood);
+        //Tot 3m diep: leven sterft 10x langzamer onder water
+        if(vakken1[ID].waterHoogte < 3.0) {
+            let ondiepWater = (vakken1[ID].waterHoogte - 1.0) / 2.0; //0..1 tussen 1 en 3
+            let doodFactor = mix(0.0, 0.09, waterDood) / 10.0;
+            nieuw *= 1.0 - doodFactor;
+        } else {
+            nieuw *= mix(0.85, 0.3, waterDood);
+        }
     }
     //Ondiep water (net onder het oppervlak tot aan diepwater-grens): lichte demping
     if(vakken1[ID].waterHoogte > 0.05 && vakken1[ID].waterHoogte <= 1.0) {
