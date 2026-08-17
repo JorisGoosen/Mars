@@ -69,10 +69,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         let mee = dot(vakMetas[ID].buurRicht[buur], wind);
         if(mee > besteAf) { besteAf = mee; afId = vakMetas[ID].buren[buur]; }
         divU += windUC(ID, buur);
-        somWolk += vakken0[vakMetas[ID].buren[buur]].wolken;
+        somWolk += vakken0[vakMetas[ID].buren[buur]].wolken / f32(vakMetas[vakMetas[ID].buren[buur]].burenAantal);
     }
     divU /= max(n, 1.0);
-    somWolk /= max(n, 1.0);
 
     //Orografische stijging: stroomafwaarts stijgt het oppervlak => de lucht wordt
     //omhooggeduwd, koelt en kan minder damp houden (lagere verzadiging).
@@ -116,6 +115,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
               * (reken.condenseer.z / 0.3) * luchtAan;
 
     //---- wolkdiffusie: nabije patchjes vloeien samen tot grotere wolkendekken ----
+    //Behoudend op elke graadverdeling: somWolk telt per buur wolkⱼ/nⱼ (elke buur
+    //spreidt zijn wolk gelijk over zíjn buren), en de uitstroom is wolk zelf (elke
+    //cel geeft wolk/nᵢ aan elk van zijn nᵢ buren). Σᵢ(somWolkᵢ − wolkᵢ) = 0, dus de
+    //totale wolk blijft exact constant; op een uniform hexagon-grid (n=6) is dit
+    //identiek aan het oude gemiddelde-van-buren minus eigen waarde.
     wolk += wolkDiffusie * (somWolk - wolk);
 
     //---- wolkendek onder de grond: een cel mag nooit vocht bevatten dat hoger
