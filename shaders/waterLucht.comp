@@ -57,7 +57,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let wolkAan = vakken0[ID].wolken + netWolk;
 
     //---- verzadiging uit de temperatuur (+ hoogte + orografie) ----
-    let oppervlak = vakken0[ID].grondHoogte + vakken0[ID].waterHoogte;
+    let oppervlak = grondHoogte(vakken0[ID]) + vakken0[ID].waterHoogte;
     let hoogteFrac = clamp((oppervlak - minGrondHoogte) / (maxGrondHoogte - minGrondHoogte), 0.0, 1.0);
 
     //Stroomafwaartse buur (waar de wind heen gaat) voor orografische stijging.
@@ -75,7 +75,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //Orografische stijging: stroomafwaarts stijgt het oppervlak => de lucht wordt
     //omhooggeduwd, koelt en kan minder damp houden (lagere verzadiging).
-    let oppervlakAf = vakken1[afId].grondHoogte + vakken1[afId].waterHoogte;
+    let oppervlakAf = grondHoogte(vakken1[afId]) + vakken1[afId].waterHoogte;
     let stijgOp     = max(0.0, min(oppervlakAf - oppervlak, 1.0));
     let stijgTerm   = clamp(reken.condenseer.w * stijgOp, 0.0, 0.9);
 
@@ -148,7 +148,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //er voor de meeste cellen ruimte om vocht vast te houden en wolken te vormen.
     let dekFract  = clamp(0.75 + 0.15 * clamp((T - 255.0) / 30.0, -1.0, 1.0), 0.6, 0.9);
     let rWolk     = 1.0 + dekFract * (rPlafond - 1.0);
-    let grondR    = (1.0 + vakken0[ID].grondHoogte * reken.grondSchaal) / grondMult;
+    let grondR    = (1.0 + grondHoogte(vakken0[ID]) * reken.grondSchaal) / grondMult;
     if(luchtAan > 0.0 && grondR >= rWolk && wolk > zeerKlein) {
         //Rate-limit: dump niet ál het wolkwater in één ronde (was een tsunami die de
         //waterhoogte in één slag liet stuiteren), maar een fractie per ronde.
@@ -184,7 +184,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //dek uitsteekt houdt hoogstens een dunne laag (maxWaterBergtop), zodat de
     //"wolkendek onder de grond"-dump daar geen waterpieken maakt.
     let dekHoogte      = (rWolk * grondMult - 1.0) / reken.grondSchaal;
-    let maxWaterDiepte = select(maxWaterBergtop, max(0.0, dekHoogte - vakken0[ID].grondHoogte), grondR < rWolk);
+    let maxWaterDiepte = select(maxWaterBergtop, max(0.0, dekHoogte - grondHoogte(vakken0[ID])), grondR < rWolk);
     let waterRuimte    = max(0.0, maxWaterDiepte - vakken1[ID].waterHoogte);
     let nietPast       = max(0.0, regenWater - waterRuimte);
     regenWater         = min(regenWater, waterRuimte);

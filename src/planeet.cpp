@@ -99,15 +99,17 @@ void planeet::burenAlsEigenschapWijzers()
 		for(const uint32 & buurId : buurt)
 			_vakMetas[i].buren[buur++] 	= buurId;
 
-		_vakken[0][i].grondHoogte 	= _isRuis ? _ruis(_punten->ggvPunt3(i)) : _hoogteMonsteraar(_tex->ggvPunt2(i));
-		if(_vakken[0][i].grondHoogte > _hoogsteGrond)
-			_hoogsteGrond = _vakken[0][i].grondHoogte;
+		const float startHoogte = _isRuis ? _ruis(_punten->ggvPunt3(i)) : _hoogteMonsteraar(_tex->ggvPunt2(i));
+		if(startHoogte > _hoogsteGrond)
+			_hoogsteGrond = startHoogte;
 
 		//De planeet begint met een zanddeksel: een deklaag zand boven op de rots.
 		//Waar die laag ligt is het oppervlak zand (maakPingPongOpslagen zet dat als
 		//grondSoort); diepere ondergrond is rots, die 100x langzamer erodeert.
+		//Beide lagen worden apart bijgehouden; de terreinhoogte is hun som.
 		const float zandDeklaag = 2.0f;
-		_vakken[0][i].rotsHoogte = glm::clamp(_vakken[0][i].grondHoogte - zandDeklaag, minGrondHoogte, maxGrondHoogte);
+		_vakken[0][i].rotsHoogte = glm::clamp(startHoogte - zandDeklaag, minGrondHoogte, maxGrondHoogte);
+		_vakken[0][i].zandHoogte = startHoogte - _vakken[0][i].rotsHoogte;
 		
 		vec3 n = normalize(_punten->ggvPunt3(i));
 		_vakMetas[i].normaal = vec4(n, 0.0f);
@@ -130,7 +132,7 @@ void planeet::burenAlsEigenschapWijzers()
 			//Mars begint koud: evenaar rond -20 °C (253.15 K).
 			glm::vec3 wijst = glm::normalize(_punten->ggvPunt3(i));
 			float breedte  = glm::clamp(wijst.y, -1.0f, 1.0f); //noordpool=+1
-			float hoogteF  = glm::clamp((_vakken[0][i].grondHoogte - 10.0f) / (200.0f - 10.0f), 0.0f, 1.0f);
+			float hoogteF  = glm::clamp((_vakken[0][i].rotsHoogte + _vakken[0][i].zandHoogte - 10.0f) / (200.0f - 10.0f), 0.0f, 1.0f);
 			_vakken[0][i].temperatuur = 253.15f - 20.0f * glm::abs(breedte) - 10.0f * hoogteF;
 			_vakken[0][i].luchtdruk   = 1.0f;
 			_vakken[0][i].wind        = glm::vec2(0.0f);
@@ -273,13 +275,21 @@ void planeet::browniaansLand()
 	{
 		vak 	& deze 		= _vakken[0][i];
 		vakMeta & dezeMeta 	= _vakMetas[i];
-		float 	burenHoogte = 0.0f;
+		float 	burenGrond = 0.0f;
+		float 	burenRots  = 0.0f;
 
-		for(size_t i=0; i<dezeMeta.burenAantal; i++)
-			burenHoogte += _vakken[0][dezeMeta.buren[i]].grondHoogte;
+		for(size_t k=0; k<dezeMeta.burenAantal; k++)
+		{
+			const vak & buur = _vakken[0][dezeMeta.buren[k]];
+			burenGrond += buur.rotsHoogte + buur.zandHoogte;
+			burenRots  += buur.rotsHoogte;
+		}
 
-		deze.grondHoogte += burenHoogte / dezeMeta.burenAantal;
-		deze.grondHoogte *= 0.5f;
+		const float gemGrond = (deze.rotsHoogte + deze.zandHoogte + burenGrond / dezeMeta.burenAantal) * 0.5f;
+		const float gemRots  = (deze.rotsHoogte + burenRots / dezeMeta.burenAantal) * 0.5f;
+
+		deze.rotsHoogte = gemRots;
+		deze.zandHoogte = glm::max(0.0f, gemGrond - gemRots);
 	}
 }
 
@@ -296,15 +306,15 @@ void planeet::maakPingPongOpslagen()
 		int 	grondSoort	= 0;
 
 		//Het oppervlak is rots waar geen deklaag boven zit, anders zand
-		grondSoort = (_vakken[0][b].grondHoogte - _vakken[0][b].rotsHoogte > 0.0f) ? GS_ZAND : GS_ROTS;
+		grondSoort = (_vakken[0][b].zandHoogte > 0.0f) ? GS_ZAND : GS_ROTS;
 
 //		vec2	lenBrdGr	= _tex->ggvPunt2(b);
 //		bool	poolIjs		= (lenBrdGr.y < _poolA && dis(gen) > (lenBrdGr.y / _poolA)) || (lenBrdGr.y > _poolB && dis(gen) < (lenBrdGr.y - _poolB) / (1.0f - _poolB));
 
-		/*if		(_vakken[0][b].grondHoogte > 0.8f || poolIjs)	grondSoort = GS_IJS;
-		else*/  //if (_vakken[0][b].grondHoogte < 0.1f)				grondSoort = GS_ZAND;
+		/*if		(_vakken[0][b].rotsHoogte + _vakken[0][b].zandHoogte > 0.8f || poolIjs)	grondSoort = GS_IJS;
+		else*/  //if (rots+zand < 0.1f)										grondSoort = GS_ZAND;
 		//else if	(grondRand < 0.0)							grondSoort = GS_GROND;
-//		else if (_vakken[0][b].grondHoogte < 0.6f)				grondSoort = grondRand < (_vakken[0][b].grondHoogte - 0.1f) * 2.0 ? GS_ROTS : GS_ZAND;
+//		else if (rots+zand < 0.6f)							grondSoort = grondRand < (rots+zand - 0.1f) * 2.0 ? GS_ROTS : GS_ZAND;
 	//	else													grondSoort = GS_ROTS;
 	//	else if	(grondRand < 0.9)								grondSoort = GS_KLEI;
 		//else if	(grondRand < 0.2)							grondSoort = GS_IJS;

@@ -41,7 +41,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     let ID = vertexIndex;
 
     uit.texDraaien = vec3f(in.tex.y, fract(in.tex.x), fract(in.tex.x + 0.5) - 0.5);
-    uit.grondHoogte = vakken0[ID].grondHoogte;
+    uit.grondHoogte = grondHoogte(vakken0[ID]);
 
 let lokaalWater = select(vakken0[ID].waterHoogte / waterSchaler, 1.0, vakken0[ID].waterHoogte > waterSchaler);
     let droesemVerhouding = select(vakken0[ID].droesem / max(droesemheid * vakken0[ID].waterHoogte, zeerKlein), 0.0, vakken0[ID].waterHoogte <= zeerKlein);
@@ -68,7 +68,7 @@ let lokaalWater = select(vakken0[ID].waterHoogte / waterSchaler, 1.0, vakken0[ID
     //rug-silhouetten als slingers over het wateroppervlak projecteert). IJs wordt op
     //de bovenkant van het ijsdek bemonsterd, omdat het ijsdek wél in de kaart zit.
     let ijsDek = select(0.0, vakken0[ID].ijs, vakken0[ID].ijs > 0.01);
-    let kijkHoogte = vakken0[ID].grondHoogte + ijsDek;
+    let kijkHoogte = grondHoogte(vakken0[ID]) + ijsDek;
     //Belichtingsnormaal: een dunne waterfilm of een ijsdek volgt voor de belichting
     //het terrein — de waterSchijn-gradiënten van zo'n vel geven anders lelijke
     //facet-vlakken die op geprojecteerde schaduwen lijken. Alleen echt diep water

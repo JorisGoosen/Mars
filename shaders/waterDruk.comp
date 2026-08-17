@@ -19,29 +19,60 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     var snelheid = vec2f(0.0);
     var maxHelling = 0.0;
     var netZand = 0.0;
-    let mijnZand = max(0.0, vakken0[ID].grondHoogte - vakken0[ID].rotsHoogte);
+    let mijnZand  = vakken0[ID].zandHoogte;
+    let mijnGrond = grondHoogte(vakken0[ID]);
 
-    //Ga de buren telkens opzoeken zodat we normalen kunnen berekenen en zo veel meer
+    //Zand-rusthelling: als meerdere lagere buren tegelijk om zand vragen kan de som
+    //van de porties de zandlaag overschrijden. De donor schaalt daarom al zijn
+    //uitgaande porties met dezelfde factor; elke ontvangende buur past diezelfde
+    //factor toe (hij kan hem exact narekenen uit dezelfde vakken0-waarden), zodat
+    //de uitwisseling per paar bit-exact behoudend blijft en er nooit zand uit het
+    //niets ontstaat.
+    var uitTotaal = 0.0;
+    for(var b = 0u; b < burenAantal && b < maxBuren; b++) {
+        let hoogteBuurb = grondHoogte(vakken0[vakMetas[ID].buren[b]]);
+        let verschilb   = mijnGrond - hoogteBuurb;
+        if(verschilb > zandRepose) {
+            uitTotaal += min(zandZakhoek * (verschilb - zandRepose), mijnZand);
+        }
+    }
+    let uitSchaal = select(min(1.0, mijnZand / max(uitTotaal, zeerKlein)), 1.0, uitTotaal <= zeerKlein);
+
+    //Ga de buren telkens opzoeken zodat we normaliën kunnen berekenen en zo veel meer
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
         let buurIDv = vakMetas[ID].buren[buur];
         let buurBuren = vakMetas[buurIDv].burenAantal;
 
         //helling: het grootste grondhoogteverschil met een buur, genormaliseerd over de pijplengte
-        maxHelling = max(maxHelling, abs(vakken0[buurIDv].grondHoogte - vakken0[ID].grondHoogte) / pijpLengte);
+        maxHelling = max(maxHelling, abs(grondHoogte(vakken0[buurIDv]) - mijnGrond) / pijpLengte);
 
         //Zand-rusthelling (angle of repose, hierheen gehaald uit grondGelijkmaker.comp zodat
         //de erosie niet door een latere pass wordt overschreven): symmetrische, behoudende
-        //zand-uitwisseling met deze buur — alleen de zandlaag (grondHoogte - rotsHoogte) zakt.
-        let buurGrond = vakken0[buurIDv].grondHoogte;
-        let buurZand  = max(0.0, buurGrond - vakken0[buurIDv].rotsHoogte);
-        let verskil   = vakken0[ID].grondHoogte - buurGrond;
-        if(verskil > zandRepose) {
-            let oorskot = verskil - zandRepose;
-            netZand -= min(zandZakhoek * oorskot, mijnZand);
+        //zand-uitwisseling met deze buur — alleen de zandlaag zakt. De uitSchaal van de
+        //donor (vooraf gerekend) zorgt dat een donor nooit meer uitdeelt dan hij heeft.
+        let buurGrond = grondHoogte(vakken0[buurIDv]);
+        let buurZand  = vakken0[buurIDv].zandHoogte;
+        let verschil   = mijnGrond - buurGrond;
+        if(verschil > zandRepose) {
+            let oorskot = verschil - zandRepose;
+            netZand -= min(zandZakhoek * oorskot, mijnZand) * uitSchaal;
         }
-        else if(verskil < -zandRepose) {
-            let oorskot = -verskil - zandRepose;
-            netZand += min(zandZakhoek * oorskot, buurZand);
+        else if(verschil < -zandRepose) {
+            let oorskot = -verschil - zandRepose;
+            let buurAanbod = min(zandZakhoek * oorskot, buurZand);
+            //Pas de schaal van de donor toe: zijn totale uitgaande vraag kan zijn
+            //zandlaag overtreffen, en hij verdeelt dat tekort evenredig. Beide kanten
+            //rekenen dezelfde som uit dezelfde vakken0-data, dus behoudend.
+            var donorTotaal = 0.0;
+            for(var bb = 0u; bb < buurBuren && bb < maxBuren; bb++) {
+                let donorLaag  = vakMetas[buurIDv].buren[bb];
+                let donorVers  = buurGrond - grondHoogte(vakken0[donorLaag]);
+                if(donorVers > zandRepose) {
+                    donorTotaal += min(zandZakhoek * (donorVers - zandRepose), buurZand);
+                }
+            }
+            let donorSchaal = select(min(1.0, buurZand / max(donorTotaal, zeerKlein)), 1.0, donorTotaal <= zeerKlein);
+            netZand += buurAanbod * donorSchaal;
         }
 
         for(var buurBuur = 0u; buurBuur < buurBuren; buurBuur++) {
@@ -75,6 +106,12 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
             }
         }
     }
+
+    //Extra vangnet: doordat de donor zijn uitgaande porties schaalt (zie hierboven)
+    //kan dit nooit meer uitgaan dan de zandlaag die hij bezit; deze klem vangt alleen
+    //nog marginale afrondingsfoutjes op en kan hooguit heel iets vernietigen,
+    //nooit iets creëren.
+    netZand = max(netZand, -mijnZand);
 
     //Dan tijd om het een en ander weg te schrijven
     snelheid /= f32(burenAantal);
@@ -150,11 +187,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     vakken1[ID].grondSoort = vakken0[ID].grondSoort;
     vakken1[ID].rotsHoogte = vakken0[ID].rotsHoogte;
 
-    //hoe dik de zand/deklaag nu is (tussen grondOppervlak en de rots-ondergrond)
-    let zandlaag = max(0.0, vakken0[ID].grondHoogte - vakken0[ID].rotsHoogte);
-
     var afzet   = 0.0;
     var weg     = 0.0;
+    var vanZand = 0.0;
     var rotsWeg = 0.0;
 
     if(waterHoogteNieuw <= zeerKlein) {
@@ -166,13 +201,16 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     else if(balans < -zeerKlein && waterHoogteNieuw >= minWaterSed) { //== oplossen
         let behoefte = -balans * oplosheid;
 
-        //eerst het snelle zand: rots is pas bereikbaar als het zand weg is
-        let vanZand = min(behoefte, zandlaag) * zandErosie;
+        //Eerst het zand: zand dekt de volledige erosievraag zolang de voorraad
+        //strekt. Rots komt pas aan bod als de vraag groter is dan wat het zand kan
+        //leveren, en erodeert dan bovendien traag (rotsErosie).
+        let zandDekt = min(behoefte, mijnZand);
+        vanZand = zandDekt * zandErosie;
         weg += vanZand;
 
-        let over = behoefte - vanZand;
+        //Wat het zand niet kon dekken -> de rots eronder
+        let over = behoefte - zandDekt;
         if(over > zeerKlein) {
-            //blootliggende rots erodeert rotsErosieKeer langzamer dan zand
             let totRots = max(0.0, vakken0[ID].rotsHoogte - minGrondHoogte);
             let vanRots = min(over, totRots) * rotsErosie;
             weg += vanRots;
@@ -203,13 +241,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //piek ophoopt.
     let droesemCap = droesemMax;
     vakken1[ID].droesem     = goed(min(droesemAangespoeld - afzet + weg, droesemCap), vakken0[ID].droesem, 0.0, maxDroesem);
-    //Erosie/depositie (afzet/weg/rotsWeg) én de zand-rusthelling (netZand) worden hier
-    //samen op het terrein toegepast: één schrijver per ronde, zodat niets wordt overschreven.
-    vakken1[ID].grondHoogte = goed(vakken0[ID].grondHoogte + netZand + afzet - weg, vakken0[ID].grondHoogte, minGrondHoogte, maxGrondHoogte);
+    //Erosie/depositie én de zand-rusthelling (netZand) worden hier samen op het terrein
+    //toegepast: één schrijver per ronde, zodat niets wordt overschreven. De twee lagen
+    //worden apart bijgehouden: afzet en het zandverlies gaan van/naar de zandlaag, en
+    //alleen rotsWeg raakt de ondergrond; de terreinhoogte is afgeleid (rots + zand).
+    //Het totaal blijft binnen dezelfde [minGrondHoogte, maxGrondHoogte] als voorheen:
+    //rots heeft zijn eigen klem en de zandlaag kan niet onder 0 of boven het plafond uitkomen.
     vakken1[ID].rotsHoogte  = goed(vakken0[ID].rotsHoogte - rotsWeg, vakken0[ID].rotsHoogte, minGrondHoogte, maxGrondHoogte);
+    let zandNieuw = max(0.0, vakken0[ID].zandHoogte + netZand + afzet - vanZand);
+    vakken1[ID].zandHoogte  = goed(min(zandNieuw, maxGrondHoogte - vakken1[ID].rotsHoogte), 0.0, 0.0, maxGrondHoogte);
 
     //het oppervlak is zand zodra er een deklaagje boven de rots ligt, anders rots
-    if(vakken1[ID].grondHoogte - vakken1[ID].rotsHoogte > zeerKlein) {
+    if(vakken1[ID].zandHoogte > zeerKlein) {
         vakken1[ID].grondSoort = i32(gsZand);
     }
     else {

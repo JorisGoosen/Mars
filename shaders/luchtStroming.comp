@@ -63,12 +63,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //Met 0 blijft de lucht volledig stil (handig als --no-atmosfeer-parachute).
     let luchtAan = select(0.0, 1.0, reken.atmosfeer.x > 0.0);
 
-    let opp = vakken0[ID].grondHoogte + vakken0[ID].waterHoogte;
+    let opp = grondHoogte(vakken0[ID]) + vakken0[ID].waterHoogte;
     let hoogteFrac = clamp((opp - minGrondHoogte) / (maxGrondHoogte - minGrondHoogte), 0.0, 1.0);
 
     let T0 = vakken0[ID].temperatuur;
     let P0 = vakken0[ID].luchtdruk;
     let V0 = vakken0[ID].wind;
+    let mijnTerrein = grondHoogte(vakken0[ID]);
 
     //---- zonne-verwarming (zon vast in modelruimte; de planeet draait) ----
     let zon     = normalize(reken.zonRicht.xyz);
@@ -95,7 +96,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         if(reken.schaduw.x > 0.5 && reken.schaduw.y > 0.5) {
             let straal = zonStraal(reken.fasen.z, reken.grondSchaal, reken.fasen.y);
             //zelfde oppervlak als de schaduw-pass: terrein + ijs (water telt niet mee)
-            let kolomHoogte = vakken0[ID].grondHoogte + vakken0[ID].ijs;
+            let kolomHoogte = grondHoogte(vakken0[ID]) + vakken0[ID].ijs;
             let plek   = hier * ((1.0 + kolomHoogte * reken.grondSchaal) / reken.fasen.z);
             let pr     = zonProjectie(plek, zon, straal);
             zonZicht   = zonSchaduwFactor(pr, reken.schaduw.y);
@@ -203,7 +204,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         let dV    = lokaal2(ID, wind3(buurId) - V3_0);
         rawDivX  += dV.x * richt;
         rawDivY  += dV.y * richt;
-        terreinGrad += (vakken0[buurId].grondHoogte - vakken0[ID].grondHoogte) * richt;
+        terreinGrad += (grondHoogte(vakken0[buurId]) - mijnTerrein) * richt;
     }
     let somW = lokaal2(ID, somW3 / n - V3_0) + V0;
     somP     /= n;

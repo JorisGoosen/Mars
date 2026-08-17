@@ -13,7 +13,7 @@ fn buurID(id : u32, buur : u32) -> u32 {
 }
 
 fn hoogteBuur(id : u32, water : bool) -> f32 {
-    return vakken0[id].grondHoogte + select(0.0, vakken0[id].waterSchijn, water);
+    return grondHoogte(vakken0[id]) + select(0.0, vakken0[id].waterSchijn, water);
 }
 
 fn vakHoogte(id : u32, water : bool) -> f32 {

@@ -56,7 +56,7 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 	const size_t aantal = t->grootte / sizeof(vak);
 
 	float	maxWaterHoogte = 0, maxSchijn = 0, maxBodemVocht = 0, maxLuchtVocht = 0,
-			maxDroesem = 0, maxPijp = 0, maxSnelheid = 0, maxGrond = 0,
+			maxDroesem = 0, maxPijp = 0, maxSnelheid = 0, maxGrond = 0, maxZand = 0,
 			maxTemp = 0, maxDruk = 0, maxWind = 0, maxWolken = 0;
 	float maxIjs = 0, minTemp = 1.0e30f;
 	size_t	piekWater = 0, piekDroesem = 0, piekPijp = 0, piekSnelheid = 0;
@@ -67,6 +67,7 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 		const vak & cel = cellen[i];
 		const float snelhe = sqrtf(cel.snelheid.x * cel.snelheid.x + cel.snelheid.y * cel.snelheid.y);
 		const float winds  = sqrtf(cel.wind.x * cel.wind.x + cel.wind.y * cel.wind.y);
+		const float grond  = cel.rotsHoogte + cel.zandHoogte;
 
 		for(int p = 0; p < 6; p++)
 		{
@@ -80,7 +81,8 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 		if		(cel.luchtVocht > maxLuchtVocht)	maxLuchtVocht = cel.luchtVocht;
 		if		(fabsf(cel.droesem) > maxDroesem){ maxDroesem = fabsf(cel.droesem); piekDroesem = i; }
 		if		(snelhe > maxSnelheid)				{ maxSnelheid = snelhe; piekSnelheid = i; }
-		if		(cel.grondHoogte > maxGrond)		maxGrond = cel.grondHoogte;
+		if		(grond > maxGrond)					maxGrond = grond;
+		if		(cel.zandHoogte > maxZand)			maxZand = cel.zandHoogte;
 		if		(cel.temperatuur > maxTemp)			maxTemp = cel.temperatuur;
 		if		(cel.temperatuur < minTemp)			minTemp = cel.temperatuur;
 		if		(cel.ijs > maxIjs)					maxIjs = cel.ijs;
@@ -89,7 +91,7 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 		if		(cel.wolken > maxWolken)			maxWolken = cel.wolken;
 
 		const bool eindig =
-				cel.grondHoogte >= -1.0e30f && cel.grondHoogte <=  1.0e30f &&
+				cel.zandHoogte  >= -1.0e30f && cel.zandHoogte  <=  1.0e30f &&
 				cel.rotsHoogte  >= -1.0e30f && cel.rotsHoogte  <=  1.0e30f &&
 				cel.waterHoogte >= -1.0e30f && cel.waterHoogte <=  1.0e30f &&
 				cel.waterSchijn >= -1.0e30f && cel.waterSchijn <=  1.0e30f &&
@@ -105,7 +107,7 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 			glm::vec3 richting = t->geo->punt3(i);
 			std::cerr << "[diag " << t->teller << " !!] cel " << i
 					  << " richting (" << richting.x << ", " << richting.y << ", " << richting.z << ")"
-					  << " NIET-eindig: grond=" << cel.grondHoogte << " rots=" << cel.rotsHoogte
+					  << " NIET-eindig: grond=" << grond << " rots=" << cel.rotsHoogte << " zand=" << cel.zandHoogte
 					  << " water=" << cel.waterHoogte << " schijn=" << cel.waterSchijn
 					  << " bodem=" << cel.bodemVocht << " lucht=" << cel.luchtVocht
 					  << " droesem=" << cel.droesem << " temp=" << cel.temperatuur
@@ -121,6 +123,7 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 			  << " (cel " << piekDroesem << ")  pijp=" << maxPijp
 			  << " (cel " << piekPijp << ")  snelheid=" << maxSnelheid
 			  << " (cel " << piekSnelheid << ")  grond=" << maxGrond
+			  << "  zand=" << maxZand
 			  << "  temp=" << maxTemp << "K (" << (maxTemp - 273.15f) << "°C)"
 			  << "  minTemp=" << minTemp << "K (" << (minTemp - 273.15f) << "°C)"
 			  << "  ijs=" << maxIjs << "  druk=" << maxDruk
@@ -161,7 +164,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 	std::ofstream & uit = *t->uit;
 	if(t->teller == 0)
 	{
-		uit << "id,x,y,z,grond,rots,water,bodemVocht,leven,droesem,luchtVocht,"
+		uit << "id,x,y,z,grond,rots,zand,water,bodemVocht,leven,droesem,luchtVocht,"
 		       "temperatuur,luchtdruk,windX,windY,wolken,ijs,zonZicht,asym\n";
 	}
 
@@ -170,7 +173,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 		const vak & cel = cellen[i];
 		glm::vec3 p = t->geo->punt3(i);
 		uit << i << "," << p.x << "," << p.y << "," << p.z << ","
-			<< cel.grondHoogte << "," << cel.rotsHoogte << "," << cel.waterHoogte << ","
+			<< (cel.rotsHoogte + cel.zandHoogte) << "," << cel.rotsHoogte << "," << cel.zandHoogte << "," << cel.waterHoogte << ","
 			<< cel.bodemVocht << "," << cel.leven << "," << cel.droesem << ","
 			<< cel.luchtVocht << "," << cel.temperatuur << "," << cel.luchtdruk << ","
 			<< cel.wind.x << "," << cel.wind.y << "," << cel.wolken << ","
@@ -277,14 +280,16 @@ static glm::vec3 oppervlakteKleurC(const vak & c)
 		return glm::vec3(1.0f);
 	if(c.waterHoogte > 0.01f)
 		return glm::vec3(0.1f, 0.3f, 0.9f) * std::clamp(1.0f - c.waterHoogte * 0.5f, 0.4f, 1.0f);
-	float h = std::clamp((c.grondHoogte - 10.0f) / (200.0f - 10.0f), 0.0f, 1.0f);
+	float h = std::clamp((c.rotsHoogte + c.zandHoogte - 10.0f) / (200.0f - 10.0f), 0.0f, 1.0f);
 	return glm::mix(glm::vec3(0.45f, 0.32f, 0.18f), glm::vec3(0.62f, 0.52f, 0.38f), h);
 }
 
 static float veldWaardeC(const vak & c, const std::string & veld)
 {
 	if(veld == "druk" || veld == "luchtdruk") return c.luchtdruk;
-	if(veld == "grond" || veld == "hoogte")   return c.grondHoogte;
+	if(veld == "grond" || veld == "hoogte")   return c.rotsHoogte + c.zandHoogte;
+	if(veld == "rots" || veld == "rotsHoogte") return c.rotsHoogte;
+	if(veld == "zand" || veld == "zandHoogte") return c.zandHoogte;
 	if(veld == "water")    return c.waterHoogte;
 	if(veld == "ijs")      return c.ijs;
 	if(veld == "wolken")   return c.wolken;

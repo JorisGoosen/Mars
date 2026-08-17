@@ -36,7 +36,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     let ID = vertexIndex;
 
     uit.texDraaien = vec3f(in.tex.y, fract(in.tex.x), fract(in.tex.x + 0.5) - 0.5);
-    uit.grondHoogte = vakken0[ID].grondHoogte;
+    uit.grondHoogte = grondHoogte(vakken0[ID]);
 
     let T = vakken0[ID].temperatuur;
 

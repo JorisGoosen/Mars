@@ -13,7 +13,7 @@ const zwaartekracht   = 0.8;
 const pijpDoorsnee    = 0.5;
 const pijpLengte      = 1.0;
 const oplosheid       = 0.70;  //hoe snel water materiaal oplost/erodeert
-const bezinkheid      = 0.10;  //hoe snel materiaal weer bezinkt (sedimentatie; verdubbeld)
+const bezinkheid      = 0.01;  //hoe snel materiaal weer bezinkt (sedimentatie; was 0.10)
 const droesemheid     = 0.5;
 const vertrager       = 0.05;  //vertraging van het eroderen: schaalt de draagcapaciteit omlaag (rustige erosie)
 const zeerKlein       = 0.0001;
@@ -23,16 +23,17 @@ const toonSediment    = 0.003; //boven deze waarde wordt grondSoort zand
 const minWaterSed     = 0.01;  //onder deze waterdiepte erodeert een cel niet meer (lager = ook ondiepe rivier/overland-stroming schuurt het terrein uit)
 
 //Materiaal-afhankelijke erosiesnelheden (zie waterDruk.comp).
-//Zand/sediment dient als snelle, makkelijk verplaatste deklaag; de diepste
-//ondergrond (rots) erodeert rotsVertragingKeer langzamer dan zand.
+//Zand/sediment dient als snelle, makkelijk verplaatste deklaag en vangt de
+//erosievraag eerst op; de ondergrond (rots) wordt pas geraakt zodra de vraag
+//groter is dan de zandvoorraad, en erodeert dan veel langzamer.
 const zandErosie   = 0.1;
 const rotsErosie   = 0.01; //10x langzamer dan zand (was 20x)
 const hellingKracht = 0.5;    //hoe sterk de helling de draagcapaciteit verhoogt
 const maxDichtheid = 1.0;    //max. zwevend sediment t.o.v. de waterhoogte
 
 //Zand-rusthelling (angle of repose, toegepast in waterDruk.comp): zand zakt naar een
-//stabiele helling. zandRepose = maximale hoogte-drempel (in dezelfde eenheden als
-//grondHoogte) voordat zand naar een lagere buur mag 'vallen'; zandZakhoek is de
+//stabiele helling. zandRepose = maximale hoogte-drempel (in dezelfde eenheden als de
+//terreinhoogte) voordat zand naar een lagere buur mag 'vallen'; zandZakhoek is de
 //fractie van het overschot die per ronde daadwerkelijk verplaatst wordt.
 const zandRepose  = 0.8;
 const zandZakhoek = 1.0 / 20.0;
@@ -131,13 +132,17 @@ const wolkVerdamp    = 0.006;  //fractie wolkwater dat per ronde in droge lucht 
 const regenTempo     = 0.30;   //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt (hoog genoeg om de instroom bij te houden: wolken blijven beperkt, geen ophopende stapels)
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
 const wolkDraagKracht = 0.40;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken dragen meer water vóór ze regenen)
-const wolkDiffusie   = 0.25;   //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen)
+const wolkDiffusie   = 0.8;    //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen; was 0.25)
 const dekDump        = 0.08;   //fractie wolk die per ronde op een bergtop boven het wolkendek neerslaat (rate-limit: geen tsunami-dump in één ronde)
 const maxRegenPerRonde = 0.6;  //het absolute neerslagplafond per cel per ronde (piekbegrenzer: een dikke wolk loopt geleidelijk leeg, nooit in één slag)
 
+//Terrein wordt bijgehouden als twee onafhankelijke lagen: rotsHoogte (de vaste
+//ondergrond) en zandHoogte (de losse deklaag; invariant >= 0). De terreinhoogte
+//(het oppervlak waarover water stroomt en die wordt gerenderd) is daarvan de
+//afgeleide som — zie grondHoogte() hieronder.
 struct vak {
     grondSoort  : i32,
-    grondHoogte : f32,
+    zandHoogte  : f32,
     rotsHoogte  : f32,
     waterHoogte : f32,
     waterSchijn : f32,
@@ -157,6 +162,12 @@ struct vak {
     wind        : vec2f,
     plek        : vec2f,
 };
+
+//De terreinhoogte is afgeleid: ondergrond + zandlaag. De helper werkt zowel op
+//vakken0 als vakken1.
+fn grondHoogte(v : vak) -> f32 {
+    return v.rotsHoogte + v.zandHoogte;
+}
 
 struct vakMeta {
     normaal     : vec4f,

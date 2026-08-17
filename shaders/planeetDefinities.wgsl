@@ -57,7 +57,7 @@ fn kolom(id : u32) -> f32 {
     let waterHoogte = max(0.0, vakken0[id].waterHoogte);
     //IJs telt als grond: het ligt "onder" het water, dus verhoogt de bodem waarover
     //het water stroomt (watert stroomt over ijs zoals over terrein).
-    return vakken0[id].grondHoogte + vakken0[id].ijs + (waterHoogte + min(waterHoogte * maxDichtheid, vakken0[id].droesem));
+    return grondHoogte(vakken0[id]) + vakken0[id].ijs + (waterHoogte + min(waterHoogte * maxDichtheid, vakken0[id].droesem));
 }
 
 //Transportconstante: welke fractie van een cel per ronde met 1 eenheid face-snelheid
@@ -110,7 +110,7 @@ fn fluxK(waarde : f32, fluxen : f32) -> f32 {
 }
 
 fn hoogteBuur(id : u32, water : bool) -> f32 {
-    return vakken0[id].grondHoogte + select(0.0, vakken0[id].waterSchijn, water);
+    return grondHoogte(vakken0[id]) + select(0.0, vakken0[id].waterSchijn, water);
 }
 
 fn vakHoogte(id : u32, water : bool) -> f32 {

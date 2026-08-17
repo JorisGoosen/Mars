@@ -45,7 +45,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
 
     //Zachte overgang: waar de zand/deklaag dun wordt, gaat het oppervlak van zand
     //geleidelijk over in de daaronder liggende Mars-rots, i.p.v. een harde knip.
-    let zandlaag  = max(0.0, vakken0[ID].grondHoogte - vakken0[ID].rotsHoogte);
+    let zandlaag  = vakken0[ID].zandHoogte;
     let overgang  = clamp(zandlaag / overgangDikte, 0.0, 1.0);
     let zandKleur = vec4f(0.7, 0.52, 0.3, 1.0);
     let rotsKleur = vec4f(0.95, 0.2, 0.05, 1.0); //Mars-rood
@@ -53,7 +53,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
 
     //Naadloze textuur-coordinaten (zie Tarini 2012); de frag-shader kiest s0 of s1 mbv fwidth
     uit.texDraaien = vec3f(in.tex.y, fract(in.tex.x), fract(in.tex.x + 0.5) - 0.5);
-    uit.grondHoogte = vakken0[ID].grondHoogte;
+    uit.grondHoogte = grondHoogte(vakken0[ID]);
     uit.kleur = grondKleur;
     uit.temperatuur = vakken0[ID].temperatuur;
     uit.waterHoogte = vakken0[ID].waterSchijn;

@@ -17,7 +17,7 @@ class weergaveScherm;
 struct vak
 {
 	int			grondSoort	;
-	float 		grondHoogte	,
+	float 		zandHoogte	, //losse zand/deklaag boven op de rots (altijd >= 0); terreinhoogte = rotsHoogte + zandHoogte
 				rotsHoogte	,
 				waterHoogte	,
 				waterSchijn	,
