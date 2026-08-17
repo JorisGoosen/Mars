@@ -13,7 +13,7 @@ const zwaartekracht   = 0.8;
 const pijpDoorsnee    = 0.5;
 const pijpLengte      = 1.0;
 const oplosheid       = 0.70;  //hoe snel water materiaal oplost/erodeert
-const bezinkheid      = 0.01;  //hoe snel materiaal weer bezinkt (sedimentatie; was 0.10)
+const bezinkheid      = 0.001; //hoe snel materiaal weer bezinkt (sedimentatie; was 0.01)
 const droesemheid     = 0.5;
 const vertrager       = 0.05;  //vertraging van het eroderen: schaalt de draagcapaciteit omlaag (rustige erosie)
 const zeerKlein       = 0.0001;
@@ -26,8 +26,8 @@ const minWaterSed     = 0.01;  //onder deze waterdiepte erodeert een cel niet me
 //Zand/sediment dient als snelle, makkelijk verplaatste deklaag en vangt de
 //erosievraag eerst op; de ondergrond (rots) wordt pas geraakt zodra de vraag
 //groter is dan de zandvoorraad, en erodeert dan veel langzamer.
-const zandErosie   = 0.1;
-const rotsErosie   = 0.01; //10x langzamer dan zand (was 20x)
+const zandErosie   = 0.001;
+const rotsErosie   = 0.0002; //5x langzamer dan zand (was 10x)
 const hellingKracht = 0.5;    //hoe sterk de helling de draagcapaciteit verhoogt
 const maxDichtheid = 1.0;    //max. zwevend sediment t.o.v. de waterhoogte
 
@@ -132,7 +132,7 @@ const wolkVerdamp    = 0.006;  //fractie wolkwater dat per ronde in droge lucht 
 const regenTempo     = 0.30;   //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt (hoog genoeg om de instroom bij te houden: wolken blijven beperkt, geen ophopende stapels)
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
 const wolkDraagKracht = 0.40;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken dragen meer water vóór ze regenen)
-const wolkDiffusie   = 0.8;    //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen; was 0.25)
+const wolkDiffusie   = 1.0;    //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen; was 0.8)
 const dekDump        = 0.08;   //fractie wolk die per ronde op een bergtop boven het wolkendek neerslaat (rate-limit: geen tsunami-dump in één ronde)
 const maxRegenPerRonde = 0.6;  //het absolute neerslagplafond per cel per ronde (piekbegrenzer: een dikke wolk loopt geleidelijk leeg, nooit in één slag)
 
