@@ -191,6 +191,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         afzet += afzetVries;
     }
 
+    //Cap op erosie/depositie per frame: voorkomt plotselinge pieken (feedback loop)
+    const maxErosiePerFrame = 0.5;
+    afzet = min(afzet, maxErosiePerFrame);
+    weg = min(weg, maxErosiePerFrame);
+
     //Opgelost materiaal komt in het water, neergezakt materiaal gaat naar de bodem.
     //Hard vangnet: in suspensie kan nooit meer slib hangen dan het water dragen kan
     //(droesemMax). Zo kan een volle kom de pijpkolom niet opblazen met onbeperkt

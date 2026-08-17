@@ -417,6 +417,25 @@ static void veldKaartVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void *
 	wgpuBufferUnmap(t->buffer);
 }
 
+static void veldKaartFrameVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebruiker1, void * gebruiker2)
+{
+	(void)gebruiker2;
+	veldKaartToestandje * t = (veldKaartToestandje *)gebruiker1;
+	t->klaar = true;
+
+	if(status != WGPUMapAsyncStatus_Success)
+	{
+		std::cerr << "[veldKaart] lezen mislukt (status " << (uint32_t)status << ")" << std::endl;
+		return;
+	}
+
+	const vak * cellen = (const vak *)wgpuBufferGetMappedRange(t->buffer, 0, t->grootte);
+	const size_t aantal = t->grootte / sizeof(vak);
+	for(const auto & kaart : t->kaarten)
+		schrijfVeldKaart(kaart.second, cellen, aantal, t->geo, kaart.first, t->factor);
+	wgpuBufferUnmap(t->buffer);
+}
+
 struct shotToestandje
 {
 	bool klaar = false;
@@ -472,6 +491,8 @@ static void toonHelp()
 "  --schermafbeelding <bestand>  render een beeld naar een PNG (handig bij --hoofdloos)\n"
 "  --schermafbeeldingElkeFrames <n>  maak om de n frames een schermafbeelding\n"
 "  --veldKaart <veld> [bestand]  volledige-planeet heatmap als PNG (temperatuur, wind, druk, oppervlakte, grond, water, ijs, wolken, ...); herhaalbaar voor meerdere kaarten in één draai\n"
+"  --veldKaartFrames <n>         schrijf de laatste n frames als veldkaart0.png .. veldkaartN-1.png (grond-heatmap)\n"
+"  --veldKaartElkeFrames <n> <veld>  schrijf elke n frames als veldkaart_N.png (bijv. --veldKaartElkeFrames 10 grond)\n"
 "  --kaartFactor <n>     veldkaart-resolutie gedeeld door n (standaard 1)\n"
 "  --luchtstappen <n>    sim-stappen per beeld (standaard 1; hoger = ze zichtbaar sneller zie je wolken bewegen)\n"
 "  --stil               bevries alles vanaf het begin (sim, zon- en modelrotatie)\n"
@@ -504,6 +525,9 @@ int main(int argc, char ** argv)
 	size_t schermElkeFrames = 0; //0 = alleen de eind-screenshot
 	std::vector<std::pair<std::string, std::string>> veldKaarten; //--veldKaart <veld> [bestand], herhaalbaar
 	int kaartFactor = 1; //--kaartFactor <n>: veldkaart-resolutie gedeeld door n
+	size_t veldKaartFramesAantal = 0; //--veldKaartFrames <n>: schrijf de laatste n frames als veldkaartN.png
+	size_t veldKaartElkeFramesAantal = 0; //--veldKaartElkeFrames <n> <veld>: schrijf elke n frames als veldkaart_N.png
+	std::string veldKaartElkeFramesVeld = "grond"; //--veldKaartElkeFrames <n> <veld>
 	int  luchtStappen = 1;      //aantal atmosfeer-simstappen per beeld (wolken zichtbaar laten bewegen)
 	bool bevroren = false;      //bevriest sim + zonrotatie + modelrotatie
 	bool zonRoteert = true;     //of de bezonning (dag/nacht) vooruitloopt
@@ -603,12 +627,33 @@ int main(int argc, char ** argv)
 			if(a + 1 < argc) kaartFactor = std::clamp(std::atoi(argv[++a]), 1, 40);
 			else std::cerr << "--kaartFactor verwacht een getal (bijv. --kaartFactor 10)" << std::endl;
 		}
+		else if(vlag == "--veldKaartFrames")
+		{
+			if(a + 1 < argc) veldKaartFramesAantal = (size_t)std::max(1, std::atoi(argv[++a]));
+			else std::cerr << "--veldKaartFrames verwacht een getal (bijv. --veldKaartFrames 10)" << std::endl;
+		}
+		else if(vlag == "--veldKaartElkeFrames")
+		{
+			if(a + 1 < argc) veldKaartElkeFramesAantal = (size_t)std::max(1, std::atoi(argv[++a]));
+			else std::cerr << "--veldKaartElkeFrames verwacht een getal (bijv. --veldKaartElkeFrames 10)" << std::endl;
+			if(a + 1 < argc) veldKaartElkeFramesVeld = argv[++a];
+		}
 		else
 		{
 			std::cerr << "Onbekende vlag: " << vlag << "\n\n";
 			toonHelp();
 			return 1;
 		}
+	}
+
+	//Bestandsnamen voor --veldKaartFrames: reserveer paden voor de laatste n frames
+	std::vector<std::pair<size_t, std::string>> veldKaartBestanden;
+	if(veldKaartFramesAantal > 0)
+	{
+		veldKaartBestanden.reserve(veldKaartFramesAantal);
+		for(size_t i = 0; i < veldKaartFramesAantal; i++)
+			veldKaartBestanden.emplace_back(stappenTotaal - veldKaartFramesAantal + i,
+			                               "veldkaart" + std::to_string(i) + ".png");
 	}
 
 	//Headless zonder stappen is zinloos; geef een kleine standaard-waarschuwing.
@@ -945,7 +990,7 @@ int main(int argc, char ** argv)
 	//Diagnose/Csv-buffers: aparte leesbare kopieën om de stand terug te lezen
 	const size_t diagGrootte = geo->aantalVakjes() * sizeof(vak);
 	WGPUBuffer diagLees = nullptr;
-	if(diagAan || !csvBestand.empty() || conservatieAan || !veldKaarten.empty())
+	if(diagAan || !csvBestand.empty() || conservatieAan || !veldKaarten.empty() || veldKaartFramesAantal > 0 || veldKaartElkeFramesAantal > 0)
 	{
 		WGPUBufferDescriptor leesBeschrijving = WGPU_BUFFER_DESCRIPTOR_INIT;
 		leesBeschrijving.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
@@ -1333,6 +1378,36 @@ int main(int argc, char ** argv)
 			slaScreenshot(pad);
 		}
 
+		//Periodieke veldkaarten (--veldKaartFrames): schrijf de laatste n frames als grond-heatmaps
+		if(hoofdloos && veldKaartFramesAantal > 0 && diagLees &&
+		   frameNummer > 0 && frameNummer < stappenTotaal &&
+		   frameNummer >= stappenTotaal - veldKaartFramesAantal)
+		{
+			size_t idx = frameNummer - (stappenTotaal - veldKaartFramesAantal);
+			veldKaartToestandje toestand;
+			toestand.buffer 	= diagLees;
+			toestand.grootte 	= diagGrootte;
+			toestand.geo 		= geo;
+			toestand.factor 	= kaartFactor;
+			toestand.kaarten 	= {{"grond", veldKaartBestanden[idx].second}};
+
+			WGPUCommandEncoder leesEncoder = wgpuDeviceCreateCommandEncoder(apparaat, nullptr);
+			wgpuCommandEncoderCopyBufferToBuffer(leesEncoder, geo->huidigeOpslag(), 0, diagLees, 0, diagGrootte);
+			WGPUCommandBuffer leesCommando = wgpuCommandEncoderFinish(leesEncoder, nullptr);
+			wgpuQueueSubmit(rij, 1, &leesCommando);
+			wgpuCommandBufferRelease(leesCommando);
+			wgpuCommandEncoderRelease(leesEncoder);
+
+			WGPUBufferMapCallbackInfo leesInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+			leesInfo.mode      = WGPUCallbackMode_AllowSpontaneous;
+			leesInfo.callback  = veldKaartFrameVerwerker;
+			leesInfo.userdata1 = &toestand;
+			wgpuBufferMapAsync(diagLees, WGPUMapMode_Read, 0, diagGrootte, leesInfo);
+
+			while(!toestand.klaar)
+				wgpuInstanceProcessEvents(scherm.instantie());
+		}
+
 		if(diagAan && !hoofdloos && diagLees && frameNummer % 25 == 0)
 		{
 			diagToestandje toestand;
@@ -1500,9 +1575,38 @@ int main(int argc, char ** argv)
 		leesInfo.userdata1 = &toestand;
 		wgpuBufferMapAsync(diagLees, WGPUMapMode_Read, 0, diagGrootte, leesInfo);
 
-		while(!toestand.klaar)
-			wgpuInstanceProcessEvents(scherm.instantie());
-	}
+			while(!toestand.klaar)
+				wgpuInstanceProcessEvents(scherm.instantie());
+		}
+
+		//Periodieke veldkaarten (--veldKaartElkeFrames): schrijf elke N frames als grond-heatmap
+		if(hoofdloos && veldKaartElkeFramesAantal > 0 && diagLees &&
+		   frameNummer > 0 && frameNummer % veldKaartElkeFramesAantal == 0)
+		{
+			size_t idx = frameNummer / veldKaartElkeFramesAantal;
+			veldKaartToestandje toestand;
+			toestand.buffer 	= diagLees;
+			toestand.grootte 	= diagGrootte;
+			toestand.geo 		= geo;
+			toestand.factor 	= kaartFactor;
+			toestand.kaarten 	= {{veldKaartElkeFramesVeld, "veldkaart_" + std::to_string(idx) + ".png"}};
+
+			WGPUCommandEncoder leesEncoder = wgpuDeviceCreateCommandEncoder(apparaat, nullptr);
+			wgpuCommandEncoderCopyBufferToBuffer(leesEncoder, geo->huidigeOpslag(), 0, diagLees, 0, diagGrootte);
+			WGPUCommandBuffer leesCommando = wgpuCommandEncoderFinish(leesEncoder, nullptr);
+			wgpuQueueSubmit(rij, 1, &leesCommando);
+			wgpuCommandBufferRelease(leesCommando);
+			wgpuCommandEncoderRelease(leesEncoder);
+
+			WGPUBufferMapCallbackInfo leesInfo = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+			leesInfo.mode      = WGPUCallbackMode_AllowSpontaneous;
+			leesInfo.callback  = veldKaartFrameVerwerker;
+			leesInfo.userdata1 = &toestand;
+			wgpuBufferMapAsync(diagLees, WGPUMapMode_Read, 0, diagGrootte, leesInfo);
+
+			while(!toestand.klaar)
+				wgpuInstanceProcessEvents(scherm.instantie());
+		}
 
 	if(csvUit.is_open())
 		csvUit.close();
@@ -1515,6 +1619,10 @@ int main(int argc, char ** argv)
 	wgpuBufferRelease(rekenParBuffer);
 
 	delete geo;
+
+	//Bevestiging --veldKaartFrames
+	if(veldKaartFramesAantal > 0)
+		std::cout << "[veldKaartFrames] " << veldKaartFramesAantal << " kaarten geschreven" << std::endl;
 
 	//Terugkeer-waarde voor --conservering: 0 = water blijft constant, 1 = LEK.
 	if(conservatieAan && totaalWaterStart > 0.0)
