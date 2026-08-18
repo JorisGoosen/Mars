@@ -10,6 +10,19 @@
 #	include <emscripten.h>
 #endif
 
+// ── Externe symbolen voor Emscripten-integratie ──────────────────────────────
+
+static Simulatie *g_sim = nullptr;
+
+extern "C" {
+	//Wordt aangeroepen door emscriptenWebBackend.cpp's initWebPlatform() + main-loop
+	void _schermStap() { if(g_sim && !g_sim->stopGewenst()) g_sim->stap(); }
+	
+	//Wordt aangeroepen vanuit JS na runtime-init (optioneel)
+	class weergaveScherm;
+	void initWebPlatform(weergaveScherm*, const char*, int, int);
+}
+
 static void toonHelp()
 {
 	std::cout <<
@@ -120,14 +133,9 @@ int main(int argc, char ** argv)
 		return 1;
 
 #ifdef __EMSCRIPTEN__
-	//Web-build: gebruik requestAnimationFrame-loop i.p.v. while-loop
-	//Global pointer omdat emscripten_set_main_loop geen userdata-parameter heeft
-	static Simulatie *g_sim = nullptr;
+	//Web-build: RAF-loop + event-registratie via initWebPlatform()
 	g_sim = &sim;
-	emscripten_set_main_loop([]() {
-		if(g_sim && !g_sim->stopGewenst())
-			g_sim->stap();
-	}, 0, 1); //fps=0 = onbeperkt (RAF-snelheid), simulateInfiniteLoop=1
+	initWebPlatform(nullptr, nullptr, 0, 0);
 #else
 	while(!sim.stopGewenst())
 		sim.stap();

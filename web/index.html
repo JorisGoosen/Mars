@@ -55,24 +55,16 @@
             z-index: 100;
         }
         
-        .error {
-            color: #ff6b6b;
-        }
-        
-        .success {
-            color: #51cf66;
-        }
-        
-        .info {
-            color: #74c0fc;
-        }
+        .error { color: #ff6b6b; }
+        .success { color: #51cf66; }
+        .info { color: #74c0fc; }
     </style>
 </head>
 <body>
     <div id="canvas-container">
         <canvas id="mars-canvas" tabindex="-1"></canvas>
         <div id="status">
-            <p class="info">WebGPU wordt gecontroleerd...</p>
+            <p class="info">Wachten op simulatie...</p>
         </div>
         <div id="controls">
             <p><strong>Besturing:</strong></p>
@@ -85,92 +77,20 @@
         </div>
     </div>
 
-    <script type="module">
-        // WebGPU detectie en initiatie
-        const statusEl = document.getElementById('status');
-        const canvas = document.getElementById('mars-canvas');
-        
-        function updateStatus(html) {
-            statusEl.innerHTML = `<p>${html}</p>`;
-        }
-        
-        async function initWebGPU() {
-            if (!navigator.gpu) {
-                updateStatus('<span class="error">WebGPU wordt niet ondersteund in deze browser.<br>Gebruik Chrome 113+, Edge 113+, of Safari 16.4+ met WebGPU ingeschakeld.</span>');
-                return false;
-            }
-            
-            try {
-                const adapter = await navigator.gpu.requestAdapter({
-                    powerPreference: 'high-performance'
-                });
-                
-                if (!adapter) {
-                    updateStatus('<span class="error">Kon geen GPU-adapter aanvragen.</span>');
-                    return false;
-                }
-                
-                const device = await adapter.requestDevice();
-                
-                const context = canvas.getContext('webgpu');
-                const format = navigator.gpu.getPreferredCanvasFormat();
-                
-                context.configure({
-                    device: device,
-                    format: format,
-                    alphaMode: 'premultiplied'
-                });
-                
-                updateStatus('<span class="success">WebGPU actief!</span>');
-                return true;
-            } catch (e) {
-                updateStatus(`<span class="error">Fout bij WebGPU-init: ${e.message}</span>`);
-                return false;
-            }
-        }
-        
-        // Canvas resize handler
+    <!-- Emscripten module vóór wasm-load -->
+    <script>
+        // Canvas synchronisch op juiste grootte zetten vóór Emscripten start
         function resizeCanvas() {
             const container = document.getElementById('canvas-container');
+            const canvas = document.getElementById('mars-canvas');
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
         }
-        
-        window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
         
-        // Start de simulatie nadat WebGPU klaar is
-        let webgpuReady = false;
-        initWebGPU().then(success => {
-            webgpuReady = success;
-            if (success) {
-                //Laad de WASM-module (wordt automatisch gestart door emscripten)
-                console.log('Mars simulatie starten...');
-            }
-        });
-        
-        // Toetsenbord handlers (voor fallback als emscripten het niet doet)
-        document.addEventListener('keydown', (e) => {
-            if (e.target === canvas || e.target === document.body) {
-                // Voorkom default gedrag voor sim-toetsen
-                const simKeys = [' ', 'b', 'n', 'r', 'x', 'c', 't', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 
-                               'enter', 'escape', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
-                               'w', 'a', 's', 'd', 'q', 'e', 'k', 'l', '[', ']', 'g', 'h', 'u', 'i', 'o', 'p', '.', '/'];
-                if (simKeys.includes(e.key.toLowerCase()) || simKeys.includes(e.code)) {
-                    e.preventDefault();
-                }
-            }
-        });
-    </script>
-    
-    <!-- Emscripten module -->
-    <script>
         var Module = {
             canvas: document.getElementById('mars-canvas'),
-            onRuntimeInitialized: function() {
-                console.log('Mars runtime geladen!');
-                updateStatus('<span class="success">Simulatie actief! Klik op het canvas om te beginnen.</span>');
-            },
             setStatus: function(text) {
                 if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
                 if (text === Module.setStatus.text) return;
@@ -179,10 +99,12 @@
                 if (m && now - Module.setStatus.last.time < 30) return;
                 Module.setStatus.last.time = now;
                 Module.setStatus.last.text = text;
-                if (m) {
-                    text = m[1];
-                }
-                updateStatus(text);
+                if (m) text = m[1];
+                document.getElementById('status').innerHTML = '<p>' + text + '</p>';
+            },
+            onRuntimeInitialized: function() {
+                console.log('[Mars] Runtime geladen — RAF-loop gestart');
+                document.getElementById('status').innerHTML = '<p class="success">Simulatie actief!</p>';
             }
         };
     </script>

@@ -57,12 +57,26 @@ endif()
 # Link gereedschap naar mars_web
 target_link_libraries(mars_web PRIVATE gereedschap)
 
+# ── Assets kopiëren naar dist vóór build ────────────────────────────────────
+# --preload-file moet verwijzen naar bestanden binnen de served directory,
+# anders krijgt de browser een CORS-fout ("may not load file://").
+
+add_custom_command(TARGET mars_web PRE_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/dist/shaders
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/../shaders ${CMAKE_BINARY_DIR}/dist/shaders
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/dist/plaatjes
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/../plaatjes ${CMAKE_BINARY_DIR}/dist/plaatjes
+    COMMENT "Kopiëren van assets naar dist/"
+)
+
 # ── Emscripten-flags ────────────────────────────────────────────────────────
 # --use-port=emdawnwebgpu: levert <webgpu/webgpu.h> + JS-bindings (vervangt -sUSE_WEBGPU)
 # -sUSE_GLFW=3:           Emscripten GLFW-implementatie (maakt canvas, key-mapping, etc.)
 # -sASYNCIFY=1:           Laat blokkerende while-loops werken tegen async JS-calls
 # -sFORCE_FILESYSTEM=1:   Virtueel bestandssysteem voor shaders/plaatjes
-# --preload-file:         Shaders en bump-textuur in het virtuele FS laden
+# --preload-file:         Shaders en bump-textuur in het virtuele FS laden (vanuit dist/)
 # --closure=1:            Code-size optimalisatie voor release
 # -sALLOW_MEMORY_GROWTH:  Dynamisch geheugen (nodig voor grotere grids)
 # -sMODULARIZE:           Module-pattern voor embedden in HTML
@@ -85,8 +99,8 @@ target_link_options(mars_web PRIVATE
     -sMODULARIZE=1
     -sINITIAL_MEMORY=268435456
     -sMAXIMUM_MEMORY=4294967296
-    --preload-file=${CMAKE_SOURCE_DIR}/../shaders@/shaders
-    --preload-file=${CMAKE_SOURCE_DIR}/../plaatjes@/plaatjes
+    --preload-file=${CMAKE_BINARY_DIR}/dist/shaders@/shaders
+    --preload-file=${CMAKE_BINARY_DIR}/dist/plaatjes@/plaatjes
     --closure=1
 )
 
