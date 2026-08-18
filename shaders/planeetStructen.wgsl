@@ -35,7 +35,7 @@ const maxDichtheid = 1.0;    //max. zwevend sediment t.o.v. de waterhoogte
 //stabiele helling. zandRepose = maximale hoogte-drempel (in dezelfde eenheden als de
 //terreinhoogte) voordat zand naar een lagere buur mag 'vallen'; zandZakhoek is de
 //fractie van het overschot die per ronde daadwerkelijk verplaatst wordt.
-const zandRepose  = 0.8;
+const zandRepose  = 1.5;
 const zandZakhoek = 1.0 / 20.0;
 
 //Extreem hoge kleppen: puur bescherming tegen Niet-eindige waarden en
@@ -55,7 +55,7 @@ const veldCapaciteit    = 1.0; //max. bodemvocht dat een cel kan vasthouden
 const bodemDiffusie     = 0.5; //lichter bodemvocht verspreidt zich wat door de grond
 const infiltratie       = 0.3; //fractie staand water dat per ronde de grond in zakt
 const evapotranspiratie = 0.001;   //hoe snel vochtige grond verdroogt naar droge lucht (rechtstreeks * verdamping; laag: grond houdt vocht vast, dáárvoor is er transpiratie via leven)
-const levensDamp        = 0.02;  //hoeveel bodemvocht een cel MET leven per ronde opneemt en als damp afgeeft (20x t.o.v. 0.001: leven is de actieve waterpomp)
+const levensDamp        = 0.004;  //hoeveel bodemvocht een cel MET leven per ronde opneemt en als damp afgeeft (5x t.o.v. evapotranspiratie: leven is een bescheiden waterpomp)
 const maxWaterBergtop   = 0.1;  //max. waterlaag op een piek boven het wolkendek (waterplafond)
 
 //IJsvorming (zie waterDruk.comp): onder 273 K bevriest water tot ijs, daarboven
@@ -82,7 +82,7 @@ const maxBuren = 6u;
 //De eigenlijke sterkte van de effecten komt uit reken.atmosfeer (zonkracht,
 //rotatie-omega, wrijving, diffusie); onderstaande zijn de fysische constanten.
 const luchtBaseTemp   = 250.0;  //start/referentietemperatuur (K) van de lucht
-const lapseKoeling    = 30.0;   //gematigde koeling per genormaliseerde hoogtelaag
+const lapseKoeling    = 60.0;   //koeling per genormaliseerde hoogtelaag — zorgt voor ijs op bergtoppen
 const opnameTempo     = 0.30;   //hoe snel zonne-energie de lucht opwarmt
 const stralingKracht  = 0.05;  //hoe snel de planeet afkoelt naar het omringende (uitstraling)
 const tempDiffusie    = 0.025; //temperatuur gladstrijken (stabiel: monotone limiter vangt clusters op)
@@ -134,7 +134,9 @@ const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
 const wolkDraagKracht = 0.40;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken dragen meer water vóór ze regenen)
 const wolkDiffusie   = 1.0;    //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen; was 0.8)
 const dekDump        = 0.08;   //fractie wolk die per ronde op een bergtop boven het wolkendek neerslaat (rate-limit: geen tsunami-dump in één ronde)
-const maxRegenPerRonde = 0.6;  //het absolute neerslagplafond per cel per ronde (piekbegrenzer: een dikke wolk loopt geleidelijk leeg, nooit in één slag)
+const maxRegenPerRonde      = 0.025;  //het absolute neerslagplafond per cel per ronde (piekbegrenzer: regen + sneeuw samen maximaal 0.025)
+const maxVerdampPerRonde    = 0.1;  //max. verdamping water → damp per cel per ronde
+const maxSublimPerRonde     = 0.1;  //max. sublimatie ijs → damp per cel per ronde
 
 //Terrein wordt bijgehouden als twee onafhankelijke lagen: rotsHoogte (de vaste
 //ondergrond) en zandHoogte (de losse deklaag; invariant >= 0). De terreinhoogte

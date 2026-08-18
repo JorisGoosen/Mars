@@ -198,14 +198,14 @@ var waterNieuw = vakken1[ID].waterHoogte + regenWater;
     let ijsDeksel = select(0.0, 1.0, ijsNieuw <= zeerKlein);
     //Dampsterkte volgt de temperatuur: 0 onder de 0 °C, oplopend naar vol boven 0 °C.
     let dampTemp = smoothstep(vriespuntK, vriespuntK + 12.0, T);
-    let stoom = luchtAan * (1.0 - vriest) * ijsDeksel * min(reken.verdamping * dampTemp, waterNieuw);
+    let stoom = luchtAan * (1.0 - vriest) * ijsDeksel * min(min(reken.verdamping * dampTemp, waterNieuw), maxVerdampPerRonde);
     waterNieuw -= stoom;
     damp += stoom;
 
     //Sublimatie: ook bevroren oppervlak (ijs/sneeuw) levert langzaam damp aan de
     //lucht, anders verdrogen de polen permanent (geen andere vochtbron daar).
     let ijsBeschikbaar = vakken1[ID].ijs;
-    let sublim = luchtAan * vriest * min(reken.verdamping * dampTemp, ijsBeschikbaar);
+    let sublim = luchtAan * vriest * min(min(reken.verdamping * dampTemp, ijsBeschikbaar), maxSublimPerRonde);
     ijsNieuw -= sublim;
     damp += sublim;
 

@@ -38,6 +38,19 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     }
     let uitSchaal = select(min(1.0, mijnZand / max(uitTotaal, zeerKlein)), 1.0, uitTotaal <= zeerKlein);
 
+    //Droesem claim-limit: een donor mag nooit meer slib uitsturen dan hij bezit.
+    //Per pijp vertrekt clamp(flux/L, 0, 1) x donor-droesem; bij meerdere uitgaande
+    //pijpen (of diep water, waterHoogte > 1) kan die som de voorraad overschrijden
+    //(water uit waterStroming heeft zo'n K-limit, vocht heeft fluxK — droesem niet).
+    //schaal = 1/max(1, somFracties) maakt het behoudend; elke ontvangende buur
+    //rekent dezelfde schaal na uit dezelfde vakken0/vakken1-waarden.
+    let mijnDroesem = vakken0[ID].droesem;
+    var mijnFrac = 0.0;
+    for(var fb = 0u; fb < burenAantal && fb < maxBuren; fb++) {
+        mijnFrac += clamp(vakken1[ID].pijpen[fb] / pijpLengte, 0.0, 1.0);
+    }
+    let mijnSchaal = 1.0 / max(1.0, mijnFrac);
+
     //Ga de buren telkens opzoeken zodat we normaliën kunnen berekenen en zo veel meer
     for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
         let buurIDv = vakMetas[ID].buren[buur];
@@ -92,6 +105,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
                 //Als stroomBinnen positief is komt het binnen
                 let andId = select(ID, buurIDv, stroomBinnen >= 0.0);
 
+                //Claim-limit van de donor (alleen nodig als de buur de donor is;
+                //eigen schaal staat al in mijnSchaal). Beide kanten rekenen dit
+                //na uit dezelfde pijpen, dus de overdracht is per paar behoudend.
+                var buurSchaal = mijnSchaal;
+                if(stroomBinnen >= 0.0) {
+                    var buurFrac = 0.0;
+                    for(var fb2 = 0u; fb2 < buurBuren && fb2 < maxBuren; fb2++) {
+                        buurFrac += clamp(vakken1[buurIDv].pijpen[fb2] / pijpLengte, 0.0, 1.0);
+                    }
+                    buurSchaal = 1.0 / max(1.0, buurFrac);
+                }
+
                 //Zwevend sediment rijdt MEe met het water: zolang er door deze buis
                 //stroomt en de bron iéts droesem heeft, verhuist het mee (ook als de
                 //bron al bijna droog is). Zo loopt een leegstromende cel zijn
@@ -99,7 +124,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
                 //zich nergens een suspensie op die bij een latere watervloed in één
                 //keer als piek wordt weggespoeld.
                 if(abs(stroomBinnen) > zeerKlein && vakken0[andId].droesem > zeerKlein) {
-                    droesem += sign(stroomBinnen) * clamp(abs(stroomBinnen / pijpLengte), 0.0, 1.0) * vakken0[andId].droesem;
+                    droesem += sign(stroomBinnen) * clamp(abs(stroomBinnen / pijpLengte), 0.0, 1.0) * vakken0[andId].droesem * buurSchaal;
                 }
 
                 break;
@@ -229,9 +254,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         afzet += afzetVries;
     }
 
-    //Cap op erosie/depositie per frame: voorkomt plotselinge pieken (feedback loop)
+    //Cap op erosie/depositie per frame: voorkomt plotselinge pieken (feedback loop).
+    //Daarnaast kan afzet nooit groter zijn dan wat er zweeft: bezinking én de
+    //bevroren fractie tellen apart op, dus in een natte, bevroren cel kon de som
+    //de droesemvoorraad overschrijden (het teveel werd dan wél als zand afgezet —
+    //minieme massa-creatie). Klemmen vóór de frame-cap.
     const maxErosiePerFrame = 0.5;
-    afzet = min(afzet, maxErosiePerFrame);
+    afzet = min(min(afzet, max(0.0, droesemAangespoeld)), maxErosiePerFrame);
     weg = min(weg, maxErosiePerFrame);
 
     //Opgelost materiaal komt in het water, neergezakt materiaal gaat naar de bodem.
