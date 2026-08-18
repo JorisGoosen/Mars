@@ -6,15 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# macOS arm64 only (deployment-target moet matchen met de Gereedschap-submodule)
-if(APPLE)
-    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build for Apple Silicon" FORCE)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "26.0" CACHE STRING "Minimum macOS version" FORCE)
-endif()
-
 # Source files
 set(MARS_SOURCES
     mars.cpp
+    simulatie.cpp
     planeet.cpp
     monsterPNG.cpp
 )
