@@ -12,30 +12,17 @@ const tijdVerschil    = 0.1;
 const zwaartekracht   = 0.8;
 const pijpDoorsnee    = 0.5;
 const pijpLengte      = 1.0;
-const oplosheid       = 0.70;  //hoe snel water materiaal oplost/erodeert
-const bezinkheid      = 0.001; //hoe snel materiaal weer bezinkt (sedimentatie; was 0.01)
 const droesemheid     = 0.5;
 const vertrager       = 0.05;  //vertraging van het eroderen: schaalt de draagcapaciteit omlaag (rustige erosie)
+const maxDichtheid    = 1.0;   //max. zwevend sediment t.o.v. de waterhoogte
 const zeerKlein       = 0.0001;
 const minGrondHoogte  = 10.0;
 const maxGrondHoogte  = 200.0;
 const toonSediment    = 0.003; //boven deze waarde wordt grondSoort zand
 const minWaterSed     = 0.01;  //onder deze waterdiepte erodeert een cel niet meer (lager = ook ondiepe rivier/overland-stroming schuurt het terrein uit)
 
-//Materiaal-afhankelijke erosiesnelheden (zie waterDruk.comp).
-//Zand/sediment dient als snelle, makkelijk verplaatste deklaag en vangt de
-//erosievraag eerst op; de ondergrond (rots) wordt pas geraakt zodra de vraag
-//groter is dan de zandvoorraad, en erodeert dan veel langzamer.
-const zandErosie   = 0.001;
-const rotsErosie   = 0.0002; //5x langzamer dan zand (was 10x)
-const hellingKracht = 0.5;    //hoe sterk de helling de draagcapaciteit verhoogt
-const maxDichtheid = 1.0;    //max. zwevend sediment t.o.v. de waterhoogte
-
-//Zand-rusthelling (angle of repose, toegepast in waterDruk.comp): zand zakt naar een
-//stabiele helling. zandRepose = maximale hoogte-drempel (in dezelfde eenheden als de
-//terreinhoogte) voordat zand naar een lagere buur mag 'vallen'; zandZakhoek is de
-//fractie van het overschot die per ronde daadwerkelijk verplaatst wordt.
-const zandRepose  = 1.5;
+//Materiaal-afhankelijke erosiesnelheden, de zand-rusthelling en de waterkringloop
+//zijn nu runtimetunables (reken.erosiePar/waterPar e.d.), defaults in C++.
 const zandZakhoek = 1.0 / 20.0;
 
 //Extreem hoge kleppen: puur bescherming tegen Niet-eindige waarden en
@@ -48,13 +35,9 @@ const maxDroesem     = 1.0e12;
 const maxLuchtVocht  = 1.0e12;
 
 //Waterkringloop (zie waterLucht.comp en waterDruk.comp): bodemvocht is de
-//grondwatervoorraad (vult via infiltratie, voedt het leven), luchtvocht is de
-//atmosferische vochtigheid (advectie door de wind, regent uit boven verzadiging
-//en op bergflanken).
-const veldCapaciteit    = 1.0; //max. bodemvocht dat een cel kan vasthouden
-const bodemDiffusie     = 0.5; //lichter bodemvocht verspreidt zich wat door de grond
-const infiltratie       = 0.3; //fractie staand water dat per ronde de grond in zakt
-const evapotranspiratie = 0.001;   //hoe snel vochtige grond verdroogt naar droge lucht (rechtstreeks * verdamping; laag: grond houdt vocht vast, dáárvoor is er transpiratie via leven)
+//grondwatervoorraad, luchtvocht is de atmosferische vochtigheid. De bijbehorende
+//snelheden zijn runtimetunables (reken.waterPar): evapotranspiratie, infiltratie,
+//bodemDiffusie en veldCapaciteit.
 const levensDamp        = 0.004;  //hoeveel bodemvocht een cel MET leven per ronde opneemt en als damp afgeeft (5x t.o.v. evapotranspiratie: leven is een bescheiden waterpomp)
 const maxWaterBergtop   = 0.1;  //max. waterlaag op een piek boven het wolkendek (waterplafond)
 
@@ -65,15 +48,11 @@ const ijsTempo      = 0.0005; //fractie water/ijs dat per ronde per Kelvin onder
 const miniJs        = 0.01;   //onder deze ijsdikte heet een cel ijsloos (render-drempel)
 
 //Leven & temperatuur (zie waterDruk.comp): leven groeit alleen boven 0 °C en sterft
-//bij vorst. De dood begint traag rond -20 °C en wordt steil (kwadratisch) snel bij
-//-60 °C en kouder. De dood is uniform: hij remt elke levenscel, nat of droog.
+//bij vorst. De groeiband, verwelkdrempel, droogte- en koude-sterftes zijn
+//runtimetunables (reken.levenPar); de vriespunten en levenMax blijven vast.
 const levenBevriesK   = 273.0;   //0 °C: boven dit punt mag leven pas groeien
-const levenGroeiBand  = 6.0;     //K boven vriespunt waarover de groei naar vol oploopt
 const levenKoudBegin  = 253.15;  //-20 °C: de dood begint hier langzaam
 const levenKoudSnel   = 213.15;  //-60 °C: hier doodt het heel snel
-const levenKoudTempo  = 0.5;     //fractie leven die per ronde sterft bij -60 °C
-const levenDroogTempo = 0.0005;  //fractie leven dat per ronde afsterft bij volkomen droogte (taai: geen plotseling verdwijnen)
-const levenVerwelk    = 0.25;    //verwelkdrempel: pas onder deze vochtmaat doodt droogte (daarboven overleeft het, maar groeit het niet)
 const levenMax        = 1.0;     //verzadigingsgrens: leven benadert dit asymptotisch (volop vegetatie)
 
 const maxBuren = 6u;
@@ -125,14 +104,10 @@ const ijsBereik     = 1.0;   //ijsdikte waarover ijsbuffer verzadigt
 const bodemBuffer   = 0.6;   //natte bodem (bodemVocht richting veldCapaciteit) buffert wat
 
 //Twee-fasen vocht (zie waterLucht.comp): damp <-> wolk <-> regen.
-//luchtVocht is de damp (capaciteit volgt de temperatuur), wolken is het
-//gecondenseerde water. Regen valt uitsluitend uit wolken.
-const condensTempo   = 0.01;   //fractie oververzadigde damp die per ronde condenseert (zeer laag: damp blijft lang damp, wolkopbouw heel geleidelijk)
-const wolkVerdamp    = 0.006;  //fractie wolkwater dat per ronde in droge lucht terugverdampt (lager = langlevendere wolken die ver worden meegeblazen)
-const regenTempo     = 0.30;   //fractie wolkwater boven de draagkracht dat per ronde als regen uitvalt (hoog genoeg om de instroom bij te houden: wolken blijven beperkt, geen ophopende stapels)
+//De tempo's (condens, regen, wolkverdamping, diffusie) zijn runtimetunables
+//(reken.wolkPar); de draagkracht en klemmen blijven vast.
 const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
 const wolkDraagKracht = 0.40;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken dragen meer water vóór ze regenen)
-const wolkDiffusie   = 1.0;    //nabije wolkpatchjes vloeien opzij samen (hoger = bredere, minder lijnvormige dekken i.p.v. dunne windstrepen; was 0.8)
 const dekDump        = 0.08;   //fractie wolk die per ronde op een bergtop boven het wolkendek neerslaat (rate-limit: geen tsunami-dump in één ronde)
 const maxRegenPerRonde      = 0.025;  //het absolute neerslagplafond per cel per ronde (piekbegrenzer: regen + sneeuw samen maximaal 0.025)
 const maxVerdampPerRonde    = 0.1;  //max. verdamping water → damp per cel per ronde
@@ -193,6 +168,14 @@ struct rekenParameters {
     condenseer  : vec4f, //(basisVerzadiging, hoogteKoel, neerslagFactor, orografieFactor)
     fasen       : vec4f, //(verwarmtijdconstante, maxGrondHoogte, grondMult, ongebruikt)
     schaduw     : vec4f, //(schaduwAan, schaduwKaartGrootte, ongebruikt, ongebruikt)
+
+    //Runtimetunables (GUI-sliders; C++-defaults)
+    erosiePar   : vec4f, //(zandErosie, rotsErosie, bezinkheid, zandRepose)
+    erosiePar2  : vec4f, //(hellingKracht, oplosheid, ongebruikt, ongebruikt)
+    waterPar    : vec4f, //(evapotranspiratie, infiltratie, bodemDiffusie, veldCapaciteit)
+    levenPar    : vec4f, //(levenGroeiBand, levenDroogTempo, levenVerwelk, levenKoudTempo)
+    groeiPar    : vec4f, //(zandGroei, zandBuur, rotsGroei, rotsBuur) — leven + burengroei
+    wolkPar     : vec4f, //(condensTempo, regenTempo, wolkVerdamp, wolkDiffusie)
 };
 
 //Parameters voor de weergave-shaders (bind-groep 0, binding 2)

@@ -19,8 +19,16 @@ struct rekenParameters {
 	float	condenseer[4];  //basisVerzadiging, hoogteKoel, neerslagFactor, orografieFactor
 	float	fasen[4];       //verwarmtijdconstante, maxGrondHoogte, grondMult, ongebruikt
 	float	schaduw[4];     //schaduwAan, schaduwKaartGrootte, ongebruikt, ongebruikt
+
+	// ── Runtimetunables (GUI-sliders; defaults wijken de WGSL-waarden af) ──
+	float	erosiePar[4];   //(zandErosie, rotsErosie, bezinkheid, zandRepose)
+	float	erosiePar2[4];  //(hellingKracht, oplosheid, ongebruikt, ongebruikt)
+	float	waterPar[4];    //(evapotranspiratie, infiltratie, bodemDiffusie, veldCapaciteit)
+	float	levenPar[4];    //(levenGroeiBand, levenDroogTempo, levenVerwelk, levenKoudTempo)
+	float	groeiPar[4];    //(zandGroei, zandBuur, rotsGroei, rotsBuur) — leven+burengroei
+	float	wolkPar[4];     //(condensTempo, regenTempo, wolkVerdamp, wolkDiffusie)
 };
-static_assert(sizeof(rekenParameters) == 96, "rekenParameters moet 96 bytes zijn (gelijk aan WGSL)");
+static_assert(sizeof(rekenParameters) == 96 + 6 * 16, "rekenParameters moet byte-identiek zijn aan WGSL (96 + 6 vec4)");
 
 // ── Configuratie ────────────────────────────────────────────────────────────
 
@@ -128,6 +136,14 @@ public:
 		float *rotatieOmega, *coriolisOmega, *wrijving, *diffusie;
 		float *verdamping, *basisVerzadiging, *hoogteKoel, *neerslagFactor, *orografieFactor;
 		float *grondMult, *grondSchaal;
+		//Erosie & sediment
+		float *zandErosie, *rotsErosie, *bezinkheid, *zandRepose, *hellingKracht, *oplosheid;
+		//Water & wolken
+		float *evapotranspiratie, *infiltratie, *bodemDiffusie, *veldCapaciteit;
+		float *condensTempo, *regenTempo, *wolkVerdamp, *wolkDiffusie;
+		//Leven
+		float *levenGroeiBand, *levenDroogTempo, *levenVerwelk, *levenKoudTempo;
+		float *zandGroei, *zandBuur, *rotsGroei, *rotsBuur;
 		bool  *bevroren, *waterStroomt, *tekenWater, *tekenWolken, *zonRoteert, *roteerMaar;
 		bool  *schaduwAan, *erosieAan, *levenAan, *atmosfeerAan, *waterStap;
 		int   *overlayKeuze;
@@ -166,18 +182,42 @@ private:
 	glm::vec3 _zonPos;
 	float     _grondMult    = 100.0f;
 	float     _grondSchaal  = 1.0f;
-	float     _verdamping   = 0.0001f;
-	float     _zonKracht    = 50.0f;
-	float     _rotatieOmega = 0.009f;
-	float     _winterZonneKracht = 15.0f;
-	float     _coriolisOmega = 0.2f;
-	float     _wrijving     = 0.05f;
-	float     _diffusie     = 0.65f;
-	float     _verwarmtijd  = 0.5f;
-	float     _basisVerzadiging = 0.10f;
-	float     _hoogteKoel   = 0.4f;
-	float     _neerslagFactor = 0.3f;
-	float     _orografieFactor = 0.4f;
+	float _verdamping   = 0.0001f;
+	float _zonKracht    = 50.0f;
+	float _rotatieOmega = 0.009f;
+	float _winterZonneKracht = 15.0f;
+	float _coriolisOmega = 0.2f;
+	float _wrijving     = 0.05f;
+	float _diffusie     = 0.65f;
+	float _verwarmtijd  = 0.5f;
+	float _basisVerzadiging = 0.10f;
+	float _hoogteKoel   = 0.4f;
+	float _neerslagFactor = 0.3f;
+	float _orografieFactor = 0.4f;
+
+	// ── Runtimetunables (WGSL-constanten die nu via de GUI aanpasbaar zijn) ──
+	float _zandErosie    = 0.001f;
+	float _rotsErosie    = 0.0002f;
+	float _bezinkheid    = 0.001f;
+	float _zandRepose    = 1.5f;
+	float _hellingKracht = 0.5f;
+	float _oplosheid     = 0.70f;
+	float _evapotranspiratie = 0.001f;
+	float _infiltratie   = 0.3f;
+	float _bodemDiffusie = 0.5f;
+	float _veldCapaciteit = 1.0f;
+	float _levenGroeiBand = 6.0f;
+	float _levenDroogTempo = 0.0005f;
+	float _levenVerwelk  = 0.25f;
+	float _levenKoudTempo = 0.5f;
+	float _zandGroei     = 1.0005f;
+	float _zandBuur      = 0.05f;
+	float _rotsGroei     = 1.000025f;
+	float _rotsBuur      = 0.003333f;
+	float _condensTempo  = 0.01f;
+	float _regenTempo    = 0.30f;
+	float _wolkVerdamp   = 0.006f;
+	float _wolkDiffusie  = 1.0f;
 	float     _obliquity    = 0.4f;
 	float     _dagHoek      = 0.0f;
 	float     _seizoenTeller = 0.0f;

@@ -229,7 +229,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //respons op dag/nacht wordt boven zee/ijs/grondvocht gedempt (mariene bufering).
     let waterD = max(0.0, vakken0[ID].waterHoogte);
     let ijsD   = max(0.0, vakken0[ID].ijs);
-    let bodemF = clamp(vakken0[ID].bodemVocht / veldCapaciteit, 0.0, 1.0);
+    let bodemF = clamp(vakken0[ID].bodemVocht / reken.waterPar[3], 0.0, 1.0);
     let C = 1.0
           + zeebuffer  * clamp((waterD - waterDrempel) / waterBereik, 0.0, 1.0)
           + ijsBuffer  * clamp(ijsD / ijsBereik, 0.0, 1.0)

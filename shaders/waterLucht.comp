@@ -106,10 +106,10 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //Σᵢ(somWolkᵢ − wolkᵢ) = −(Σ condensatie − Σ wolkverdamping) ≠ 0: diffusie
     //vernietigde (of creëerde) op elke ronde wolkDiffusie × netto-condensatie aan
     //wolkwater — een enorm massalek (gemeten: 87% verlies in 10000 stappen).
-    wolk += wolkDiffusie * (somWolk - wolk);
+    wolk += reken.wolkPar[3] * (somWolk - wolk);
 
     if(luchtAan > 0.0 && damp > verzadiging + zeerKlein) {
-        let overschot = (damp - verzadiging) * condensTempo;
+        let overschot = (damp - verzadiging) * reken.wolkPar[0];
         wolk += overschot;
         damp -= overschot;
     }
@@ -117,7 +117,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //---- wolkverdamping: in droge lucht geeft wolkwater vocht terug aan de lucht
     if(luchtAan > 0.0 && damp < verzadiging - zeerKlein && wolk > zeerKlein) {
         let tekort  = verzadiging - damp;
-        let afdamp  = min(min(wolk * wolkVerdamp, tekort * 0.1), wolk);
+        let afdamp  = min(min(wolk * reken.wolkPar[2], tekort * 0.1), wolk);
         damp += afdamp;
         wolk -= afdamp;
     }
@@ -127,7 +127,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //wolkendek een rate-gelimiteerde neerslag (dekDump). Alles wordt tenslotte op
     //maxRegenPerRonde geklemd: wolken mogen dik zijn, maar er valt per cel nooit
     //meer dan een beperkte dagbui per ronde (geen tsunami en geen sneeuwbal-dump).
-    var regen = max(0.0, wolk - wolkDraagKracht) * regenTempo
+    var regen = max(0.0, wolk - wolkDraagKracht) * reken.wolkPar[1]
               * (reken.condenseer.z / 0.3) * luchtAan;
 
     //---- wolkendek onder de grond: een cel mag nooit vocht bevatten dat hoger
@@ -214,7 +214,7 @@ var waterNieuw = vakken1[ID].waterHoogte + regenWater;
     //alleen met de diagere evapotranspiratie-schaal i.p.v. de volle verdamping/ronde.
     //Conservatief: damp krijgt nooit meer dan de bodem écht inlevert (min met de
     //beschikbare bodemvocht).
-    let evapot = evapotranspiratie * reken.verdamping;
+    let evapot = reken.waterPar[0] * reken.verdamping;
     let verdroogt = luchtAan * (1.0 - vriest) * ijsDeksel * min(evapot * dampTemp, vakken1[ID].bodemVocht);
     var bodemVochtNieuw = vakken1[ID].bodemVocht;
     if(verdroogt > zeerKlein) {

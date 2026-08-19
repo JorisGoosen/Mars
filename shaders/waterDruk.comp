@@ -32,8 +32,8 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     for(var b = 0u; b < burenAantal && b < maxBuren; b++) {
         let hoogteBuurb = grondHoogte(vakken0[vakMetas[ID].buren[b]]);
         let verschilb   = mijnGrond - hoogteBuurb;
-        if(verschilb > zandRepose) {
-            uitTotaal += min(zandZakhoek * (verschilb - zandRepose), mijnZand);
+        if(verschilb > reken.erosiePar[3]) {
+            uitTotaal += min(zandZakhoek * (verschilb - reken.erosiePar[3]), mijnZand);
         }
     }
     let uitSchaal = select(min(1.0, mijnZand / max(uitTotaal, zeerKlein)), 1.0, uitTotaal <= zeerKlein);
@@ -66,12 +66,12 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         let buurGrond = grondHoogte(vakken0[buurIDv]);
         let buurZand  = vakken0[buurIDv].zandHoogte;
         let verschil   = mijnGrond - buurGrond;
-        if(verschil > zandRepose) {
-            let oorskot = verschil - zandRepose;
+        if(verschil > reken.erosiePar[3]) {
+            let oorskot = verschil - reken.erosiePar[3];
             netZand -= min(zandZakhoek * oorskot, mijnZand) * uitSchaal;
         }
-        else if(verschil < -zandRepose) {
-            let oorskot = -verschil - zandRepose;
+        else if(verschil < -reken.erosiePar[3]) {
+            let oorskot = -verschil - reken.erosiePar[3];
             let buurAanbod = min(zandZakhoek * oorskot, buurZand);
             //Pas de schaal van de donor toe: zijn totale uitgaande vraag kan zijn
             //zandlaag overtreffen, en hij verdeelt dat tekort evenredig. Beide kanten
@@ -80,8 +80,8 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
             for(var bb = 0u; bb < buurBuren && bb < maxBuren; bb++) {
                 let donorLaag  = vakMetas[buurIDv].buren[bb];
                 let donorVers  = buurGrond - grondHoogte(vakken0[donorLaag]);
-                if(donorVers > zandRepose) {
-                    donorTotaal += min(zandZakhoek * (donorVers - zandRepose), buurZand);
+                if(donorVers > reken.erosiePar[3]) {
+                    donorTotaal += min(zandZakhoek * (donorVers - reken.erosiePar[3]), buurZand);
                 }
             }
             let donorSchaal = select(min(1.0, buurZand / max(donorTotaal, zeerKlein)), 1.0, donorTotaal <= zeerKlein);
@@ -97,7 +97,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
                 //gewogen met het harmonisch gemiddelde en geschaald met bodemDiffusie
                 //(klein, zodat het stabiel blijft en bodemvocht vooral via infiltratie/
                 //verdamping verplaatst).
-                let weegFactor = bodemDiffusie * 2.0 / (f32(burenAantal) + f32(buurBuren));
+                let weegFactor = reken.waterPar[2] * 2.0 / (f32(burenAantal) + f32(buurBuren));
                 buurBodemVocht += (vakken0[buurIDv].bodemVocht - mijnBodemVocht) * weegFactor;
                 buurLeven += vakken1[buurIDv].leven;
                 snelheid += vakMetas[ID].buurRicht[buur] * stroomBinnen;
@@ -148,7 +148,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //Bodemvocht: diffusie door de grond + infiltratie van staand water tot veldcapaciteit
     var bodemVochtNieuw = max(0.0, mijnBodemVocht + buurBodemVocht);
-    let infil = min(infiltratie * waterHoogteVloei, max(0.0, veldCapaciteit - bodemVochtNieuw));
+    let infil = min(reken.waterPar[1] * waterHoogteVloei, max(0.0, reken.waterPar[3] - bodemVochtNieuw));
     bodemVochtNieuw += infil;
     waterHoogteVloei -= infil;
 
@@ -185,7 +185,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         droesem = 0.0;
     }
 
-    let helling = 1.0 + hellingKracht * clamp(maxHelling, 0.0, 1.0);
+    let helling = 1.0 + reken.erosiePar2[0] * clamp(maxHelling, 0.0, 1.0);
     var droesemCapaciteit = droesemheid * clamp(length(snelheid) * vertrager, 0.0, 1.0) * helling;
 
     if(!(droesemCapaciteit >= -1.0e30 && droesemCapaciteit <= 1.0e30)) {
@@ -224,26 +224,26 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         afzet = max(0.0, droesemAangespoeld) * reken.erosie;
     }
     else if(balans < -zeerKlein && waterHoogteNieuw >= minWaterSed) { //== oplossen
-        let behoefte = -balans * oplosheid;
+        let behoefte = -balans * reken.erosiePar2[1];
 
         //Eerst het zand: zand dekt de volledige erosievraag zolang de voorraad
         //strekt. Rots komt pas aan bod als de vraag groter is dan wat het zand kan
         //leveren, en erodeert dan bovendien traag (rotsErosie).
         let zandDekt = min(behoefte, mijnZand);
-        vanZand = zandDekt * zandErosie;
+        vanZand = zandDekt * reken.erosiePar[0];
         weg += vanZand;
 
         //Wat het zand niet kon dekken -> de rots eronder
         let over = behoefte - zandDekt;
         if(over > zeerKlein) {
             let totRots = max(0.0, vakken0[ID].rotsHoogte - minGrondHoogte);
-            let vanRots = min(over, totRots) * rotsErosie;
+            let vanRots = min(over, totRots) * reken.erosiePar[1];
             weg += vanRots;
             rotsWeg = vanRots;
         }
     }
     else { //== bezinken (of evenwicht): capaciteits- én concentratie-overschot zakt
-        let bezinkBijdrage = max(0.0, balans) * bezinkheid;
+        let bezinkBijdrage = max(0.0, balans) * reken.erosiePar[2];
         afzet = max(bezinkBijdrage, concentratie);
     }
 
@@ -295,12 +295,12 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     let isZand = vakken1[ID].grondSoort == i32(gsZand) || vakken1[ID].grondSoort == i32(gsLoess);
 
-    let rotsGroei = 1.000025;
-    let rotsBuur  = 0.003333;
-    let zandGroei = 1.0005;
-    let zandBuur  = 0.05;
-    let groei     = select(rotsGroei, zandGroei, isZand);
-    let buurG     = select(rotsBuur,  zandBuur,  isZand);
+//let rotsGroei = 1.000025;
+//let rotsBuur  = 0.003333;
+//let zandGroei = 1.0005;
+//let zandBuur  = 0.05;
+    let groei     = select(reken.groeiPar[2], reken.groeiPar[0], isZand);
+    let buurG     = select(reken.groeiPar[3],  reken.groeiPar[1],  isZand);
 
     //Temperatuur-afhankelijkheid van het leven:
     // - groeiTemp: 0 bij/onder 0 °C, oplopend naar 1 net boven het vriespunt, zodat
@@ -308,11 +308,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     // - doodKoud: kwadratische koude-dood van 0 (boven -20 °C) tot 1 (bij -60 °C en
     //   kouder), uniform per cel.
     let T_kelvin = vakken0[ID].temperatuur;
-    let groeiTemp = smoothstep(levenBevriesK, levenBevriesK + levenGroeiBand, T_kelvin);
+    let groeiTemp = smoothstep(levenBevriesK, levenBevriesK + reken.levenPar[0], T_kelvin);
     let koudFract = clamp((levenKoudBegin - T_kelvin) / max(levenKoudBegin - levenKoudSnel, zeerKlein), 0.0, 1.0);
 
     //Vochtmaat: leven gedijt tot de veldcapaciteit, daarboven helpt extra vocht niet.
-    let vochtmaat = clamp(vakken1[ID].bodemVocht / veldCapaciteit, 0.0, 1.0);
+    let vochtmaat = clamp(vakken1[ID].bodemVocht / reken.waterPar[3], 0.0, 1.0);
 
     //Lichtmaat: fotosynthese — leven groeit alleen in het zonlicht, en dan
     //proportioneel aan hoeveel licht er valt (schaduw dempt de groei).
@@ -352,15 +352,15 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //dan overleeft het leven dat (het groeit alleen niet door — groeiSchaal volgt vochtmaat).
     //Onder de drempel sterft het taai en geleidelijk (levenDroogTempo), nooit abrupt.
     if(vakken1[ID].waterHoogte <= 0.05) {
-        let verdor = clamp((levenVerwelk - vochtmaat) / levenVerwelk, 0.0, 1.0);
-        nieuw *= 1.0 - verdor * levenDroogTempo;
+        let verdor = clamp((reken.levenPar[2] - vochtmaat) / reken.levenPar[2], 0.0, 1.0);
+        nieuw *= 1.0 - verdor * reken.levenPar[1];
     }
 
     leven = clamp(nieuw, 0.0, levenMax);
 
     //Koude-dood (uniform): vanaf -20 °C begint leven te sterven, kwadratisch opbouwend
     //naar heel snel bij -60 °C en daaronder. Bij volledige koude-dood wordt leven 0.
-    let doodSterkte = koudFract * koudFract * levenKoudTempo;
+    let doodSterkte = koudFract * koudFract * reken.levenPar[3];
     leven = clamp(leven * (1.0 - doodSterkte), 0.0, levenMax);
 
     //--no-life: geen plantengroei, dus leven blijft op 0 (geen groene begroeiing)

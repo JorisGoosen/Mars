@@ -623,6 +623,11 @@ Simulatie::Tunables Simulatie::tunables()
 		&_rotatieOmega, &_coriolisOmega, &_wrijving, &_diffusie,
 		&_verdamping, &_basisVerzadiging, &_hoogteKoel, &_neerslagFactor, &_orografieFactor,
 		&_grondMult, &_grondSchaal,
+		&_zandErosie, &_rotsErosie, &_bezinkheid, &_zandRepose, &_hellingKracht, &_oplosheid,
+		&_evapotranspiratie, &_infiltratie, &_bodemDiffusie, &_veldCapaciteit,
+		&_condensTempo, &_regenTempo, &_wolkVerdamp, &_wolkDiffusie,
+		&_levenGroeiBand, &_levenDroogTempo, &_levenVerwelk, &_levenKoudTempo,
+		&_zandGroei, &_zandBuur, &_rotsGroei, &_rotsBuur,
 		&_cfg.bevroren, &_waterStroomt, &_tekenWater, &_tekenWolken, &_zonRoteert, &_roteerMaar,
 		&_cfg.schaduwAan, &_cfg.erosieAan, &_cfg.levenAan, &_cfg.atmosfeerAan, &_waterStap,
 		&_overlayKeuze, &_cfg.luchtStappen
@@ -715,6 +720,32 @@ void Simulatie::stap()
 	rekenPar.fasen[3]      = std::pow(4.0f, (float)(_cfg.subdiv - 6));
 	rekenPar.schaduw[0]    = _cfg.schaduwAan ? 1.0f : 0.0f;
 	rekenPar.schaduw[1]    = (float)_cfg.schaduwGrootte;
+
+	// ── Runtimetunables (erosie/water/leven/wolken) ────────────────────
+	rekenPar.erosiePar[0]  = _zandErosie;
+	rekenPar.erosiePar[1]  = _rotsErosie;
+	rekenPar.erosiePar[2]  = _bezinkheid;
+	rekenPar.erosiePar[3]  = _zandRepose;
+	rekenPar.erosiePar2[0] = _hellingKracht;
+	rekenPar.erosiePar2[1] = _oplosheid;
+	rekenPar.erosiePar2[2] = 0.0f;
+	rekenPar.erosiePar2[3] = 0.0f;
+	rekenPar.waterPar[0]   = _evapotranspiratie;
+	rekenPar.waterPar[1]   = _infiltratie;
+	rekenPar.waterPar[2]   = _bodemDiffusie;
+	rekenPar.waterPar[3]   = _veldCapaciteit;
+	rekenPar.levenPar[0]   = _levenGroeiBand;
+	rekenPar.levenPar[1]   = _levenDroogTempo;
+	rekenPar.levenPar[2]   = _levenVerwelk;
+	rekenPar.levenPar[3]   = _levenKoudTempo;
+	rekenPar.groeiPar[0]   = _zandGroei;
+	rekenPar.groeiPar[1]   = _zandBuur;
+	rekenPar.groeiPar[2]   = _rotsGroei;
+	rekenPar.groeiPar[3]   = _rotsBuur;
+	rekenPar.wolkPar[0]    = _condensTempo;
+	rekenPar.wolkPar[1]    = _regenTempo;
+	rekenPar.wolkPar[2]    = _wolkVerdamp;
+	rekenPar.wolkPar[3]    = _wolkDiffusie;
 
 	wgpuQueueWriteBuffer(weergaveScherm::deelRij(), _rekenParBuffer, 0, &rekenPar, sizeof(rekenParameters));
 
