@@ -244,19 +244,35 @@ void guiOverlay::bouwen()
 	}
 	ImGui::End();
 
-	// ── Onder: overlaykeuze ──────────────────────────────────────────────
-	if(ImGui::BeginViewportSideBar("overlaybalk", viewport, ImGuiDir_Down, 30,
+	// ── Onder: overlaykeuze (knoppen met highlight) ──────────────────────
+	if(ImGui::BeginViewportSideBar("overlaybalk", viewport, ImGuiDir_Down, 38,
 			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
 	{
 		static const char* overlays[10] = {
 			"Natuurlijk", "Temperatuur", "Wind & druk", "Bodemvocht",
 			"Lucht/Wolken", "IJs/Water", "Wolken", "ZonZicht", "Leven", "Hoogte"
 		};
+		const ImVec4 actiefAchterG = ImVec4(0.25f, 0.55f, 0.90f, 1.0f);  //opvallend blauw
+		const ImVec4 actiefTekst    = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+
 		ImGui::BeginChild("ovk", ImVec2(0, 0), false, ImGuiWindowFlags_NoScrollbar);
 		for(int i = 0; i < 10; i++)
 		{
-			if(ImGui::Selectable(overlays[i], (*t.overlayKeuze == i), 0, ImVec2(0, 0)))
+			const bool gekozen = (*t.overlayKeuze == i);
+			if(gekozen)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Button,      actiefAchterG);
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, actiefAchterG);
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive,  actiefAchterG);
+				ImGui::PushStyleColor(ImGuiCol_Text,        actiefTekst);
+			}
+			if(ImGui::Button(overlays[i]))
+			{
 				*t.overlayKeuze = i;
+				std::cout << "Overlay: " << overlays[i] << std::endl;
+			}
+			if(gekozen)
+				ImGui::PopStyleColor(4);
 			if(i < 9) ImGui::SameLine();
 		}
 		ImGui::EndChild();
