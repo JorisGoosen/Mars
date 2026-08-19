@@ -10,6 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(MARS_SOURCES
     mars.cpp
     simulatie.cpp
+    gereedschap.cpp
     planeet.cpp
     monsterPNG.cpp
 )

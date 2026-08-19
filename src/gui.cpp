@@ -152,7 +152,7 @@ void guiOverlay::bouwen()
 		ImGui::TextUnformatted("Wereld");
 		ImGui::SameLine();
 		ImGui::SetNextItemWidth(70);
-		ImGui::DragInt("diepte", &_nieuwDiepte, 0.05f, 1, 8);
+		ImGui::DragInt("diepte", &_nieuwDiepte, 0.05f, 1, 10);
 		ImGui::SameLine();
 		ImGui::Checkbox("procedureel", &_nieuwProcedureel);
 		ImGui::SameLine();
@@ -197,34 +197,34 @@ void guiOverlay::bouwen()
 		}
 		if(ImGui::CollapsingHeader("Atmosfeer", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::SliderFloat("rotatieOmega", t.rotatieOmega, 0.0f, 0.2f, "%.4f");
-			ImGui::SliderFloat("coriolis",     t.coriolisOmega, 0.0f, 2.0f, "%.2f");
+			ImGui::SliderFloat("rotatieOmega", t.rotatieOmega, 0.0f, 1.0f, "%.4f");
+			ImGui::SliderFloat("coriolis",     t.coriolisOmega, 0.0f, 5.0f, "%.2f");
 			ImGui::SliderFloat("wrijving",     t.wrijving, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("diffusie",     t.diffusie, 0.0f, 1.0f, "%.2f");
 		}
 		if(ImGui::CollapsingHeader("Water & klimaat", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::SliderFloat("verdamping",    t.verdamping, 0.0f, 0.01f, "%f", ImGuiSliderFlags_Logarithmic);
+			ImGui::SliderFloat("verdamping",    t.verdamping, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("basisverzadiging", t.basisVerzadiging, 0.0f, 0.5f, "%.3f");
 			ImGui::SliderFloat("hoogtekoel",    t.hoogteKoel, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("neerslag",      t.neerslagFactor, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("orografie",     t.orografieFactor, 0.0f, 1.0f, "%.2f");
 			//Bodem & infiltratie
-			ImGui::SliderFloat("evapotranspiratie", t.evapotranspiratie, 0.0f, 0.01f, "%f", ImGuiSliderFlags_Logarithmic);
+			ImGui::SliderFloat("evapotranspiratie", t.evapotranspiratie, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("infiltratie",   t.infiltratie, 0.0f, 1.0f, "%.3f");
 			ImGui::SliderFloat("bodemdiffusie", t.bodemDiffusie, 0.0f, 1.0f, "%.3f");
 			ImGui::SliderFloat("veldcapaciteit", t.veldCapaciteit, 0.0f, 2.0f, "%.2f");
 			//Wolken (twee-fasen vocht)
-			ImGui::SliderFloat("condensatie",   t.condensTempo, 0.0f, 0.1f, "%f", ImGuiSliderFlags_Logarithmic);
+			ImGui::SliderFloat("condensatie",   t.condensTempo, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("regentempo",    t.regenTempo, 0.0f, 1.0f, "%.3f");
-			ImGui::SliderFloat("wolkverdamping",t.wolkVerdamp, 0.0f, 0.1f, "%f", ImGuiSliderFlags_Logarithmic);
-			ImGui::SliderFloat("wolkdiffusie",  t.wolkDiffusie, 0.0f, 2.0f, "%.2f");
+			ImGui::SliderFloat("wolkverdamping",t.wolkVerdamp, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
+			ImGui::SliderFloat("wolkdiffusie",  t.wolkDiffusie, 0.0f, 1.0f, "%.2f");
 		}
 		if(ImGui::CollapsingHeader("Erosie & sediment", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::SliderFloat("zanderosie",    t.zandErosie, 0.0f, 0.01f, "%f", ImGuiSliderFlags_Logarithmic);
-			ImGui::SliderFloat("rotserosie",    t.rotsErosie, 0.0f, 0.001f, "%f", ImGuiSliderFlags_Logarithmic);
-			ImGui::SliderFloat("bezinkheid",    t.bezinkheid, 0.0f, 0.01f, "%f", ImGuiSliderFlags_Logarithmic);
+			ImGui::SliderFloat("zanderosie",    t.zandErosie, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
+			ImGui::SliderFloat("rotserosie",    t.rotsErosie, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
+			ImGui::SliderFloat("bezinkheid",    t.bezinkheid, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("zandrusthelling", t.zandRepose, 0.0f, 5.0f, "%.2f");
 			ImGui::SliderFloat("hellingkracht", t.hellingKracht, 0.0f, 2.0f, "%.2f");
 			ImGui::SliderFloat("oplosheid",     t.oplosheid, 0.0f, 2.0f, "%.2f");
@@ -232,7 +232,7 @@ void guiOverlay::bouwen()
 		if(ImGui::CollapsingHeader("Leven & groei", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			ImGui::SliderFloat("groeiband",     t.levenGroeiBand, 0.0f, 30.0f, "%.1f");
-			ImGui::SliderFloat("droogtestreft", t.levenDroogTempo, 0.0f, 0.01f, "%f", ImGuiSliderFlags_Logarithmic);
+			ImGui::SliderFloat("droogtestreft", t.levenDroogTempo, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("verwelkdrempel",t.levenVerwelk, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("koudestreft",   t.levenKoudTempo, 0.0f, 2.0f, "%.2f");
 			ImGui::Separator();
@@ -273,6 +273,26 @@ void guiOverlay::bouwen()
 		ImGui::TextUnformatted("Stats");
 		ImGui::Text("vakjes: %zu", _sim.aantalVakjes());
 		ImGui::Text("hoogste grond: %.1f", _sim.hoogsteGrond());
+
+		ImGui::Separator();
+		if(ImGui::CollapsingHeader("Besturing"))
+		{
+			ImGui::TextUnformatted("Muis & trackpad");
+			ImGui::BulletText("Klik+slepen = planeet draaien (trackball)");
+			ImGui::BulletText("Horizontale swipe = roteren");
+			ImGui::BulletText("Verticaal scrollen / pinch = zoomen");
+			ImGui::Separator();
+			ImGui::TextUnformatted("Toetsen");
+			ImGui::BulletText("WASD/QE = bewegen | pijltjes = draaien");
+			ImGui::BulletText("Space = pauzeer/start | B = zon | N = schaduw");
+			ImGui::BulletText("R = rotatie | X = water | C = wolken");
+			ImGui::BulletText("1-9/0 = overlays | Enter = stap | ;/' = hoogte");
+			ImGui::BulletText("K/L = verdamping | [/] = dagduur | G/H = coriolis");
+			ImGui::BulletText("U/I = zonkracht | O/P = wrijving | ./ = neerslag");
+			ImGui::Separator();
+			ImGui::TextWrapped("Let op: diepte 9/10 betekent ~5M/20M vakjes "
+			                   "(ongeveer 0,8/3 GB) — de meeste machines halen dat niet.");
+		}
 	}
 	ImGui::End();
 
@@ -280,15 +300,16 @@ void guiOverlay::bouwen()
 	if(ImGui::BeginViewportSideBar("overlaybalk", viewport, ImGuiDir_Down, 38,
 			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
 	{
-		static const char* overlays[10] = {
+		static const char* overlays[11] = {
 			"Natuurlijk", "Temperatuur", "Wind & druk", "Bodemvocht",
-			"Lucht/Wolken", "IJs/Water", "Wolken", "ZonZicht", "Leven", "Hoogte"
+			"Lucht/Wolken", "IJs/Water", "Wolken", "ZonZicht", "Leven", "Hoogte",
+			"Water & droesem"
 		};
 		const ImVec4 actiefAchterG = ImVec4(0.25f, 0.55f, 0.90f, 1.0f);  //opvallend blauw
 		const ImVec4 actiefTekst    = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
 
 		ImGui::BeginChild("ovk", ImVec2(0, 0), false, ImGuiWindowFlags_NoScrollbar);
-		for(int i = 0; i < 10; i++)
+		for(int i = 0; i < 11; i++)
 		{
 			const bool gekozen = (*t.overlayKeuze == i);
 			if(gekozen)
@@ -305,7 +326,7 @@ void guiOverlay::bouwen()
 			}
 			if(gekozen)
 				ImGui::PopStyleColor(4);
-			if(i < 9) ImGui::SameLine();
+			if(i < 10) ImGui::SameLine();
 		}
 		ImGui::EndChild();
 	}

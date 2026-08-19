@@ -48,6 +48,7 @@ struct SimulatieConfig {
 	size_t              stappenTotaal     = 0;   // 0 = oneindig (interactief)
 	size_t              csvElkeFrames     = 25;
 	size_t              luchtStappen      = 1;
+	int                 startOverlay      = 0;   ///<weergave-overlay bij start (0 = natuurlijk; ook headless te gebruiken)
 	bool                bevroren          = false;
 	bool                conservatieAan    = false;
 	double              conservatieTol    = 0.01;
@@ -102,6 +103,7 @@ struct rijSyncje {
 };
 
 class guiOverlay; //(globale GUI-klasse; gedefinieerd in gui.h)
+class gereedschap; //(interactief muis-gereedschap; gedefinieerd in gereedschap.h)
 
 // ── Klasse ──────────────────────────────────────────────────────────────────
 
@@ -129,6 +131,10 @@ public:
 	/// Herstart de wereld met een nieuwe configuratie (andere diepte/procedureel/etc.)
 	/// zonder het venster of de shaders opnieuw te maken.
 	bool herstart(const SimulatieConfig & nieuweCfg);
+
+	/// Rendert één beeld naar het off-screen doel en bewaart het als PNG
+	/// (headless verificatie; zet ook --schermafbeelding bij --hoofdloos).
+	void slaScreenshot(const std::string & pad);
 
 	/// Alle live-tunables als pointers (voor de GUI: sliders/checkboxes).
 	struct Tunables {
@@ -169,6 +175,7 @@ private:
 
 	// ── GUI (Dear ImGui) ────────────────────────────────────────────────
 	guiOverlay * _gui = nullptr;
+	gereedschap* _gereedschap = nullptr; ///<actieve muis/trackpad-tool (verplaatsGereedschap)
 	bool _heeftRender = false;
 
 	// ── Planeet ───────────────────────────────────────────────────────────
@@ -253,7 +260,6 @@ private:
 	static bool bewaarPNG(const std::string& bestand, int breedte, int hoogte, const std::vector<unsigned char>& rgba);
 	void doeSchaduwPass();
 	void doeRenderPassen();
-	void slaScreenshot(const std::string& pad);
 	void _maakSchaduwKaart();
 	bool _laadMola();        // true bij succes
 	void _maakPlaneet();

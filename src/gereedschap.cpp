@@ -1,0 +1,43 @@
+#include "gereedschap.h"
+#include "weergaveSchermPerspectief.h"
+#include <GLFW/glfw3.h>
+
+//Gevoeligheden (raden/zoomstappen per eenheid invoer); tekenomdraaien = richting omdraaien.
+static const float sleepFactor = 0.005f; //rad per beeldpixel tijdens het slepen
+static const float swipeFactor = 0.01f;  //rad per scroll-eenheid (horizontale swipe)
+static const float zoomFactor  = 0.05f;  //kijkafstand per scroll-eenheid (verticaal/pinch)
+
+void verplaatsGereedschap::muisPos(double x, double y)
+{
+	if(_sleept)
+	{
+		//Trackball: het aangeklikte oppervlak volgt de muis — rechts slepen
+		//schuift de planeet mee naar rechts (zelfde richting als de pijltjestoetsen).
+		_scherm->roteer((float)((x - _laatsteX) * sleepFactor),
+		                (float)((y - _laatsteY) * sleepFactor));
+	}
+	_laatsteX = x;
+	_laatsteY = y;
+}
+
+void verplaatsGereedschap::muisKnop(int knop, int actie, int mods)
+{
+	(void)mods;
+	if(knop == GLFW_MOUSE_BUTTON_LEFT)
+		_sleept = (actie == GLFW_PRESS);
+}
+
+void verplaatsGereedschap::muisWiel(double dx, double dy)
+{
+	//Richting-splitsing: horizontale swipe roteert om de Y-as, verticale scroll
+	//(en pinch, dat de browser als scroll meldt) zoomt. De browser levert delta's
+	//tegengesteld aan GLFW (deltaY > 0 = omlaag scrollen), dus op web wordt het
+	//teken omgedraaid zodat "omhoog scrollen / pinch-uit" inzoemt.
+#ifdef __EMSCRIPTEN__
+	_scherm->zoom((float)(-dy * zoomFactor));
+	_scherm->roteer((float)(dx * swipeFactor), 0.0f);
+#else
+	_scherm->zoom((float)(dy * zoomFactor));
+	_scherm->roteer((float)(-dx * swipeFactor), 0.0f);
+#endif
+}

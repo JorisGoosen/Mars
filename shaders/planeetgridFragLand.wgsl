@@ -21,7 +21,7 @@ struct matricesDaar {
 struct naarFrag {
     @builtin(position) glPos          : vec4f,
     @location(0) normaal        : vec3f,
-    @location(1) hoeks          : vec3f,
+    @location(1) droesem        : f32, //zwevend sediment (wateroverlay)
     @location(2) texDraaien     : vec3f,
     @location(3) kleur          : vec4f,
     @location(4) waterHoogte    : f32,
@@ -56,6 +56,17 @@ fn windKleur(W : vec2f, P : f32) -> vec3f {
     let r = clamp(W.x / wScale * 0.5 + 0.5, 0.0, 1.0); //oost-west
     let g = clamp(W.y / wScale * 0.5 + 0.5, 0.0, 1.0); //noord-zuid
     let b = clamp((P - 0.2) / 4.8, 0.0, 1.0);          //luchtdruk
+    return vec3f(r, g, b);
+}
+
+//Wateroverlay: rood = waterstroming langs de oost-west-as, groen = langs de
+//noord-zuid-as (beide gecentreerd rond 0.5), blauw = genormaliseerd zwevend
+//sediment (droesem). Analoog aan windKleur, maar voor de waterstroom (snelheid).
+fn waterKleur(S : vec2f, D : f32) -> vec3f {
+    let sSchaal = 2.0;   //typische waterstroomsnelheid (zie waterDruk.comp)
+    let r = clamp(S.x / sSchaal * 0.5 + 0.5, 0.0, 1.0); //oost-west
+    let g = clamp(S.y / sSchaal * 0.5 + 0.5, 0.0, 1.0); //noord-zuid
+    let b = clamp(D * 2.0, 0.0, 1.0);                   //droesem
     return vec3f(r, g, b);
 }
 
@@ -99,6 +110,7 @@ fn overlayKleurKeuze(in : naarFrag) -> vec3f {
         case 7: { return grijs(in.zonZicht); }
         case 8: { return vec3f(0.0, in.leven, 0.0) + vec3f(0.02); } //groen naar dichtheid leven
         case 9: { return grijs(clamp(in.grondHoogte / extra.maxGrondHoogte, 0.0, 1.0)); } //terreinhoogte
+        case 10: { return waterKleur(in.snelheid, in.droesem); } //waterstroming + zwevend sediment
         default: { return vec3f(1.0, 0.0, 1.0); } //magenta = onbekende keuze
     }
 }

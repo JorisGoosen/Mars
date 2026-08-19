@@ -19,7 +19,7 @@ const overgangDikte = 4.0;
 struct naarFrag {
     @builtin(position) glPos          : vec4f,
     @location(0) normaal        : vec3f,
-    @location(1) hoeks          : vec3f,
+    @location(1) droesem        : f32, //zwevend sediment (wateroverlay); hergebruikt de slot van het oude, ongebruikte hoeks-veld (WebGPU limiet: 16 inter-stage variabelen)
     @location(2) texDraaien     : vec3f,
     @location(3) kleur          : vec4f,
     @location(4) waterHoogte    : f32,
@@ -64,12 +64,12 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     uit.luchtdruk = vakken0[ID].luchtdruk;
     uit.overlayVelden = vec4f(vakken0[ID].bodemVocht, vakken0[ID].ijs, vakken0[ID].wolken, vakken0[ID].luchtVocht);
     uit.zonZicht   = vakken0[ID].zonZicht;
+    uit.droesem   = vakken0[ID].droesem;
 
     let hier = in.posV * (vakHoogte(ID, false) / extra.grondMult);
 
     uit.modelPos = hier;
     uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, false), 0.0)).xyz);
-    uit.hoeks = cross(normalize((matrices.modelZicht * vec4f(vakHoogteNormaal(buurID(ID, 0u), false), 0.0)).xyz), uit.normaal);
     uit.pos = matrices.modelZicht * vec4f(hier, 1.0);
     uit.glPos = matrices.projectie * uit.pos;
 

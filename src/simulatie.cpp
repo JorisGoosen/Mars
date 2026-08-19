@@ -1,5 +1,6 @@
 #include "simulatie.h"
 #include "gui.h"
+#include "gereedschap.h"
 #include "helpers.h"
 #include <cmath>
 #include <chrono>
@@ -194,7 +195,10 @@ bool Simulatie::bewaarPNG(const std::string & bestand, int breedte, int hoogte, 
 
 // ── Klasse-implementatie ────────────────────────────────────────────────────
 
-Simulatie::Simulatie(SimulatieConfig cfg) : _cfg(std::move(cfg)) {}
+Simulatie::Simulatie(SimulatieConfig cfg) : _cfg(std::move(cfg))
+{
+	_overlayKeuze = _cfg.startOverlay; //start-overlay (bijv. --overlay 10 headless)
+}
 
 Simulatie::~Simulatie()
 {
@@ -207,6 +211,7 @@ Simulatie::~Simulatie()
 	delete _scherm;
 
 	delete _gui;
+	delete _gereedschap;
 }
 
 bool Simulatie::init()
@@ -351,7 +356,7 @@ bool Simulatie::init()
 						std::cout << "Overlay uit." << std::endl;
 					}
 					break;
-				case GLFW_KEY_1: case GLFW_KEY_T:
+				case GLFW_KEY_1:
 					_overlayKeuze = 0;
 					std::cout << "Normale weergave." << std::endl;
 					break;
@@ -359,7 +364,7 @@ bool Simulatie::init()
 					_overlayKeuze = 1;
 					std::cout << "Temperatuuroverlay." << std::endl;
 					break;
-				case GLFW_KEY_3: case GLFW_KEY_V:
+				case GLFW_KEY_3:
 					_overlayKeuze = 2;
 					std::cout << "Wind+drukoverlay." << std::endl;
 					break;
@@ -471,11 +476,34 @@ bool Simulatie::init()
 		};
 		_scherm->setCustomKeyhandler(toetsenbord);
 
-		//GUI aanmaken en de muis/wiel/tekst-verwerkers koppelen
+		//GUI en gereedschap aanmaken; de muis/wiel/tekst-verwerkers koppelen.
+		//De GUI krijgt alles het eerst; het gereedschap volgt zodra de GUI de muis
+		//niet opeist (geen hovering/sleep boven een paneel of widget).
 		_gui = new guiOverlay(*this);
-		weergaveScherm::zetMuisPosVerwerker([this](double x, double y){ if(_gui) _gui->verwerkMuisPos(x, y); });
-		weergaveScherm::zetMuisKnopVerwerker([this](int knop, int actie, int mods){ if(_gui) _gui->verwerkMuisKnop(knop, actie, mods); });
-		weergaveScherm::zetMuisWielVerwerker([this](double dx, double dy){ if(_gui) _gui->verwerkWiel(dx, dy); });
+		_gereedschap = new verplaatsGereedschap(_scherm);
+		weergaveScherm::zetMuisPosVerwerker([this](double x, double y)
+		{
+			if(_gui) _gui->verwerkMuisPos(x, y);
+			//Altijd doorgeven: het gereedschap houdt zijn ankerpunt bij en
+			//roteert alleen tijdens een lopende sleep (ook boven de GUI heen).
+			if(_gereedschap) _gereedschap->muisPos(x, y);
+		});
+		weergaveScherm::zetMuisKnopVerwerker([this](int knop, int actie, int mods)
+		{
+			if(_gui) _gui->verwerkMuisKnop(knop, actie, mods);
+			//Bovenop de GUI begint het gereedschap niet; een lopende sleep mag er
+			//wel losgelaten worden (anders blijft de trackball hangen).
+			if(_gereedschap && (!(_gui && _gui->wilMuis()) || _gereedschap->isBezig()))
+				_gereedschap->muisKnop(knop, actie, mods);
+		});
+		weergaveScherm::zetMuisWielVerwerker([this](double dx, double dy)
+		{
+			if(_gui) _gui->verwerkWiel(dx, dy);
+			//Horizontale swipe roteert / verticale scroll zoomt — behalve boven
+			//de GUI, daar scrolt het paneel zelf.
+			if(_gereedschap && !(_gui && _gui->wilMuis()))
+				_gereedschap->muisWiel(dx, dy);
+		});
 		weergaveScherm::zetCharVerwerker([this](unsigned int c){ if(_gui) _gui->verwerkChar(c); });
 	}
 

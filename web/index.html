@@ -37,17 +37,6 @@
             z-index: 100;
         }
 
-        #controls {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            z-index: 100;
-        }
-
         .error { color: #ff6b6b; }
         .success { color: #51cf66; }
         .info { color: #74c0fc; }
@@ -58,15 +47,6 @@
         <canvas id="mars-canvas" tabindex="-1"></canvas>
         <div id="status">
             <p class="info">Wachten op simulatie...</p>
-        </div>
-        <div id="controls">
-            <p><strong>Besturing:</strong></p>
-            <p>WASD/QE = Bewegen | Pijltjes = Draaien</p>
-            <p>Space = Pauzeer/Start | B = Zon | N = Schaduw</p>
-            <p>R = Rotatie | X = Water | C = Wolken</p>
-            <p>T/1-9 = Overlays | Enter = Stap | ;/' = Hoogte</p>
-            <p>K/L = Verdamping | [/] = Dagduur | G/H = Coriolis</p>
-            <p>U/I = Zonkracht | O/P = Wrijving | ./ = Neerslag</p>
         </div>
     </div>
 
@@ -105,7 +85,9 @@
             },
             onRuntimeInitialized: function() {
                 console.log('[Mars] Runtime geladen — RAF-loop gestart');
-                document.getElementById('status').innerHTML = '<p class="success">Simulatie actief!</p>';
+                //Status-indicator staat alleen tijdens het laden; zodra de sim
+                //draait mag hij op de achtergrond verdwijnen.
+                document.getElementById('status').style.display = 'none';
             }
         }).catch(function(err) {
             console.error('[Mars] laden mislukt:', err);

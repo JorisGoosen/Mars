@@ -189,7 +189,7 @@ struct extraParameters {
     zonPos      : vec3f,
     _padD       : f32,
     maxGrondHoogte : f32, //hoogste terreinpunt (bepaald bij het laden); basis voor het wolkendek
-    overlayKeuze    : f32, //weergave-overlay (cijfertoetsen): 0 = normaal, 1 = temperatuur, 2 = wind+druk, 3 = bodemvocht, 4 = luchtvocht/wolken/druk, 5 = ijs/water/bodemvocht, 6 = wolken, 7 = zonZicht, 8 = leven, 9 = terreinhoogte
+    overlayKeuze    : f32, //weergave-overlay (cijfertoetsen): 0 = normaal, 1 = temperatuur, 2 = wind+druk, 3 = bodemvocht, 4 = luchtvocht/wolken/druk, 5 = ijs/water/bodemvocht, 6 = wolken, 7 = zonZicht, 8 = leven, 9 = terreinhoogte, 10 = waterrichting+droesem (alleen via de GUI)
     _padE           : f32,
     schaduwAan      : f32, //1 = schaduwkaart aan (toets N)
 };

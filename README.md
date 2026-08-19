@@ -41,13 +41,15 @@ dus op Apple Silicon draait het via Metal (in tegenstelling tot OpenGL
 zijn WebGPU-compute-shaders wél beschikbaar).
 
 ## Controls
+- **Muis-sleep**: klik+slepen draait de planeet (trackball)
+- **Scroll/swipe**: horizontaal = roteren, verticaal (of pinch) = zoomen
 - **Space**: Bevries/ontvries alles (watersim + zonrotatie + modelrotatie)
 - **B**: Toggle de zon (dag/nacht) wel/niet laten voortlopen
 - **N**: Toggle de schaduwkaart (terreinschaduwen + gedempte instraling in de schaduw)
 - **R**: Toggle planet rotation
 - **X**: Toggle water visibility
 - **C**: Toggle cloud visibility
-- **T**: Temperature overlay (blauw=koud, groen=0 °C, rood=warm)
+- **1-9/0**: Weergave-overlays (zelfde keuze als de knoppenbalk onderin; de extra "Water & droesem"-overlay zit alleen in de GUI)
 - **W/S**: Move camera forward/backward
 - **A/D**: Move camera left/right
 - **Q/E**: Move camera up/down
@@ -70,7 +72,7 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - `--zonder-schaduw`: zet de schaduwkaart uit (geen terreinschaduwen in beeld, volle zoninstraling in de simulatie).
 - `--schaduwGrootte <n>`: resolutie van de schaduwkaart in pixels per zijde (standaard **4096**; hoger = scherper maar meer geheugen, 64 MB bij 4096).
 - `--procedureel`: genereert het terrein met ruis i.p.v. de MOLA-hoogtekaart (geen PNG nodig). Ideaal voor snelle, kleine grids.
-- `--diepte <n>`: icosahedron-onderverdelingsniveau (standaard **5**; hoger = fijner, maar trager).
+- `--diepte <n>`: icosahedron-onderverdelingsniveau (standaard **5**; hoger = fijner, maar trager — **9/10** betekent ~5M/20M vakjes en ±0,8/3 GB geheugen, zware machines only).
 - `--diagnose`: print elke 25 frames de extremen van de reken-stand terug (water, bodem/luchtvocht, droesem, temperatuur, luchtdruk, wind, wolken) en meldt niet-eindige cellen.
 - `--diagnoseCsv <bestand>`: dumpt de **hele** planeet naar een CSV (één rij per cel) zodat de berekening extern geanalyseerd kan worden. Bedoeld voor kleine grids (laag `--diepte`); `--diagnoseCsvFrames <n>` zet het interval (standaard 25).
 - `--hoofdloos`: draait zonder venster (geen aqua/display nodig), bijv. `--hoofdloos --procedureel --diepte 4 --stappen 3000 --diagnoseCsv uit.csv`.
@@ -170,7 +172,7 @@ hebben daar geen wolk. Het plafond is 90% van het hoogste terreinpunt
 punt van de kaart uitkomen (`Mount Olympus` = 27 km).
 
 ## Temperatuur & ijs
-- **Temperatuuroverlay** (toets **T**) kleurt het land en het wateroppervlak per
+- **Temperatuuroverlay** (toets **2**) kleurt het land en het wateroppervlak per
   celtemperatuur: **-25 °C blauw**, **0 °C groen**, **+25 °C rood** (kouder dan
   -25 °C klemt op blauw). IJs toont zijn eigen temperatuurkleur met een dunne
   witte contour op de rand.

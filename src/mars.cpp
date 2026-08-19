@@ -146,10 +146,12 @@ int main(int argc, char ** argv)
 	while(!sim.stopGewenst())
 		sim.stap();
 
-	// Post-loop: eind-screenshot (headless)
-	if(cfg.hoofdloos && !cfg.schermafbeeldingBestand.empty())
+	// Post-loop: eind-screenshot (headless). Let op: cfg is naar de simulatie
+	// gemoved — lees de instellingen dus via sim.config(), niet uit cfg.
+	if(cfg.hoofdloos && !sim.config().schermafbeeldingBestand.empty())
 	{
-		std::cout << "Eind-screenshot -> " << cfg.schermafbeeldingBestand << std::endl;
+		std::cout << "Eind-screenshot -> " << sim.config().schermafbeeldingBestand << std::endl;
+		sim.slaScreenshot(sim.config().schermafbeeldingBestand);
 	}
 #endif
 
