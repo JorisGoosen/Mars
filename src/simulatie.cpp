@@ -3,6 +3,7 @@
 #include "gereedschap.h"
 #include "helpers.h"
 #include <cmath>
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <png.h>
@@ -163,6 +164,167 @@ static void shotVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 	((shotToestandje *)gebruiker1)->klaar = true;
 }
 
+// ── Veldkaarten (--veldKaart e.a.): kleurhelpers + equirectangulaire heatmaps ─
+
+//Kleurkaarten identiek aan de overlay-shaders plus gladStap (smoothstep).
+static float gladStap(float e0, float e1, float x)
+{
+	float t = std::clamp((x - e0) / (e1 - e0), 0.0f, 1.0f);
+	return t * t * (3.0f - 2.0f * t);
+}
+
+static glm::vec3 temperatuurKleurC(float TC)
+{
+	float t = std::clamp((TC - 238.0f) / 70.0f, 0.0f, 1.0f);
+	glm::vec3 blauw(0.2f, 0.35f, 1.0f), groen(0.2f, 0.85f, 0.2f), rood(1.0f, 0.25f, 0.1f);
+	glm::vec3 kleur = glm::mix(blauw, groen, gladStap(0.0f, 0.5f, t));
+	return glm::mix(kleur, rood, gladStap(0.5f, 1.0f, t));
+}
+
+static glm::vec3 windKleurC(const vak & c)
+{
+	float r = std::clamp(c.wind.x / 2.0f * 0.5f + 0.5f, 0.0f, 1.0f);
+	float g = std::clamp(c.wind.y / 2.0f * 0.5f + 0.5f, 0.0f, 1.0f);
+	float b = std::clamp((c.luchtdruk - 0.2f) / 4.8f, 0.0f, 1.0f);
+	return glm::vec3(r, g, b);
+}
+
+static glm::vec3 oppervlakteKleurC(const vak & c)
+{
+	if(c.ijs > 0.01f)
+		return glm::vec3(1.0f);
+	if(c.waterHoogte > 0.01f)
+		return glm::vec3(0.1f, 0.3f, 0.9f) * std::clamp(1.0f - c.waterHoogte * 0.5f, 0.4f, 1.0f);
+	float h = std::clamp((c.rotsHoogte + c.zandHoogte - 10.0f) / (200.0f - 10.0f), 0.0f, 1.0f);
+	return glm::mix(glm::vec3(0.45f, 0.32f, 0.18f), glm::vec3(0.62f, 0.52f, 0.38f), h);
+}
+
+static float veldWaardeC(const vak & c, const std::string & veld)
+{
+	if(veld == "druk" || veld == "luchtdruk") return c.luchtdruk;
+	if(veld == "grond" || veld == "hoogte")   return c.rotsHoogte + c.zandHoogte;
+	if(veld == "rots" || veld == "rotsHoogte") return c.rotsHoogte;
+	if(veld == "zand" || veld == "zandHoogte") return c.zandHoogte;
+	if(veld == "water")    return c.waterHoogte;
+	if(veld == "ijs")      return c.ijs;
+	if(veld == "wolken")   return c.wolken;
+	if(veld == "leven")    return c.leven;
+	if(veld == "droesem")  return c.droesem;
+	if(veld == "zonZicht" || veld == "zonlicht") return c.zonZicht;
+	if(veld == "bodemvocht") return c.bodemVocht;
+	if(veld == "luchtvocht") return c.luchtVocht;
+	return c.temperatuur;
+}
+
+//Zet de per-cel stand om in een equirectangulaire volledige-planeet heatmap (PNG).
+//De resolutie schaalt mee met de celdichtheid (afgeleid uit het aantal cellen).
+static void schrijfVeldKaart(const std::string & bestand, const vak * cellen, size_t aantal,
+                             planeet * geo, const std::string & veld, int factor)
+{
+	const double PI = 3.14159265358979323846;
+
+	auto waarde = [&](size_t i) -> float {
+		if(veld == "asym") return geo->buurAsymmetrie(i);
+		return veldWaardeC(cellen[i], veld);
+	};
+
+	const bool kleur = (veld == "temperatuur" || veld == "wind" || veld == "oppervlakte");
+	float vmin = 0.0f, vmax = 1.0f;
+	if(veld == "wolken")
+	{
+		vmin = 0.0f; vmax = 0.3f; //vaste schaal: anders stretchen losse piekcellen de autoschaal zwart
+	}
+	else if(!kleur)
+	{
+		vmin = 1.0e30f; vmax = -1.0e30f;
+		for(size_t i = 0; i < aantal; i++)
+		{
+			float v = waarde(i);
+			if(v < vmin) vmin = v;
+			if(v > vmax) vmax = v;
+		}
+		if(vmax - vmin < 1.0e-6f) { vmin = 0.0f; vmax = 1.0f; }
+	}
+
+	double theta = std::sqrt(4.0 * PI / (double)aantal);
+	double cellenRond = 2.0 * PI / theta;
+	int breedte = (int)(cellenRond * 3.4);
+	breedte = std::clamp(breedte, 600, 4800);
+	breedte = std::max(96, breedte / std::max(1, factor));
+	if(breedte % 2) breedte += 1;
+	int hoogte = breedte / 2;
+
+	double pxPerCel = (double)breedte / cellenRond;
+	int straal = std::max(2, (int)std::ceil(0.75 * pxPerCel));
+
+	std::vector<unsigned char> rgba((size_t)breedte * hoogte * 4, 0);
+
+	for(size_t i = 0; i < aantal; i++)
+	{
+		glm::vec3 p = geo->punt3(i);
+		float plen = glm::length(p);
+		if(plen > 0.0f) p /= plen;
+
+		float lat = std::asin(std::clamp(p.y, -1.0f, 1.0f));
+		float lon = std::atan2(p.x, p.z);
+		int px = (int)std::floor((double)(lon / (2.0 * PI) + 0.5) * breedte);
+		int py = (int)std::floor((double)(0.5 - lat / PI) * hoogte);
+		px = ((px % breedte) + breedte) % breedte;
+		py = std::clamp(py, 0, hoogte - 1);
+
+		glm::vec3 rgb;
+		if(veld == "temperatuur") rgb = temperatuurKleurC(cellen[i].temperatuur);
+		else if(veld == "wind")   rgb = windKleurC(cellen[i]);
+		else if(veld == "oppervlakte") rgb = oppervlakteKleurC(cellen[i]);
+		else
+		{
+			float t = std::clamp((waarde(i) - vmin) / (vmax - vmin), 0.0f, 1.0f);
+			rgb = glm::vec3(t);
+		}
+
+		unsigned char rr = (unsigned char)(std::clamp(rgb.r, 0.0f, 1.0f) * 255.0f + 0.5f);
+		unsigned char gg = (unsigned char)(std::clamp(rgb.g, 0.0f, 1.0f) * 255.0f + 0.5f);
+		unsigned char bb = (unsigned char)(std::clamp(rgb.b, 0.0f, 1.0f) * 255.0f + 0.5f);
+
+		for(int dy = -straal; dy <= straal; dy++)
+		{
+			int qy = py + dy;
+			if(qy < 0 || qy >= hoogte) continue;
+			for(int dx = -straal; dx <= straal; dx++)
+			{
+				if(dx * dx + dy * dy > straal * straal) continue;
+				int qx = px + dx;
+				if(qx < 0) qx += breedte;
+				if(qx >= breedte) qx -= breedte;
+				size_t k = ((size_t)qy * breedte + qx) * 4;
+				rgba[k + 0] = rr; rgba[k + 1] = gg; rgba[k + 2] = bb; rgba[k + 3] = 255;
+			}
+		}
+	}
+
+	if(Simulatie::bewaarPNG(bestand, breedte, hoogte, rgba))
+		std::cout << "veldkaart '" << veld << "' -> " << bestand << " (" << breedte << "x" << hoogte << ")" << std::endl;
+}
+
+static void veldKaartVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebruiker1, void * gebruiker2)
+{
+	(void)gebruiker2;
+	veldKaartToestandje * t = (veldKaartToestandje *)gebruiker1;
+	t->klaar = true;
+
+	if(status != WGPUMapAsyncStatus_Success)
+	{
+		std::cerr << "[veldKaart] lezen mislukt (status " << (uint32_t)status << ")" << std::endl;
+		return;
+	}
+
+	const vak * cellen = (const vak *)wgpuBufferGetMappedRange(t->buffer, 0, t->grootte);
+	const size_t aantal = t->grootte / sizeof(vak);
+	for(const auto & kaart : t->kaarten)
+		schrijfVeldKaart(kaart.second, cellen, aantal, t->geo, kaart.first, t->factor);
+	wgpuBufferUnmap(t->buffer);
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 void Simulatie::wachtOpRij(const WGPUQueue rij, WGPUInstance instantie)
@@ -307,6 +469,18 @@ bool Simulatie::init()
 
 	// ── Planeet ─────────────────────────────────────────────────────────
 	_maakPlaneet();
+
+	// ── Readback-buffer (--diagnose/--diagnoseCsv/--conservering/--veldKaart) ──
+	const bool wilVeldKaart = !_cfg.veldKaarten.empty()
+		|| _cfg.veldKaartFramesAantal > 0 || _cfg.veldKaartElkeFramesAantal > 0;
+	if(_cfg.diagnoseAan || !_cfg.csvBestand.empty() || _cfg.conservatieAan || wilVeldKaart)
+	{
+		_diagGrootte = _geo->aantalVakjes() * sizeof(vak);
+		WGPUBufferDescriptor leesBeschrijving = WGPU_BUFFER_DESCRIPTOR_INIT;
+		leesBeschrijving.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
+		leesBeschrijving.size = _diagGrootte;
+		_diagLees = wgpuDeviceCreateBuffer(apparaat, &leesBeschrijving);
+	}
 
 	// ── Toetsenhandler en GUI ───────────────────────────────────────────
 	if(!_cfg.hoofdloos)
@@ -815,6 +989,94 @@ void Simulatie::stap()
 		_waterStap = false;
 	}
 
+	// ── Async-readbacks (--diagnose/--diagnoseCsv/--conservering/--veldKaart*) ──
+	if(_diagLees)
+	{
+		//--diagnose: print de extremen van de reken-stand (interactief native;
+		//hoofdloos alleen een compacte vinger-aan-de-pols-regel).
+		if(_cfg.diagnoseAan && !_cfg.hoofdloos && _frameNummer % 25 == 0)
+		{
+			diagToestandje toestand;
+			toestand.buffer  = _diagLees;
+			toestand.grootte = _diagGrootte;
+			toestand.geo     = _geo;
+			toestand.teller  = _frameNummer;
+			drainVakken(diagVerwerker, &toestand, &toestand.klaar);
+		}
+		else if(_cfg.diagnoseAan && _cfg.hoofdloos && _frameNummer % 25 == 0)
+		{
+			//compacte vinger-aan-de-pols-regel in hoofdloze modus; het volledige
+			//teruglezen gaat daar via --diagnoseCsv.
+			std::cerr << "[stap " << _frameNummer << "]" << std::endl;
+		}
+
+		//--diagnoseCsv: dump de hele planeet naar CSV.
+		if(!_cfg.csvBestand.empty() && _csvUit.is_open() && _frameNummer % _cfg.csvElkeFrames == 0)
+		{
+			csvToestandje toestand;
+			toestand.buffer  = _diagLees;
+			toestand.grootte = _diagGrootte;
+			toestand.geo     = _geo;
+			toestand.teller  = _frameNummer;
+			toestand.uit     = &_csvUit;
+			drainVakken(csvVerwerker, &toestand, &toestand.klaar);
+		}
+
+		//--conservering: houd de totale watermassa bij (evaluatie gebeurt post-loop).
+		if(_cfg.conservatieAan && _frameNummer > 0 && _frameNummer % 200 == 0)
+		{
+			conservatieStat stat;
+			conservatieToestandje toestand;
+			toestand.buffer  = _diagLees;
+			toestand.grootte = _diagGrootte;
+			toestand.stat    = &stat;
+			drainVakken(conservatieVerwerker, &toestand, &toestand.klaar);
+
+			double totaal = stat.water + stat.bodem + stat.ijs + stat.damp + stat.wolk;
+			if(_totaalWaterStart < 0.0)
+			{
+				_totaalWaterStart = totaal;
+				_totaalWaterMin   = totaal;
+				_totaalWaterMax   = totaal;
+			}
+			else
+			{
+				_totaalWaterMin = std::min(_totaalWaterMin, totaal);
+				_totaalWaterMax = std::max(_totaalWaterMax, totaal);
+			}
+		}
+	}
+
+	//--veldKaartFrames: schrijf de laatste n frames (hoofdloos) als grond-heatmaps.
+	if(_cfg.hoofdloos && _cfg.veldKaartFramesAantal > 0 && _diagLees &&
+	   _cfg.stappenTotaal >= _cfg.veldKaartFramesAantal &&
+	   _frameNummer < _cfg.stappenTotaal &&
+	   _frameNummer >= _cfg.stappenTotaal - _cfg.veldKaartFramesAantal)
+	{
+		size_t idx = _frameNummer - (_cfg.stappenTotaal - _cfg.veldKaartFramesAantal);
+		veldKaartToestandje toestand;
+		toestand.buffer  = _diagLees;
+		toestand.grootte = _diagGrootte;
+		toestand.geo     = _geo;
+		toestand.factor  = _cfg.kaartFactor;
+		toestand.kaarten = {{"grond", "veldkaart" + std::to_string(idx) + ".png"}};
+		drainVakken(veldKaartVerwerker, &toestand, &toestand.klaar);
+	}
+
+	//--veldKaartElkeFrames: schrijf elke n frames (hoofdloos) als veldkaart_N.png.
+	if(_cfg.hoofdloos && _cfg.veldKaartElkeFramesAantal > 0 && _diagLees &&
+	   _frameNummer > 0 && _frameNummer % _cfg.veldKaartElkeFramesAantal == 0)
+	{
+		size_t idx = _frameNummer / _cfg.veldKaartElkeFramesAantal;
+		veldKaartToestandje toestand;
+		toestand.buffer  = _diagLees;
+		toestand.grootte = _diagGrootte;
+		toestand.geo     = _geo;
+		toestand.factor  = _cfg.kaartFactor;
+		toestand.kaarten = {{_cfg.veldKaartElkeFramesVeld, "veldkaart_" + std::to_string(idx) + ".png"}};
+		drainVakken(veldKaartVerwerker, &toestand, &toestand.klaar);
+	}
+
 	_frameNummer++;
 
 	// ── Frametijd meten ─────────────────────────────────────────────────
@@ -961,4 +1223,56 @@ void Simulatie::slaScreenshot(const std::string & pad)
 
 	std::cout << "schermafbeelding -> " << pad << std::endl;
 	bewaarPNG(pad, shotBreedte, shotHoogte, kopie);
+}
+
+// ── Readback-helpers (--diagnose/--diagnoseCsv/--conservering/--veldKaart) ───
+
+void Simulatie::drainVakken(WGPUBufferMapCallback callback, void * gebruiker, bool * klaar)
+{
+	WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(weergaveScherm::deelApparaat(), nullptr);
+	wgpuCommandEncoderCopyBufferToBuffer(enc, _geo->huidigeOpslag(), 0, _diagLees, 0, _diagGrootte);
+	WGPUCommandBuffer cmd = wgpuCommandEncoderFinish(enc, nullptr);
+	wgpuQueueSubmit(weergaveScherm::deelRij(), 1, &cmd);
+	wgpuCommandBufferRelease(cmd);
+	wgpuCommandEncoderRelease(enc);
+
+	*klaar = false;
+	WGPUBufferMapCallbackInfo info = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+	info.mode       = WGPUCallbackMode_AllowSpontaneous;
+	info.callback   = callback;
+	info.userdata1  = gebruiker;
+	info.userdata2  = nullptr;
+	wgpuBufferMapAsync(_diagLees, WGPUMapMode_Read, 0, _diagGrootte, info);
+	while(!*klaar)
+		wgpuInstanceProcessEvents(_scherm->instantie());
+}
+
+void Simulatie::schrijfVeldKaarten()
+{
+	if(_cfg.veldKaarten.empty() || !_diagLees) return;
+
+	veldKaartToestandje toestand;
+	toestand.buffer  = _diagLees;
+	toestand.grootte = _diagGrootte;
+	toestand.geo     = _geo;
+	toestand.kaarten = _cfg.veldKaarten;
+	toestand.factor  = _cfg.kaartFactor;
+
+	drainVakken(veldKaartVerwerker, &toestand, &toestand.klaar);
+}
+
+bool Simulatie::conservatieLek() const
+{
+	if(!_cfg.conservatieAan || _totaalWaterStart <= 0.0)
+		return false;
+
+	double afwijking = std::max(std::abs((_totaalWaterMax - _totaalWaterStart) / _totaalWaterStart),
+	                            std::abs((_totaalWaterMin - _totaalWaterStart) / _totaalWaterStart));
+	std::cerr << "[conservering] EVALUATIE: start=" << _totaalWaterStart
+	          << " min=" << _totaalWaterMin << " max=" << _totaalWaterMax
+	          << "  max-afwijking=" << (100.0 * afwijking) << "%  (tolerantie "
+	          << (100.0 * _cfg.conservatieTol) << "%)  => "
+	          << (afwijking <= _cfg.conservatieTol ? "GEVANGEN: constant" : "LEK: niet constant")
+	          << std::endl;
+	return afwijking > _cfg.conservatieTol;
 }

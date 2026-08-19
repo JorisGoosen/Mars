@@ -42,10 +42,14 @@ static void toonHelp()
 "  --hoofdloos           draai zonder venster (geen display/aqua nodig)\n"
 "  --stappen <n>         stop na n rondes (samen met --hoofdloos)\n"
 "  --schermafbeelding <bestand>  render een beeld naar een PNG (handig bij --hoofdloos)\n"
-"  --veldKaart <veld> [bestand]  volledige-planeet heatmap als PNG; herhaalbaar\n"
-"  --luchtstappen <n>    sim-stappen per beeld (standaard 1)\n"
-"  --stil               bevries alles vanaf het begin (sim, zon- en modelrotatie)\n"
-"  --help, -h            toon deze hulp\n"
+ "  --veldKaart <veld> [bestand]  volledige-planeet heatmap als PNG; herhaalbaar\n"
+ "  --veldKaartFrames <n>  schrijf de laatste n frames als veldkaart0.png .. veldkaartN-1.png (grond-heatmap)\n"
+ "  --veldKaartElkeFrames <n> <veld>  schrijf elke n frames als veldkaart_N.png (standaard veld: grond)\n"
+ "  --kaartFactor <n>      veldkaart-resolutie gedeeld door n (standaard 1)\n"
+ "  --overlay <n>          weergave-overlay bij start (0-10; ook headless)\n"
+ "  --luchtstappen <n>    sim-stappen per beeld (standaard 1)\n"
+ "  --stil               bevries alles vanaf het begin (sim, zon- en modelrotatie)\n"
+ "  --help, -h            toon deze hulp\n"
 "\n"
 "Voorbeeld (headless analyse):\n"
 "  mars --procedureel --hoofdloos --diepte 4 --stappen 3000 --diagnoseCsv uit.csv\n";
@@ -74,7 +78,7 @@ int main(int argc, char ** argv)
 			else std::cerr << "--schaduwGrootte verwacht een getal" << std::endl;
 		}
 		else if(vlag == "--procedureel")   cfg.procedural = true;
-		else if(vlag == "--diagnose")          /* native-only */;
+		else if(vlag == "--diagnose")          cfg.diagnoseAan = true;
 		else if(vlag == "--conservering")
 		{
 			cfg.conservatieAan = true;
@@ -117,6 +121,39 @@ int main(int argc, char ** argv)
 			if(a + 1 < argc) cfg.luchtStappen = std::max(1, std::atoi(argv[++a]));
 			else std::cerr << "--luchtstappen verwacht een getal" << std::endl;
 		}
+		else if(vlag == "--overlay")
+		{
+			if(a + 1 < argc) cfg.startOverlay = std::clamp(std::atoi(argv[++a]), 0, 10);
+			else std::cerr << "--overlay verwacht een getal (0-10)" << std::endl;
+		}
+		else if(vlag == "--veldKaart")
+		{
+			if(a + 1 < argc)
+			{
+				std::string veld = argv[++a];
+				std::string bestand = veld + ".png";
+				if(a + 1 < argc && argv[a + 1][0] != '-')
+					bestand = argv[++a];
+				cfg.veldKaarten.emplace_back(veld, bestand);
+			}
+			else std::cerr << "--veldKaart verwacht een veldnaam (temperatuur, wind, druk, grond, ...)" << std::endl;
+		}
+		else if(vlag == "--kaartFactor")
+		{
+			if(a + 1 < argc) cfg.kaartFactor = std::clamp(std::atoi(argv[++a]), 1, 40);
+			else std::cerr << "--kaartFactor verwacht een getal" << std::endl;
+		}
+		else if(vlag == "--veldKaartFrames")
+		{
+			if(a + 1 < argc) cfg.veldKaartFramesAantal = (size_t)std::max(1, std::atoi(argv[++a]));
+			else std::cerr << "--veldKaartFrames verwacht een getal" << std::endl;
+		}
+		else if(vlag == "--veldKaartElkeFrames")
+		{
+			if(a + 1 < argc) cfg.veldKaartElkeFramesAantal = (size_t)std::max(1, std::atoi(argv[++a]));
+			else std::cerr << "--veldKaartElkeFrames verwacht een getal" << std::endl;
+			if(a + 1 < argc) cfg.veldKaartElkeFramesVeld = argv[++a];
+		}
 		else
 		{
 			std::cerr << "Onbekende vlag: " << vlag << "\n\n";
@@ -146,14 +183,16 @@ int main(int argc, char ** argv)
 	while(!sim.stopGewenst())
 		sim.stap();
 
-	// Post-loop: eind-screenshot (headless). Let op: cfg is naar de simulatie
-	// gemoved — lees de instellingen dus via sim.config(), niet uit cfg.
-	if(cfg.hoofdloos && !sim.config().schermafbeeldingBestand.empty())
+	// Post-loop: eind-screenshot + veldkaarten (headless). Let op: cfg is naar de
+	// simulatie gemoved — lees de instellingen dus via sim.config(), niet uit cfg.
+	if(sim.config().hoofdloos && !sim.config().schermafbeeldingBestand.empty())
 	{
 		std::cout << "Eind-screenshot -> " << sim.config().schermafbeeldingBestand << std::endl;
 		sim.slaScreenshot(sim.config().schermafbeeldingBestand);
 	}
+
+	sim.schrijfVeldKaarten();
 #endif
 
-	return 0;
+	return sim.conservatieLek() ? 1 : 0;
 }

@@ -52,6 +52,12 @@ struct SimulatieConfig {
 	bool                bevroren          = false;
 	bool                conservatieAan    = false;
 	double              conservatieTol    = 0.01;
+	bool                diagnoseAan       = false;
+	std::vector<std::pair<std::string, std::string>> veldKaarten;          ///<--veldKaart <veld> [bestand]; herhaalbaar
+	int                 kaartFactor                 = 1;                   ///<--kaartFactor <n>: resolutie gedeeld door n
+	size_t              veldKaartFramesAantal       = 0;                   ///<--veldKaartFrames <n>: laatste n frames als grond-heatmaps
+	size_t              veldKaartElkeFramesAantal   = 0;                   ///<--veldKaartElkeFrames <n> <veld>
+	std::string         veldKaartElkeFramesVeld     = "grond";
 };
 
 // ── Interne structuren voor async-callbacks ──────────────────────────────────
@@ -136,6 +142,15 @@ public:
 	/// (headless verificatie; zet ook --schermafbeelding bij --hoofdloos).
 	void slaScreenshot(const std::string & pad);
 
+	/// Schrijft alle --veldKaart-resultaten weg (post-loop; headless).
+	void schrijfVeldKaarten();
+
+	/// Evalueert --conservering (watermassa-drift) en retourneert true bij LEK.
+	bool conservatieLek() const;
+
+	/// Schrijft RGBA-pixels (8 bit/component) naar een PNG (libpng).
+	static bool bewaarPNG(const std::string& bestand, int breedte, int hoogte, const std::vector<unsigned char>& rgba);
+
 	/// Alle live-tunables als pointers (voor de GUI: sliders/checkboxes).
 	struct Tunables {
 		float *zonKracht, *winterZonneKracht, *obliquity, *verwarmtijd;
@@ -170,6 +185,7 @@ private:
 	weergaveSchermPerspectief* _scherm = nullptr;
 	WGPUBuffer                 _rekenParBuffer = nullptr;
 	WGPUBuffer                 _diagLees       = nullptr;
+	size_t                     _diagGrootte    = 0;
 	WGPUTexture                _offScreen      = nullptr;
 	WGPUBuffer                 _shotLees       = nullptr;
 
@@ -249,6 +265,8 @@ private:
 	veldKaartToestandje _veldKaart;
 	shotToestandje   _shot;
 
+	double _totaalWaterStart = -1.0, _totaalWaterMin = 0.0, _totaalWaterMax = 0.0;
+
 	size_t _frameNummer = 0;
 	std::chrono::steady_clock::time_point _loopStart = std::chrono::steady_clock::now();
 	std::chrono::steady_clock::time_point _vorigeFrameTijd = std::chrono::steady_clock::now();
@@ -257,7 +275,7 @@ private:
 
 	// ── Helpers ───────────────────────────────────────────────────────────
 	void wachtOpRij(const WGPUQueue rij, WGPUInstance instantie);
-	static bool bewaarPNG(const std::string& bestand, int breedte, int hoogte, const std::vector<unsigned char>& rgba);
+	void drainVakken(WGPUBufferMapCallback callback, void * gebruiker, bool * klaar);
 	void doeSchaduwPass();
 	void doeRenderPassen();
 	void _maakSchaduwKaart();

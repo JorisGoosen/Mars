@@ -80,6 +80,12 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - `--schermafbeelding <bestand>`: render (ook met `--hoofdloos`) naar een off-screen framebuffer en bewaar die als PNG, bijv. `--hoofdloos --procedureel --diepte 3 --stappen 300 --schermafbeelding beeld.png`.
 - `--stil`: bevries alles vanaf het begin (sim, zon- en modelrotatie). Handig met `--hoofdloos --schermafbeeldingElkeFrames 1` om te controleren dat opeenvolgende beelden identiek zijn (geen flikker).
 - `--luchtstappen <n>`: aantal atmosfeer-simstappen per beeld (standaard 1). Hoger zet de wind de damp/wolken per beeld verder, zodat je de wolkbeweging op het scherm zichtbaar sneller voorbij ziet trekken (bijv. `--luchtstappen 8`).
+- `--overlay <n>`: weergave-overlay bij start (0..10), zelfde reeks als de overlay-knoppen in de GUI (1 temperatuur, 2 wind+druk, … 10 water & droesem); ook headless te gebruiken.
+- `--veldKaart <veld> [bestand]`: volledige-planeet heatmap als equirectangulaire PNG (default bestandsnaam `veldkaart_<veld>.png`); herhaalbaar voor meerdere kaarten in één draai. Velden o.a. `temperatuur`, `wind`, `druk`, `grond`, `water`, `ijs`, `wolken`, `leven`, `droesem`, `zonZicht`, `oppervlakte`.
+- `--kaartFactor <n>`: veldkaart-resolutie gedeeld door n (standaard 1; klem 1..40).
+- `--veldKaartFrames <n>`: (hoofdloos) schrijf de laatste n frames als `veldkaart0.png` .. `veldkaartN-1.png` (grond-heatmap).
+- `--veldKaartElkeFrames <n> <veld>`: (hoofdloos) schrijf elke n frames als `veldkaart_N.png` (standaard veld `grond`).
+- `--conservering [tol%]`: controleer of de totale watermassa constant blijft (hoofdloos; tol% = relatieve drift, standaard 1%); retourneert exit-code **1** bij een lek.
 
 Voorbeeld: `./build/src/mars --zonder-water --zonder-erosie --zonder-leven`
 Analyse-voorbeeld: `./build/src/mars --procedureel --hoofdloos --diepte 4 --stappen 3000 --diagnoseCsv uit.csv`
