@@ -1,6 +1,8 @@
 #!/bin/bash
 # Bouw de Mars-simulatie voor de browser (Emscripten)
-# Vereist: emsdk geïnstalleerd en geactiveerd
+# Vereist: emsdk geïnstalleerd en geactiveerd.
+# Configureert de repo-root (gedeelde CMakeLists-structuur) met de
+# Emscripten-toolchain — er is geen aparte web/CMakeLists.txt meer.
 
 set -e
 
@@ -23,16 +25,15 @@ if ! command -v emcc &> /dev/null; then
     exit 1
 fi
 
-echo "Emscripten versie: $(emcc --version)"
+echo "Emscripten versie: $(emcc --version | head -1)"
 
 # Maak build directory
 mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR"
 
-# Configureer met CMake
+# Configureer de ROOT met de Emscripten-toolchain
 echo ""
-echo "CMake configureren..."
-cmake "$SCRIPT_DIR" \
+echo "CMake configureren (repo-root)..."
+cmake -S "$MARS_ROOT" -B "$BUILD_DIR" \
     -DCMAKE_TOOLCHAIN_FILE="$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
     -DCMAKE_BUILD_TYPE=Release \
     -DGEREEDSCHAP_BUILD_DEMOS=OFF
@@ -40,7 +41,7 @@ cmake "$SCRIPT_DIR" \
 # Bouw
 echo ""
 echo "Bouwen..."
-cmake --build . --config Release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+cmake --build "$BUILD_DIR" --config Release -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
 # Controleer output
 if [ -f "$DIST_DIR/mars.js" ] && [ -f "$DIST_DIR/mars.wasm" ]; then
@@ -56,6 +57,6 @@ if [ -f "$DIST_DIR/mars.js" ] && [ -f "$DIST_DIR/mars.wasm" ]; then
     echo "Open in browser: http://localhost:8080"
 else
     echo ""
-    echo "FOUT: Build mislukt (geen mars.js/mars.wasm gevonden)"
+    echo "FOUT: Build mislukt (geen mars.js/mars.wasm gevonden in $DIST_DIR)"
     exit 1
 fi

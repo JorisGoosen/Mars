@@ -17,7 +17,7 @@
             align-items: center;
             min-height: 100vh;
         }
-        
+
         #canvas-container {
             position: relative;
             width: 100vw;
@@ -26,13 +26,13 @@
             justify-content: center;
             align-items: center;
         }
-        
+
         canvas {
             max-width: 100%;
             max-height: 100%;
             display: block;
         }
-        
+
         #status {
             position: absolute;
             top: 10px;
@@ -43,7 +43,7 @@
             font-size: 14px;
             z-index: 100;
         }
-        
+
         #controls {
             position: absolute;
             bottom: 10px;
@@ -54,7 +54,7 @@
             font-size: 12px;
             z-index: 100;
         }
-        
+
         .error { color: #ff6b6b; }
         .success { color: #51cf66; }
         .info { color: #74c0fc; }
@@ -77,7 +77,7 @@
         </div>
     </div>
 
-    <!-- Emscripten module vóór wasm-load -->
+    <script src="mars.js"></script>
     <script>
         // Canvas synchronisch op juiste grootte zetten vóór Emscripten start
         function resizeCanvas() {
@@ -88,17 +88,25 @@
         }
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
-        
-        var Module = {
+
+        if (!navigator.gpu) {
+            document.getElementById('status').innerHTML =
+                '<p class="error">Deze browser ondersteunt geen WebGPU.</p>';
+            throw new Error('WebGPU niet beschikbaar');
+        }
+
+        // mars.js is met -sMODULARIZE=1 gebouwd: MarsWeb is een async factory.
+        // De module-opties gaan als argument mee, niet via een var Module-object.
+        var statusLast = { time: 0, text: '' };
+        MarsWeb({
             canvas: document.getElementById('mars-canvas'),
             setStatus: function(text) {
-                if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
-                if (text === Module.setStatus.text) return;
+                if (text === statusLast.text) return;
                 var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
                 var now = Date.now();
-                if (m && now - Module.setStatus.last.time < 30) return;
-                Module.setStatus.last.time = now;
-                Module.setStatus.last.text = text;
+                if (m && now - statusLast.time < 30) return;
+                statusLast.time = now;
+                statusLast.text = text;
                 if (m) text = m[1];
                 document.getElementById('status').innerHTML = '<p>' + text + '</p>';
             },
@@ -106,8 +114,10 @@
                 console.log('[Mars] Runtime geladen — RAF-loop gestart');
                 document.getElementById('status').innerHTML = '<p class="success">Simulatie actief!</p>';
             }
-        };
+        }).catch(function(err) {
+            console.error('[Mars] laden mislukt:', err);
+            document.getElementById('status').innerHTML = '<p class="error">Laden mislukt: ' + err + '</p>';
+        });
     </script>
-    <script src="mars_web.js"></script>
 </body>
 </html>

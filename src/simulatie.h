@@ -110,6 +110,9 @@ public:
 	/// Retourneert true als de applicatie moet stoppen.
 	bool stopGewenst() const;
 
+	/// Het onderliggende weergave-scherm (voor web: input-eventregistratie).
+	weergaveScherm* scherm() const { return _scherm; }
+
 private:
 	SimulatieConfig _cfg;
 

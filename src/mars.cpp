@@ -128,6 +128,12 @@ int main(int argc, char ** argv)
 	if(cfg.hoofdloos && cfg.stappenTotaal == 0 && cfg.csvBestand.empty())
 		std::cerr << "Let op: --hoofdloos zonder --stappen of --diagnoseCsv is een no-op.\n";
 
+#ifdef __EMSCRIPTEN__
+	//Web draait standaard op procedureel terrein: MARS_Hoogte.png zit bewust
+	//niet in de preload (scheelt ~7 MB download).
+	cfg.procedural = true;
+#endif
+
 	Simulatie sim(std::move(cfg));
 	if(!sim.init())
 		return 1;
@@ -135,7 +141,7 @@ int main(int argc, char ** argv)
 #ifdef __EMSCRIPTEN__
 	//Web-build: RAF-loop + event-registratie via initWebPlatform()
 	g_sim = &sim;
-	initWebPlatform(nullptr, nullptr, 0, 0);
+	initWebPlatform(sim.scherm(), nullptr, 0, 0);
 #else
 	while(!sim.stopGewenst())
 		sim.stap();
