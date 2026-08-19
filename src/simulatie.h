@@ -38,6 +38,7 @@ struct SimulatieConfig {
 	bool                levenAan          = true;
 	bool                atmosfeerAan      = true;
 	bool                procedural        = false;
+	uint32_t            zaadje            = 0;   // 0 = willekeurig; >0 = reproduceerbaar (--zaadje)
 	bool                hoofdloos         = false;
 	int                 subdiv            = 5;
 	int                 schaduwGrootte    = 4096;
@@ -104,12 +105,18 @@ struct shotToestandje {
 	bool klaar = false;
 };
 
+struct pickToestandje {
+	WGPUBuffer buffer = nullptr;
+	bool klaar = false;
+};
+
 struct rijSyncje {
 	bool klaar = false;
 };
 
 class guiOverlay; //(globale GUI-klasse; gedefinieerd in gui.h)
 class gereedschap; //(interactief muis-gereedschap; gedefinieerd in gereedschap.h)
+class penseelGereedschap; //(penseel-gereedschap; gedefinieerd in penseelGereedschap.h)
 
 // ── Klasse ──────────────────────────────────────────────────────────────────
 
@@ -178,6 +185,11 @@ public:
 	float  fps() const          { return _fps; }
 	float  frameTijdMS() const  { return _frameTijdMS; }
 
+	// ── Gereedschap / penseel ────────────────────────────────────────────
+	penseelGereedschap* penseel() const      { return _penseelGereedschap; }
+	bool penseelActief() const               { return _penseelActief; }
+	void zetPenseelActief(bool aan)          { _penseelActief = aan; }
+
 private:
 	SimulatieConfig _cfg;
 
@@ -189,9 +201,17 @@ private:
 	WGPUTexture                _offScreen      = nullptr;
 	WGPUBuffer                 _shotLees       = nullptr;
 
+	// ── Penseel (gereedschappen) ─────────────────────────────────────────
+	WGPUBuffer _penseelBuffer = nullptr; ///< penseelBuffer (header + gewichten)
+	WGPUTexture _pickTextuur   = nullptr; ///< ID-pass doel (RGBA8Unorm)
+	uint32_t    _pickBreedte   = 0, _pickHoogte = 0;
+	WGPUBuffer  _pickLees      = nullptr; ///< 256 B readback-buffer
+
 	// ── GUI (Dear ImGui) ────────────────────────────────────────────────
 	guiOverlay * _gui = nullptr;
 	gereedschap* _gereedschap = nullptr; ///<actieve muis/trackpad-tool (verplaatsGereedschap)
+	penseelGereedschap* _penseelGereedschap = nullptr; ///<penseel-gereedschap (scherm + planeet)
+	bool _penseelActief = false; ///<welk gereedschap de muis krijgt (false = verplaatsen)
 	bool _heeftRender = false;
 
 	// ── Planeet ───────────────────────────────────────────────────────────
@@ -264,6 +284,7 @@ private:
 	conservatieStat  _conservatieStat;
 	veldKaartToestandje _veldKaart;
 	shotToestandje   _shot;
+	pickToestandje   _pick;
 
 	double _totaalWaterStart = -1.0, _totaalWaterMin = 0.0, _totaalWaterMax = 0.0;
 
@@ -278,7 +299,10 @@ private:
 	void drainVakken(WGPUBufferMapCallback callback, void * gebruiker, bool * klaar);
 	void doeSchaduwPass();
 	void doeRenderPassen();
+	void doeHoogtepuntPass();
+	uint32_t doePickPass();   ///< rendert de ID-pass en leest de cel onder de cursor terug
 	void _maakSchaduwKaart();
+	void _maakPenseelBuffer();
 	bool _laadMola();        // true bij succes
 	void _maakPlaneet();
 	void _resetStaat();

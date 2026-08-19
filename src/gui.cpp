@@ -1,6 +1,8 @@
 #include "gui.h"
 #include "simulatie.h"
 #include "weergaveScherm.h"
+#include "penseelGereedschap.h"
+#include "gereedschapUitvoer.h"
 #include <GLFW/glfw3.h>
 #include "imgui_internal.h"
 
@@ -247,6 +249,88 @@ void guiOverlay::bouwen()
 			ImGui::SliderFloat("grondmult",  t.grondMult, 1.0f, 1000.0f, "%.0f");
 			ImGui::SliderFloat("grondschaal", t.grondSchaal, 0.1f, 5.0f, "%.2f");
 		}
+		if(ImGui::CollapsingHeader("Gereedschap (penseel)", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			penseelGereedschap *p = _sim.penseel();
+
+			// ── Gereedschapskeuze ────────────────────────────────────────
+			int huidig = _sim.penseelActief() && p ? (int)p->mode() : 0;
+			const char *keuzes = "Verplaatsen\0Terrein\0Reliëf\0Water\0IJs\0Bodemvocht\0"
+			                     "Temperatuur\0Leven\0Wolken\0Damp\0";
+			if(ImGui::Combo("gereedschap", &huidig, keuzes))
+			{
+				if(huidig == 0)
+					_sim.zetPenseelActief(false);
+				else
+				{
+					if(p) p->zetMode((penseelMode)huidig);
+					_sim.zetPenseelActief(true);
+				}
+			}
+
+			if(p && _sim.penseelActief())
+			{
+				// ── Selectie-modus ────────────────────────────────────────
+				bool bol = (p->selectieModus() == (uint32_t)selectieBol);
+				if(ImGui::RadioButton("Grid (buren-stappen)", !bol)) p->zetSelectieModus(selectieGrid);
+				ImGui::SameLine();
+				if(ImGui::RadioButton("Bol (straal)", bol)) p->zetSelectieModus(selectieBol);
+
+				if(!bol)
+				{
+					int stappen = (int)p->stappen();
+					if(ImGui::DragInt("stappen", &stappen, 1.0f, 1, 30))
+						p->zetStappen((uint32_t)stappen);
+				}
+				else
+				{
+					float straal = p->straal();
+					if(ImGui::SliderFloat("straal", &straal, 0.005f, 1.0f, "%.3f"))
+						p->zetStraal(straal);
+
+					bool oz = (p->oppervlak() & oppervlakZand) != 0;
+					bool ow = (p->oppervlak() & oppervlakWater) != 0;
+					bool oi = (p->oppervlak() & oppervlakIjs) != 0;
+					ImGui::TextUnformatted("Bol-oppervlak (rots = basis)");
+					if(ImGui::Checkbox("zand", &oz))
+						p->zetOppervlak((p->oppervlak() & ~oppervlakZand) | (oz ? oppervlakZand : 0u));
+					ImGui::SameLine();
+					if(ImGui::Checkbox("water", &ow))
+						p->zetOppervlak((p->oppervlak() & ~oppervlakWater) | (ow ? oppervlakWater : 0u));
+					ImGui::SameLine();
+					if(ImGui::Checkbox("ijs", &oi))
+						p->zetOppervlak((p->oppervlak() & ~oppervlakIjs) | (oi ? oppervlakIjs : 0u));
+				}
+
+				// ── Gemeenschappelijke penseel-params ─────────────────────
+				float hardness = p->hardness();
+				if(ImGui::SliderFloat("hardness", &hardness, 0.0f, 1.0f, "%.2f"))
+					p->zetHardness(hardness);
+
+				float kracht = p->kracht();
+				if(ImGui::SliderFloat("kracht", &kracht, 0.0f, 1.0f, "%.3f"))
+					p->zetKracht(kracht);
+
+				bool verwijder = p->verwijderModus();
+				if(ImGui::Checkbox("verwijderen", &verwijder))
+					p->zetVerwijderModus(verwijder);
+				ImGui::TextWrapped("Links-sleep = schilderen, Shift+links = verwijderen; "
+				                   "rechts-sleep draait, wiel zoomt.");
+
+				// ── Materiaalkeuze (Terrein/Reliëf) ──────────────────────
+				if(p->mode() == penseelModeTerrein || p->mode() == penseelModeRelief)
+				{
+					bool zand = (p->materiaal() & penseelZand) != 0;
+					bool rots = (p->materiaal() & penseelRots) != 0;
+					ImGui::TextUnformatted("Bewerken");
+					if(ImGui::Checkbox("zand", &zand))
+						p->zetMateriaal((p->materiaal() & ~penseelZand) | (zand ? penseelZand : 0u));
+					ImGui::SameLine();
+					if(ImGui::Checkbox("rots", &rots))
+						p->zetMateriaal((p->materiaal() & ~penseelRots) | (rots ? penseelRots : 0u));
+				}
+			}
+		}
 		if(ImGui::CollapsingHeader("Weergave", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			ImGui::Checkbox("bevroren",   t.bevroren);
@@ -281,6 +365,7 @@ void guiOverlay::bouwen()
 			ImGui::BulletText("Klik+slepen = planeet draaien (trackball)");
 			ImGui::BulletText("Horizontale swipe = roteren");
 			ImGui::BulletText("Verticaal scrollen / pinch = zoomen");
+			ImGui::BulletText("Penseel (paneel 'Gereedschap'): links-sleep = schilderen, Shift+links = verwijderen, rechts-sleep = draaien, wiel = zoomen");
 			ImGui::Separator();
 			ImGui::TextUnformatted("Toetsen");
 			ImGui::BulletText("WASD/QE = bewegen | pijltjes = draaien");

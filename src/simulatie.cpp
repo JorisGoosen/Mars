@@ -1,11 +1,14 @@
 #include "simulatie.h"
 #include "gui.h"
 #include "gereedschap.h"
+#include "penseelGereedschap.h"
+#include "planeetAanwijzer.h"
 #include "helpers.h"
 #include <cmath>
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <random>
 #include <png.h>
 #ifdef __EMSCRIPTEN__
 #	include <emscripten.h>
@@ -162,6 +165,12 @@ static void shotVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 {
 	(void)status; (void)gebruiker2;
 	((shotToestandje *)gebruiker1)->klaar = true;
+}
+
+static void pickVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebruiker1, void *)
+{
+	(void)status;
+	((pickToestandje *)gebruiker1)->klaar = true;
 }
 
 // ── Veldkaarten (--veldKaart e.a.): kleurhelpers + equirectangulaire heatmaps ─
@@ -369,11 +378,15 @@ Simulatie::~Simulatie()
 	if(_shotLees) wgpuBufferRelease(_shotLees);
 	if(_offScreen) wgpuTextureRelease(_offScreen);
 	if(_rekenParBuffer) wgpuBufferRelease(_rekenParBuffer);
+	if(_penseelBuffer) wgpuBufferRelease(_penseelBuffer);
+	if(_pickLees) wgpuBufferRelease(_pickLees);
+	if(_pickTextuur) wgpuTextureRelease(_pickTextuur);
 	delete _geo;
 	delete _scherm;
 
 	delete _gui;
 	delete _gereedschap;
+	delete _penseelGereedschap;
 }
 
 bool Simulatie::init()
@@ -390,6 +403,8 @@ bool Simulatie::init()
 		_scherm->maakShader("planeetgridLand",  "shaders/planeetgridVertLand.wgsl",   "shaders/planeetgridFragLand.wgsl");
 		_scherm->maakShader("planeetgridWater", "shaders/planeetgridVertWater.wgsl",  "shaders/planeetgridFragWater.wgsl");
 		_scherm->maakShader("planeetgridWolk",  "shaders/planeetgridVertWolk.wgsl",   "shaders/planeetgridFragWolk.wgsl");
+		_scherm->maakShader("planeetgridPick",  "shaders/planeetgridVertPick.wgsl",   "shaders/planeetgridFragPick.wgsl");
+		_scherm->maakShader("planeetgridHoogtepunt", "shaders/planeetgridVertHoogtepunt.wgsl", "shaders/planeetgridFragHoogtepunt.wgsl");
 	}
 
 	_scherm->maakRekenShader("waterStroming",  "shaders/waterStroming.comp");
@@ -398,6 +413,7 @@ bool Simulatie::init()
 	_scherm->maakRekenShader("luchtStroming",  "shaders/luchtStroming.comp");
 	_scherm->maakRekenShader("vochtStroming",  "shaders/vochtStroming.comp");
 	_scherm->maakRekenShader("waterLucht",     "shaders/waterLucht.comp");
+	_scherm->maakRekenShader("penseel",        "shaders/penseel.comp");
 
 	_scherm->maakDiepteShader("planeetSchaduw", "shaders/planeetgridVertSchaduw.wgsl");
 	_maakSchaduwKaart();
@@ -469,6 +485,9 @@ bool Simulatie::init()
 
 	// ── Planeet ─────────────────────────────────────────────────────────
 	_maakPlaneet();
+
+	// ── Penseel-buffer (header + dichte gewichten) ──────────────────────
+	_maakPenseelBuffer();
 
 	// ── Readback-buffer (--diagnose/--diagnoseCsv/--conservering/--veldKaart) ──
 	const bool wilVeldKaart = !_cfg.veldKaarten.empty()
@@ -655,28 +674,39 @@ bool Simulatie::init()
 		//niet opeist (geen hovering/sleep boven een paneel of widget).
 		_gui = new guiOverlay(*this);
 		_gereedschap = new verplaatsGereedschap(_scherm);
+		_penseelGereedschap = new penseelGereedschap(_scherm, _geo);
+
+		//Readback-buffer voor de pick-pass (1 texel, 256 bytes; bytesPerRow-alignment).
+		WGPUBufferDescriptor pickDesc = WGPU_BUFFER_DESCRIPTOR_INIT;
+		pickDesc.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
+		pickDesc.size  = 256;
+		_pickLees = wgpuDeviceCreateBuffer(weergaveScherm::deelApparaat(), &pickDesc);
+
 		weergaveScherm::zetMuisPosVerwerker([this](double x, double y)
 		{
 			if(_gui) _gui->verwerkMuisPos(x, y);
-			//Altijd doorgeven: het gereedschap houdt zijn ankerpunt bij en
-			//roteert alleen tijdens een lopende sleep (ook boven de GUI heen).
-			if(_gereedschap) _gereedschap->muisPos(x, y);
+			//Altijd doorgeven: het actieve gereedschap houdt zijn ankerpunt bij en
+			//schildert/roteert alleen tijdens een lopende sleep (ook boven de GUI heen).
+			gereedschap *t = _penseelActief ? (gereedschap*)_penseelGereedschap : (gereedschap*)_gereedschap;
+			if(t) t->muisPos(x, y);
 		});
 		weergaveScherm::zetMuisKnopVerwerker([this](int knop, int actie, int mods)
 		{
 			if(_gui) _gui->verwerkMuisKnop(knop, actie, mods);
+			gereedschap *t = _penseelActief ? (gereedschap*)_penseelGereedschap : (gereedschap*)_gereedschap;
 			//Bovenop de GUI begint het gereedschap niet; een lopende sleep mag er
-			//wel losgelaten worden (anders blijft de trackball hangen).
-			if(_gereedschap && (!(_gui && _gui->wilMuis()) || _gereedschap->isBezig()))
-				_gereedschap->muisKnop(knop, actie, mods);
+			//wel losgelaten worden (anders blijft de trackball/penseel hangen).
+			if(t && (!(_gui && _gui->wilMuis()) || t->isBezig()))
+				t->muisKnop(knop, actie, mods);
 		});
 		weergaveScherm::zetMuisWielVerwerker([this](double dx, double dy)
 		{
 			if(_gui) _gui->verwerkWiel(dx, dy);
+			gereedschap *t = _penseelActief ? (gereedschap*)_penseelGereedschap : (gereedschap*)_gereedschap;
 			//Horizontale swipe roteert / verticale scroll zoomt — behalve boven
 			//de GUI, daar scrolt het paneel zelf.
-			if(_gereedschap && !(_gui && _gui->wilMuis()))
-				_gereedschap->muisWiel(dx, dy);
+			if(t && !(_gui && _gui->wilMuis()))
+				t->muisWiel(dx, dy);
 		});
 		weergaveScherm::zetCharVerwerker([this](unsigned int c){ if(_gui) _gui->verwerkChar(c); });
 	}
@@ -689,6 +719,16 @@ void Simulatie::_maakSchaduwKaart()
 	_scherm->vervangTextuur("zonSchaduwKaart", (size_t)_cfg.schaduwGrootte, (size_t)_cfg.schaduwGrootte,
 	                        false, false, false, GL_DEPTH_COMPONENT32F, nullptr);
 	_scherm->bindSchaduwKaart("zonSchaduwKaart");
+}
+
+void Simulatie::_maakPenseelBuffer()
+{
+	if(_penseelBuffer) { wgpuBufferRelease(_penseelBuffer); _penseelBuffer = nullptr; }
+
+	WGPUBufferDescriptor bd = WGPU_BUFFER_DESCRIPTOR_INIT;
+	bd.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst;
+	bd.size  = sizeof(penseelBuffer) + _geo->aantalVakjes() * sizeof(float);
+	_penseelBuffer = wgpuDeviceCreateBuffer(weergaveScherm::deelApparaat(), &bd);
 }
 
 bool Simulatie::_laadMola()
@@ -741,9 +781,25 @@ void Simulatie::_maakPlaneet()
 {
 	if(_cfg.procedural)
 	{
-		auto hashN = [](glm::vec3 c) -> float
+		//Vast zaadje meegeven (--zaadje N) maakt het terrein reproduceerbaar; anders
+		//wordt elk draaien een nieuwe wereld (nodig voor de headless A/B-workflow).
+		uint32_t zaad = _cfg.zaadje ? _cfg.zaadje : (uint32_t)std::random_device{}();
+		std::cout << "Zaadje: " << zaad << std::endl;
+
+		//Zaad-afgeleide verschuiving van het ruisrooster: elk zaadje verschuift de
+		//hash-lattice over een andere afstand, zodat het terrein per zaadje verschilt.
+		auto zaadOffset = [](uint32_t z) -> glm::vec3
 		{
-			return glm::fract(glm::sin(c.x * 127.1f + c.y * 311.7f + c.z * 74.7f) * 43758.5453f);
+			float a = glm::fract(glm::sin(float(z) * 12.9898f) * 43758.5453f);
+			float b = glm::fract(glm::sin(float(z ^ 0x9E3779B9u) * 12.9898f) * 43758.5453f);
+			float c = glm::fract(glm::sin(float(z ^ 0x85EBCA6Bu) * 12.9898f) * 43758.5453f);
+			return glm::vec3(a, b, c) * 64.0f;
+		};
+		glm::vec3 offset = zaadOffset(zaad);
+
+		auto hashN = [offset](glm::vec3 c) -> float
+		{
+			return glm::fract(glm::sin((c.x + offset.x) * 127.1f + (c.y + offset.y) * 311.7f + (c.z + offset.z) * 74.7f) * 43758.5453f);
 		};
 		auto ruis = [&](glm::vec3 p) -> float
 		{
@@ -813,6 +869,14 @@ bool Simulatie::herstart(const SimulatieConfig & nieuweCfg)
 	delete _geo;
 	_geo = nullptr;
 	_maakPlaneet();
+
+	//Penseel-buffer (andere celgrootte) + gereedschap opnieuw koppelen aan de planeet.
+	_maakPenseelBuffer();
+	if(_penseelGereedschap)
+	{
+		delete _penseelGereedschap;
+		_penseelGereedschap = new penseelGereedschap(_scherm, _geo);
+	}
 
 	_resetStaat();
 	return true;
@@ -951,12 +1015,42 @@ void Simulatie::stap()
 
 	wgpuQueueWriteBuffer(weergaveScherm::deelRij(), _rekenParBuffer, 0, &rekenPar, sizeof(rekenParameters));
 
+	// ── Penseel: pick (cel onder de cursor) + buffer bijwerken ──────────
+	if(!_cfg.hoofdloos && _penseelActief && _penseelGereedschap)
+	{
+		if((_gui && _gui->wilMuis()) || !_penseelGereedschap->heeftPlek())
+			_penseelGereedschap->zetCenterId(geenCelId);
+		else
+			_penseelGereedschap->zetCenterId(doePickPass());
+	}
+	if(_penseelGereedschap && _penseelGereedschap->bufferVuil())
+	{
+		_penseelGereedschap->vulBuffer();
+		wgpuQueueWriteBuffer(weergaveScherm::deelRij(), _penseelBuffer, 0,
+		                     &_penseelGereedschap->buffer(), sizeof(penseelBuffer));
+		wgpuQueueWriteBuffer(weergaveScherm::deelRij(), _penseelBuffer, sizeof(penseelBuffer),
+		                     _penseelGereedschap->gewichten().data(),
+		                     _penseelGereedschap->gewichten().size() * sizeof(float));
+		_penseelGereedschap->markeerSchoon();
+	}
+
 	// ── Schaduwpass ─────────────────────────────────────────────────────
 	doeSchaduwPass();
 
 	// ── Renderpasses ────────────────────────────────────────────────────
 	if(!_cfg.hoofdloos)
 		doeRenderPassen();
+
+	// ── Penseel-toepassing (schilderen; werkt ook als de sim bevroren is) ──
+	if(_penseelGereedschap && _penseelGereedschap->schildert())
+	{
+		const uint32_t penseelGroepen = (uint32_t)((_geo->aantalVakjes() + 63) / 64);
+		_scherm->doeRekenVerwerker("penseel", glm::uvec3(penseelGroepen, 1, 1), [this]()
+		{
+			_geo->bindVrwrkrOpslagen(*_scherm);
+			_scherm->verbindRekenBuffer(4, _penseelBuffer);
+		});
+	}
 
 	// ── Rekenketen ──────────────────────────────────────────────────────
 	if(!_cfg.bevroren && (_waterStroomt || _waterStap || _cfg.hoofdloos))
@@ -1168,6 +1262,10 @@ void Simulatie::doeRenderPassen()
 		_scherm->pasRondRenderAf();
 	}
 
+	// ── Highlight + cursor-pass (penseel-bereik; zie doeHoogtepuntPass) ──
+	if(_penseelGereedschap && _penseelGereedschap->heeftCursor())
+		doeHoogtepuntPass();
+
 	// ── GUI-pass (Dear ImGui) bovenop de planeet ───────────────────────
 	if(_gui)
 	{
@@ -1177,6 +1275,99 @@ void Simulatie::doeRenderPassen()
 	_scherm->rondRenderAf();
 	_scherm->zetWeergaveInstellingen(weergaveInstellingen());
 	_scherm->ontkoppelRekenBuffers();
+}
+
+void Simulatie::doeHoogtepuntPass()
+{
+	weergaveInstellingen inst;
+	inst.blenden         = true;
+	inst.cullMode        = WGPUCullMode_Back;
+	inst.diepteSchrijven = false;
+	inst.diepteVergelijk = WGPUCompareFunction_LessEqual;
+	_scherm->zetWeergaveInstellingen(inst);
+
+	_scherm->bereidRenderVoor("planeetgridHoogtepunt", false);
+	_geo->bindVrwrkrOpslagen(*_scherm);
+	_scherm->verbindRekenBuffer(4, _penseelBuffer);
+	_geo->tekenJezelf();
+	_scherm->pasRondRenderAf();
+}
+
+uint32_t Simulatie::doePickPass()
+{
+	uint32_t w = _scherm->oppervlakBreedte(), h = _scherm->oppervlakHoogte();
+	if(w == 0 || h == 0 || !_penseelGereedschap)
+		return geenCelId;
+
+	if(!_pickTextuur || _pickBreedte != w || _pickHoogte != h)
+	{
+		if(_pickTextuur) wgpuTextureRelease(_pickTextuur);
+		WGPUTextureDescriptor td = WGPU_TEXTURE_DESCRIPTOR_INIT;
+		td.usage         = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+		td.dimension     = WGPUTextureDimension_2D;
+		td.size          = { w, h, 1u };
+		td.format        = WGPUTextureFormat_RGBA8Unorm;
+		td.mipLevelCount = 1;
+		td.sampleCount   = 1;
+		_pickTextuur = wgpuDeviceCreateTexture(weergaveScherm::deelApparaat(), &td);
+		_pickBreedte = w; _pickHoogte = h;
+	}
+
+	int px = _penseelGereedschap->texelX((int)w);
+	int py = _penseelGereedschap->texelY((int)h);
+
+	weergaveInstellingen inst;
+	inst.cullMode = WGPUCullMode_Back;
+	_scherm->zetWeergaveInstellingen(inst);
+	_scherm->zetWeergaveDoel(_pickTextuur, glm::uvec2(w, h));
+	_scherm->zetWeergaveKleur(1.0f, 1.0f, 1.0f, 1.0f);
+
+	_scherm->bereidRenderVoor("planeetgridPick");
+	_geo->bindVrwrkrOpslagen(*_scherm);
+	_geo->tekenJezelf();
+	_scherm->pasRondRenderAf();
+	_scherm->rondRenderAf();
+
+	_scherm->zetWeergaveDoel(nullptr);
+	_scherm->zetWeergaveInstellingen(weergaveInstellingen());
+	_scherm->zetWeergaveKleur(0.0f, 0.0f, 0.0f, 1.0f);
+	_scherm->ontkoppelRekenBuffers();
+
+	//Kopieer 1 texel onder de cursor en decodeer de cel-ID. Blokkerend, maar alleen
+	//als een penseel-gereedschap actief is (zie stap()).
+	WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(weergaveScherm::deelApparaat(), nullptr);
+	WGPUTexelCopyTextureInfo bron = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
+	bron.texture  = _pickTextuur;
+	bron.mipLevel = 0;
+	bron.aspect   = WGPUTextureAspect_All;
+	bron.origin   = { (uint32_t)px, (uint32_t)py, 0u };
+
+	WGPUTexelCopyBufferInfo bestemming = WGPU_TEXEL_COPY_BUFFER_INFO_INIT;
+	bestemming.buffer                = _pickLees;
+	bestemming.layout.offset         = 0;
+	bestemming.layout.bytesPerRow    = 256;
+	bestemming.layout.rowsPerImage   = 1;
+
+	WGPUExtent3D omvang = { 1u, 1u, 1u };
+	wgpuCommandEncoderCopyTextureToBuffer(enc, &bron, &bestemming, &omvang);
+	WGPUCommandBuffer cmd = wgpuCommandEncoderFinish(enc, nullptr);
+	wgpuQueueSubmit(weergaveScherm::deelRij(), 1, &cmd);
+	wgpuCommandBufferRelease(cmd);
+	wgpuCommandEncoderRelease(enc);
+
+	_pick.klaar = false;
+	WGPUBufferMapCallbackInfo info = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+	info.mode      = WGPUCallbackMode_AllowSpontaneous;
+	info.callback  = pickVerwerker;
+	info.userdata1 = &_pick;
+	wgpuBufferMapAsync(_pickLees, WGPUMapMode_Read, 0, 256, info);
+	while(!_pick.klaar)
+		wgpuInstanceProcessEvents(_scherm->instantie());
+
+	const unsigned char *p = (const unsigned char *)wgpuBufferGetMappedRange(_pickLees, 0, 256);
+	uint32_t id = planeetAanwijzer::decode(p);
+	wgpuBufferUnmap(_pickLees);
+	return id;
 }
 
 void Simulatie::slaScreenshot(const std::string & pad)

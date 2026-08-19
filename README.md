@@ -63,6 +63,18 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - **O/P**: Adjust friction (demping)
 - **./,**: Adjust precipitation factor
 
+### Gereedschappen (penseel)
+Kies in de GUI (paneel "Gereedschap (penseel)") een gereedschap in plaats van
+"Verplaatsen" om te schilderen: **Terrein**, **Reliëf**, **Water**, **IJs**,
+**Bodemvocht**, **Temperatuur**, **Leven**, **Wolken** en **Damp**.
+- **Links-sleep** = schilderen; **Shift+links** = verwijderen (de
+  "verwijderen"-checkbox draait de standaardrichting om).
+- **Rechts-sleep** = draaien, **wiel** = zoomen.
+- **Selectie**: "Grid" (aantal buren-stappen) of "Bol" (straal over het échte
+  oppervlak; met de checkboxes rots/zand/water/ijs kies je welke lagen meewegen).
+- **Hardness** regelt de Gaussiaanse afval naar de randen; **kracht** de sterkte.
+- De cursor (gele cel) en het bereik (lichtblauwe tint) volgen de muis.
+
 ## Testvlaggen
 - `--help` / `-h`: toon een overzicht van alle vlaggetjes (ook bij een foutieve vlag).
 - `--zonder-water`: start zonder water (`waterHoogte = 0`) — handig om de grond-rendering los te testen.
@@ -72,6 +84,7 @@ zijn WebGPU-compute-shaders wél beschikbaar).
 - `--zonder-schaduw`: zet de schaduwkaart uit (geen terreinschaduwen in beeld, volle zoninstraling in de simulatie).
 - `--schaduwGrootte <n>`: resolutie van de schaduwkaart in pixels per zijde (standaard **4096**; hoger = scherper maar meer geheugen, 64 MB bij 4096).
 - `--procedureel`: genereert het terrein met ruis i.p.v. de MOLA-hoogtekaart (geen PNG nodig). Ideaal voor snelle, kleine grids.
+- `--zaadje <n>`: vast zaadje voor het procedurele terrein; zonder vlag is elk draaien een nieuwe wereld (willekeurig zaadje). Handig voor reproduceerbare runs.
 - `--diepte <n>`: icosahedron-onderverdelingsniveau (standaard **5**; hoger = fijner, maar trager — **9/10** betekent ~5M/20M vakjes en ±0,8/3 GB geheugen, zware machines only).
 - `--diagnose`: print elke 25 frames de extremen van de reken-stand terug (water, bodem/luchtvocht, droesem, temperatuur, luchtdruk, wind, wolken) en meldt niet-eindige cellen.
 - `--diagnoseCsv <bestand>`: dumpt de **hele** planeet naar een CSV (één rij per cel) zodat de berekening extern geanalyseerd kan worden. Bedoeld voor kleine grids (laag `--diepte`); `--diagnoseCsvFrames <n>` zet het interval (standaard 25).

@@ -13,6 +13,10 @@ set(MARS_SOURCES
     gereedschap.cpp
     planeet.cpp
     monsterPNG.cpp
+    gereedschapUitvoer.cpp
+    penseelSelectie.cpp
+    planeetAanwijzer.cpp
+    penseelGereedschap.cpp
 )
 
 # Executable

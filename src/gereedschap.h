@@ -26,7 +26,9 @@ public:
 ///scroll/pinch zoomt.
 class verplaatsGereedschap : public gereedschap {
 public:
-	explicit verplaatsGereedschap(weergaveSchermPerspectief* scherm) : _scherm(scherm) {}
+	/// rotatieKnop = de muisknop die de trackball-sleep start (GLFW-conventie;
+	/// standaard 0 = links). Het penseel gebruikt rechts om de camera vrij te houden.
+	explicit verplaatsGereedschap(weergaveSchermPerspectief* scherm, int rotatieKnop = 0) : _scherm(scherm), _rotatieKnop(rotatieKnop) {}
 
 	void muisPos(double x, double y) override;
 	void muisKnop(int knop, int actie, int mods) override;
@@ -35,6 +37,7 @@ public:
 
 private:
 	weergaveSchermPerspectief* _scherm;
+	int    _rotatieKnop = 0;
 	bool   _sleept   = false;
 	double _laatsteX = 0.0;
 	double _laatsteY = 0.0;

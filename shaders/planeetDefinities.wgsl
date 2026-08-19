@@ -136,3 +136,18 @@ fn berekenNormaal(id : u32, water : bool) -> vec3f {
     }
     return normalize(kruis);
 }
+
+//Oppervlak-hoogte voor de bol-selectie: rots is de basis, zand/water/ijs tellen
+//optioneel mee (bitvlag penseel.oppervlak, zie shaders/penseelStructen.wgsl).
+fn oppervlakHoogte(id : u32, oppervlak : u32) -> f32 {
+    var h = vakken0[id].rotsHoogte;
+    if((oppervlak & 1u) != 0u) { h = h + vakken0[id].zandHoogte; }
+    if((oppervlak & 2u) != 0u) { h = h + vakken0[id].waterSchijn; }
+    if((oppervlak & 4u) != 0u) { h = h + vakken0[id].ijs; }
+    return h;
+}
+
+//Wereldpositie van het oppervlak (voor de bol-afstand). reken.fasen[2] = grondMult.
+fn oppervlakWereld(id : u32, oppervlak : u32) -> vec3f {
+    return vakMetas[id].normaal.xyz * (max(0.001, 1.0 + oppervlakHoogte(id, oppervlak) * reken.grondSchaal) / reken.fasen[2]);
+}

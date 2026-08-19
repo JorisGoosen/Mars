@@ -23,7 +23,7 @@ void verplaatsGereedschap::muisPos(double x, double y)
 void verplaatsGereedschap::muisKnop(int knop, int actie, int mods)
 {
 	(void)mods;
-	if(knop == GLFW_MOUSE_BUTTON_LEFT)
+	if(knop == _rotatieKnop)
 		_sleept = (actie == GLFW_PRESS);
 }
 

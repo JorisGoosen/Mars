@@ -1,0 +1,63 @@
+//Compute-shader die een penseel-gereedschap toepast op de huidige reken-stand.
+//Draait vóór de rekenketen op vakken0 (de laatst berekende stand), zodat bewerkingen
+//direct zichtbaar zijn en daarna door de gewone sim verder stromen.
+#include "planeetDefinities.wgsl"
+#include "penseelStructen.wgsl"
+
+@group(0) @binding(4) var<storage, read> penseel : penseelBuffer;
+
+fn bolGewicht(id : u32) -> f32 {
+    let centrum = oppervlakWereld(penseel.centerId, penseel.oppervlak);
+    let hier    = oppervlakWereld(id, penseel.oppervlak);
+    let d = distance(hier, centrum);
+    return gaussiaansGewicht(d / max(penseel.straal, 0.0001), penseel.hardness);
+}
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let id = gid.x;
+    if(id >= arrayLength(&vakken0)) { return; }
+    if(penseel.actief == 0u) { return; }
+
+    let w = select(bolGewicht(id), penseel.gewichten[id], penseel.selectie == selectieGrid);
+    if(w <= 0.0) { return; }
+
+    let k = penseel.kracht * w;
+
+    switch penseel.mode {
+        case penseelModeTerrein: {
+            if((penseel.materiaal & penseelRots) != 0u) {
+                vakken0[id].rotsHoogte = clamp(vakken0[id].rotsHoogte + k, minGrondHoogte, maxGrondHoogte);
+            }
+            if((penseel.materiaal & penseelZand) != 0u) {
+                vakken0[id].zandHoogte = max(0.0, vakken0[id].zandHoogte + k);
+            }
+        }
+        case penseelModeRelief: {
+            //Versterken (k>0): hoogte weg van het buurgemiddelde; verzachten (k<0):
+            //naar het gemiddelde toe. Leest buren uit dezelfde buffer: kleine,
+            //benigne race (een buur kan pre- of post-edit gelezen worden).
+            let n = vakMetas[id].burenAantal;
+            var gem = 0.0;
+            for(var i = 0u; i < n && i < maxBuren; i = i + 1u) {
+                gem = gem + grondHoogte(vakken0[vakMetas[id].buren[i]]);
+            }
+            gem = gem / max(f32(n), 1.0);
+            let delta = k * (grondHoogte(vakken0[id]) - gem);
+            if((penseel.materiaal & penseelRots) != 0u) {
+                vakken0[id].rotsHoogte = clamp(vakken0[id].rotsHoogte + delta, minGrondHoogte, maxGrondHoogte);
+            }
+            if((penseel.materiaal & penseelZand) != 0u) {
+                vakken0[id].zandHoogte = max(0.0, vakken0[id].zandHoogte + delta);
+            }
+        }
+        case penseelModeWater:     { vakken0[id].waterHoogte = max(0.0, vakken0[id].waterHoogte + k); }
+        case penseelModeIjs:       { vakken0[id].ijs = max(0.0, vakken0[id].ijs + k); }
+        case penseelModeBodem:     { vakken0[id].bodemVocht = max(0.0, vakken0[id].bodemVocht + k); }
+        case penseelModeTemperatuur: { vakken0[id].temperatuur = clamp(vakken0[id].temperatuur + k, 100.0, 500.0); }
+        case penseelModeLeven:     { vakken0[id].leven = clamp(vakken0[id].leven + k, 0.0, levenMax); }
+        case penseelModeWolken:    { vakken0[id].wolken = max(0.0, vakken0[id].wolken + k); }
+        case penseelModeDamp:      { vakken0[id].luchtVocht = max(0.0, vakken0[id].luchtVocht + k); }
+        default: { }
+    }
+}
