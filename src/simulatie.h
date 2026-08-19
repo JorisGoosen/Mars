@@ -93,6 +93,8 @@ struct rijSyncje {
 	bool klaar = false;
 };
 
+class guiOverlay; //(globale GUI-klasse; gedefinieerd in gui.h)
+
 // ── Klasse ──────────────────────────────────────────────────────────────────
 
 class Simulatie {
@@ -113,6 +115,32 @@ public:
 	/// Het onderliggende weergave-scherm (voor web: input-eventregistratie).
 	weergaveScherm* scherm() const { return _scherm; }
 
+	/// De huidige start-/loop-configuratie (gebruikt door de GUI).
+	const SimulatieConfig & config() const { return _cfg; }
+
+	/// Herstart de wereld met een nieuwe configuratie (andere diepte/procedureel/etc.)
+	/// zonder het venster of de shaders opnieuw te maken.
+	bool herstart(const SimulatieConfig & nieuweCfg);
+
+	/// Alle live-tunables als pointers (voor de GUI: sliders/checkboxes).
+	struct Tunables {
+		float *zonKracht, *winterZonneKracht, *obliquity, *verwarmtijd;
+		float *rotatieOmega, *coriolisOmega, *wrijving, *diffusie;
+		float *verdamping, *basisVerzadiging, *hoogteKoel, *neerslagFactor, *orografieFactor;
+		float *grondMult, *grondSchaal;
+		bool  *bevroren, *waterStroomt, *tekenWater, *tekenWolken, *zonRoteert, *roteerMaar;
+		bool  *schaduwAan, *erosieAan, *levenAan, *atmosfeerAan, *waterStap;
+		int   *overlayKeuze;
+		size_t* luchtStappen;
+	};
+	Tunables tunables();
+
+	// Stats voor de GUI
+	size_t aantalVakjes() const { return _geo ? _geo->aantalVakjes() : 0; }
+	float  hoogsteGrond() const { return _geo ? _geo->hoogsteGrond() : 0.0f; }
+	float  fps() const          { return _fps; }
+	float  frameTijdMS() const  { return _frameTijdMS; }
+
 private:
 	SimulatieConfig _cfg;
 
@@ -122,6 +150,10 @@ private:
 	WGPUBuffer                 _diagLees       = nullptr;
 	WGPUTexture                _offScreen      = nullptr;
 	WGPUBuffer                 _shotLees       = nullptr;
+
+	// ── GUI (Dear ImGui) ────────────────────────────────────────────────
+	guiOverlay * _gui = nullptr;
+	bool _heeftRender = false;
 
 	// ── Planeet ───────────────────────────────────────────────────────────
 	planeet* _geo = nullptr;
@@ -172,6 +204,9 @@ private:
 
 	size_t _frameNummer = 0;
 	std::chrono::steady_clock::time_point _loopStart = std::chrono::steady_clock::now();
+	std::chrono::steady_clock::time_point _vorigeFrameTijd = std::chrono::steady_clock::now();
+	float _frameTijdMS = 0.0f;
+	float _fps         = 0.0f;
 
 	// ── Helpers ───────────────────────────────────────────────────────────
 	void wachtOpRij(const WGPUQueue rij, WGPUInstance instantie);
@@ -179,6 +214,10 @@ private:
 	void doeSchaduwPass();
 	void doeRenderPassen();
 	void slaScreenshot(const std::string& pad);
+	void _maakSchaduwKaart();
+	bool _laadMola();        // true bij succes
+	void _maakPlaneet();
+	void _resetStaat();
 
 	// ── MOLA-data (niet-proceduraal) ──────────────────────────────────────
 	size_t   _molaBreedte = 0;

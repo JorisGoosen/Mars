@@ -1,9 +1,27 @@
 #include "simulatie.h"
+#include "gui.h"
 #include "helpers.h"
 #include <cmath>
 #include <chrono>
 #include <iostream>
 #include <png.h>
+#ifdef __EMSCRIPTEN__
+#	include <emscripten.h>
+#endif
+
+#ifdef __EMSCRIPTEN__
+//Lazy-laden van MARS_Hoogte.png in de browser: fetch van de server en schrijf
+//naar het virtuele bestandssysteem, zodat laadPNG hem gewoon kan lezen. Blokkeert
+//(asyncify) tot de bytes binnen zijn; daarna is alles verder zoals native.
+EM_ASYNC_JS(int, marsLaadHoogteUitBrowser, (), {
+	if (FS.analyzePath('/MARS_Hoogte.png').exists) return 0;
+	const resp = await fetch('MARS_Hoogte.png');
+	if (!resp.ok) return 1;
+	const buf  = new Uint8Array(await resp.arrayBuffer());
+	FS.writeFile('/MARS_Hoogte.png', buf);
+	return 0;
+});
+#endif
 
 // ── Callbacks (namespace scope) ─────────────────────────────────────────────
 
@@ -187,11 +205,14 @@ Simulatie::~Simulatie()
 	if(_rekenParBuffer) wgpuBufferRelease(_rekenParBuffer);
 	delete _geo;
 	delete _scherm;
+
+	delete _gui;
 }
 
 bool Simulatie::init()
 {
 	const bool heeftRender = !_cfg.hoofdloos || !_cfg.schermafbeeldingBestand.empty();
+	_heeftRender = heeftRender;
 
 	// ── Scherm ──────────────────────────────────────────────────────────
 	_scherm = new weergaveSchermPerspectief("Planeet", 1280, 720, 8, _cfg.hoofdloos);
@@ -212,46 +233,20 @@ bool Simulatie::init()
 	_scherm->maakRekenShader("waterLucht",     "shaders/waterLucht.comp");
 
 	_scherm->maakDiepteShader("planeetSchaduw", "shaders/planeetgridVertSchaduw.wgsl");
-	_scherm->maakTextuur("zonSchaduwKaart", (size_t)_cfg.schaduwGrootte, (size_t)_cfg.schaduwGrootte, false, false, false, GL_DEPTH_COMPONENT32F, nullptr);
-	_scherm->bindSchaduwKaart("zonSchaduwKaart");
+	_maakSchaduwKaart();
 
 	_scherm->zetWeergaveKleur(0, 0, 0, 1);
 
 	// ── Texturen ────────────────────────────────────────────────────────
 	if(!_cfg.procedural)
 	{
-		size_t w, h, kanalen;
-		png_byte * MarsHoogte = laadPNG("MARS_Hoogte.png", w, h, kanalen);
-		if(!MarsHoogte)
-		{
-			std::cerr << "Kon MARS_Hoogte.png niet laden! Gebruik --procedureel." << std::endl;
+		if(!_laadMola())
 			return false;
-		}
-
-		// Spiegel links-rechts (RGBA, 4 kanalen per pixel)
-		for(size_t y = 0; y < h; y++)
-			for(size_t x = 0; x < w / 2; x++)
-			{
-				size_t links    = (x + y * w) * 4;
-				size_t rechts   = ((w - 1 - x) + y * w) * 4;
-				std::swap(MarsHoogte[links],     MarsHoogte[rechts]);
-				std::swap(MarsHoogte[links + 1], MarsHoogte[rechts + 1]);
-				std::swap(MarsHoogte[links + 2], MarsHoogte[rechts + 2]);
-				std::swap(MarsHoogte[links + 3], MarsHoogte[rechts + 3]);
-			}
-
-		if(heeftRender)
-			_scherm->maakTextuur("marsHoogteTex", w, h, true, false, false, GL_RGBA8, MarsHoogte, GL_RGBA, GL_UNSIGNED_BYTE);
-
-		// Bewaar grijswaarden voor de altura-lambda (rode kanaal / 255.0)
-		_molaBreedte = w;
-		_molaHoogte  = h;
-		_molaData.resize(w * h);
-		for(size_t y = 0; y < h; y++)
-			for(size_t x = 0; x < w; x++)
-				_molaData[y * w + x] = (float)MarsHoogte[(y * w + x) * 4] / 255.0f;
-
-		delete[] MarsHoogte;
+	}
+	else
+	{
+		_molaBreedte = _molaHoogte = 0;
+		_molaData.clear();
 	}
 
 	// Bump-kaart voor water
@@ -306,57 +301,20 @@ bool Simulatie::init()
 	}
 
 	// ── Planeet ─────────────────────────────────────────────────────────
-	if(_cfg.procedural)
-	{
-		auto hashN = [](glm::vec3 c) -> float
-		{
-			return glm::fract(glm::sin(c.x * 127.1f + c.y * 311.7f + c.z * 74.7f) * 43758.5453f);
-		};
-		auto ruis = [&](glm::vec3 p) -> float
-		{
-			glm::vec3 i = glm::floor(p), f = glm::fract(p);
-			glm::vec3 u = f * f * (glm::vec3(3.0f) - 2.0f * f);
-			float a0 = hashN(i), a1 = hashN(i + glm::vec3(1,0,0)),
-				  b0 = hashN(i + glm::vec3(0,1,0)), b1 = hashN(i + glm::vec3(1,1,0)),
-				  c0 = hashN(i + glm::vec3(0,0,1)), c1 = hashN(i + glm::vec3(1,0,1)),
-				  d0 = hashN(i + glm::vec3(0,1,1)), d1 = hashN(i + glm::vec3(1,1,1));
-			float x00 = glm::mix(a0, a1, u.x), x10 = glm::mix(b0, b1, u.x), z0 = glm::mix(x00, x10, u.y);
-			float x01 = glm::mix(c0, c1, u.x), x11 = glm::mix(d0, d1, u.x), z1 = glm::mix(x01, x11, u.y);
-			return glm::mix(z0, z1, u.z);
-		};
-		auto fbm = [&](glm::vec3 p) -> float
-		{
-			float waarde = 0.0f, amp = 0.5f;
-			for(int octaaf = 0; octaaf < 5; octaaf++) { waarde += amp * ruis(p); p *= 2.03f; amp *= 0.5f; }
-			return waarde;
-		};
-		auto altura = [&, this](glm::vec3 pos) -> float
-		{
-			float n = fbm(pos * 2.2f) * 2.0f - 1.0f;
-			float versterking = 2.0f + std::abs(n);
-			float h = 60.0f + 10.0f * n * versterking;
-			return glm::clamp(h, 40.0f, 140.0f);
-		};
-		_geo = new planeet(_cfg.subdiv, altura, _cfg.beginMetWater);
-	}
-	else
-	{
-		std::function<float(glm::vec2)> molaHoogte = [this](glm::vec2 plek) -> float
-		{
-			size_t px = (size_t)std::floor(plek.x * (_molaBreedte - 1));
-			size_t py = (size_t)std::floor(plek.y * (_molaHoogte - 1));
-			px = std::min(px, _molaBreedte - 1);
-			py = std::min(py, _molaHoogte - 1);
-			return _grondMult + 10.0f * _molaData[py * _molaBreedte + px];
-		};
-		_geo = new planeet(_cfg.subdiv, molaHoogte, _cfg.beginMetWater);
-	}
+	_maakPlaneet();
 
-	// ── Toetsenhandler ──────────────────────────────────────────────────
+	// ── Toetsenhandler en GUI ───────────────────────────────────────────
 	if(!_cfg.hoofdloos)
 	{
 		weergaveScherm::toetsVerwerkerFunc toetsenbord = [this](int key, int scancode, int action, int mods)
 		{
+			if(_gui)
+			{
+				_gui->verwerkToets(key, scancode, action, mods);
+				weergaveScherm::zetToetsGevangen(_gui->wilToetsen());
+				if(_gui->wilToetsen())
+					return;
+			}
 			(void)scancode; (void)mods;
 			if(action == GLFW_PRESS)
 				switch(key)
@@ -512,9 +470,163 @@ bool Simulatie::init()
 				}
 		};
 		_scherm->setCustomKeyhandler(toetsenbord);
+
+		//GUI aanmaken en de muis/wiel/tekst-verwerkers koppelen
+		_gui = new guiOverlay(*this);
+		weergaveScherm::zetMuisPosVerwerker([this](double x, double y){ if(_gui) _gui->verwerkMuisPos(x, y); });
+		weergaveScherm::zetMuisKnopVerwerker([this](int knop, int actie, int mods){ if(_gui) _gui->verwerkMuisKnop(knop, actie, mods); });
+		weergaveScherm::zetMuisWielVerwerker([this](double dx, double dy){ if(_gui) _gui->verwerkWiel(dx, dy); });
+		weergaveScherm::zetCharVerwerker([this](unsigned int c){ if(_gui) _gui->verwerkChar(c); });
 	}
 
 	return true;
+}
+
+void Simulatie::_maakSchaduwKaart()
+{
+	_scherm->vervangTextuur("zonSchaduwKaart", (size_t)_cfg.schaduwGrootte, (size_t)_cfg.schaduwGrootte,
+	                        false, false, false, GL_DEPTH_COMPONENT32F, nullptr);
+	_scherm->bindSchaduwKaart("zonSchaduwKaart");
+}
+
+bool Simulatie::_laadMola()
+{
+#ifdef __EMSCRIPTEN__
+	//Web: haal MARS_Hoogte.png lazy van de server naar het virtuele FS.
+	if(int rc = marsLaadHoogteUitBrowser())
+	{
+		std::cerr << "Kon MARS_Hoogte.png niet uit de browser laden (rc=" << rc << ")!" << std::endl;
+		return false;
+	}
+#endif
+
+	size_t w, h, kanalen;
+	png_byte * MarsHoogte = laadPNG("MARS_Hoogte.png", w, h, kanalen);
+	if(!MarsHoogte)
+	{
+		std::cerr << "Kon MARS_Hoogte.png niet laden! Gebruik --procedureel." << std::endl;
+		return false;
+	}
+
+	// Spiegel links-rechts (RGBA, 4 kanalen per pixel)
+	for(size_t y = 0; y < h; y++)
+		for(size_t x = 0; x < w / 2; x++)
+		{
+			size_t links    = (x + y * w) * 4;
+			size_t rechts   = ((w - 1 - x) + y * w) * 4;
+			std::swap(MarsHoogte[links],     MarsHoogte[rechts]);
+			std::swap(MarsHoogte[links + 1], MarsHoogte[rechts + 1]);
+			std::swap(MarsHoogte[links + 2], MarsHoogte[rechts + 2]);
+			std::swap(MarsHoogte[links + 3], MarsHoogte[rechts + 3]);
+		}
+
+	if(_heeftRender)
+		_scherm->vervangTextuur("marsHoogteTex", w, h, true, false, false, GL_RGBA8, MarsHoogte, GL_RGBA, GL_UNSIGNED_BYTE);
+
+	// Bewaar grijswaarden voor de altura-lambda (rode kanaal / 255.0)
+	_molaBreedte = w;
+	_molaHoogte  = h;
+	_molaData.resize(w * h);
+	for(size_t y = 0; y < h; y++)
+		for(size_t x = 0; x < w; x++)
+			_molaData[y * w + x] = (float)MarsHoogte[(y * w + x) * 4] / 255.0f;
+
+	delete[] MarsHoogte;
+	return true;
+}
+
+void Simulatie::_maakPlaneet()
+{
+	if(_cfg.procedural)
+	{
+		auto hashN = [](glm::vec3 c) -> float
+		{
+			return glm::fract(glm::sin(c.x * 127.1f + c.y * 311.7f + c.z * 74.7f) * 43758.5453f);
+		};
+		auto ruis = [&](glm::vec3 p) -> float
+		{
+			glm::vec3 i = glm::floor(p), f = glm::fract(p);
+			glm::vec3 u = f * f * (glm::vec3(3.0f) - 2.0f * f);
+			float a0 = hashN(i), a1 = hashN(i + glm::vec3(1,0,0)),
+				  b0 = hashN(i + glm::vec3(0,1,0)), b1 = hashN(i + glm::vec3(1,1,0)),
+				  c0 = hashN(i + glm::vec3(0,0,1)), c1 = hashN(i + glm::vec3(1,0,1)),
+				  d0 = hashN(i + glm::vec3(0,1,1)), d1 = hashN(i + glm::vec3(1,1,1));
+			float x00 = glm::mix(a0, a1, u.x), x10 = glm::mix(b0, b1, u.x), z0 = glm::mix(x00, x10, u.y);
+			float x01 = glm::mix(c0, c1, u.x), x11 = glm::mix(d0, d1, u.x), z1 = glm::mix(x01, x11, u.y);
+			return glm::mix(z0, z1, u.z);
+		};
+		auto fbm = [&](glm::vec3 p) -> float
+		{
+			float waarde = 0.0f, amp = 0.5f;
+			for(int octaaf = 0; octaaf < 5; octaaf++) { waarde += amp * ruis(p); p *= 2.03f; amp *= 0.5f; }
+			return waarde;
+		};
+		auto altura = [&, this](glm::vec3 pos) -> float
+		{
+			float n = fbm(pos * 2.2f) * 2.0f - 1.0f;
+			float versterking = 2.0f + std::abs(n);
+			float h = 60.0f + 10.0f * n * versterking;
+			return glm::clamp(h, 40.0f, 140.0f);
+		};
+		_geo = new planeet(_cfg.subdiv, altura, _cfg.beginMetWater);
+	}
+	else
+	{
+		std::function<float(glm::vec2)> molaHoogte = [this](glm::vec2 plek) -> float
+		{
+			size_t px = (size_t)std::floor(plek.x * (_molaBreedte - 1));
+			size_t py = (size_t)std::floor(plek.y * (_molaHoogte - 1));
+			px = std::min(px, _molaBreedte - 1);
+			py = std::min(py, _molaHoogte - 1);
+			return _grondMult + 10.0f * _molaData[py * _molaBreedte + px];
+		};
+		_geo = new planeet(_cfg.subdiv, molaHoogte, _cfg.beginMetWater);
+	}
+}
+
+void Simulatie::_resetStaat()
+{
+	_frameNummer     = 0;
+	_dagHoek         = 0.0f;
+	_seizoenTeller   = 0.0f;
+	_waterStap       = false;
+	_loopStart       = std::chrono::steady_clock::now();
+	_vorigeFrameTijd = _loopStart;
+}
+
+bool Simulatie::herstart(const SimulatieConfig & nieuweCfg)
+{
+	_cfg = nieuweCfg;
+
+	_maakSchaduwKaart();
+
+	_molaData.clear();
+	_molaBreedte = _molaHoogte = 0;
+	if(!_cfg.procedural && !_laadMola())
+	{
+		std::cerr << "MOLA kon niet geladen worden; val terug op procedureel." << std::endl;
+		_cfg.procedural = true;
+	}
+
+	delete _geo;
+	_geo = nullptr;
+	_maakPlaneet();
+
+	_resetStaat();
+	return true;
+}
+
+Simulatie::Tunables Simulatie::tunables()
+{
+	return {
+		&_zonKracht, &_winterZonneKracht, &_obliquity, &_verwarmtijd,
+		&_rotatieOmega, &_coriolisOmega, &_wrijving, &_diffusie,
+		&_verdamping, &_basisVerzadiging, &_hoogteKoel, &_neerslagFactor, &_orografieFactor,
+		&_grondMult, &_grondSchaal,
+		&_cfg.bevroren, &_waterStroomt, &_tekenWater, &_tekenWolken, &_zonRoteert, &_roteerMaar,
+		&_cfg.schaduwAan, &_cfg.erosieAan, &_cfg.levenAan, &_cfg.atmosfeerAan, &_waterStap,
+		&_overlayKeuze, &_cfg.luchtStappen
+	};
 }
 
 bool Simulatie::stopGewenst() const
@@ -527,6 +639,17 @@ bool Simulatie::stopGewenst() const
 void Simulatie::stap()
 {
 	if(stopGewenst()) return;
+
+	// ── Frametijd + GUI new-frame ───────────────────────────────────────
+	{
+		auto nu = std::chrono::steady_clock::now();
+		double dt = std::chrono::duration<double>(nu - _vorigeFrameTijd).count();
+		_vorigeFrameTijd = nu;
+		if(dt <= 0.0) dt = 0.001;
+		_frameTijdMS = (float)(dt * 1000.0);
+		_fps         = (float)(1.0 / dt);
+		if(_gui) _gui->beginFrame((float)dt);
+	}
 
 	// ── Zonrotatie ──────────────────────────────────────────────────────
 	if(!_cfg.bevroren && _zonRoteert)
@@ -707,12 +830,13 @@ void Simulatie::doeRenderPassen()
 		_scherm->pasRondRenderAf();
 	}
 
-	// Wolken-pass
+	// Wolken-pass (geen culling: wolken zijn ook van de onderkant zichtbaar;
+	// de diepte-test zorgt dat ze niet dwars door de planeet heen zichtbaar zijn)
 	if(_tekenWolken && _overlayKeuze == 0)
 	{
 		weergaveInstellingen wolkInstellingen;
 		wolkInstellingen.blenden = true;
-		wolkInstellingen.cullMode = WGPUCullMode_Back;
+		wolkInstellingen.cullMode = WGPUCullMode_None;
 		wolkInstellingen.diepteSchrijven = false;
 		wolkInstellingen.diepteVergelijk = WGPUCompareFunction_Less;
 		_scherm->zetWeergaveInstellingen(wolkInstellingen);
@@ -721,6 +845,12 @@ void Simulatie::doeRenderPassen()
 		_geo->bindVrwrkrOpslagen(*_scherm);
 		_geo->tekenJezelf();
 		_scherm->pasRondRenderAf();
+	}
+
+	// ── GUI-pass (Dear ImGui) bovenop de planeet ───────────────────────
+	if(_gui)
+	{
+		_gui->tekenInPass(_scherm);
 	}
 
 	_scherm->rondRenderAf();
