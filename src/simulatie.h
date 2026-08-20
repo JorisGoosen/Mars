@@ -105,9 +105,14 @@ struct shotToestandje {
 	bool klaar = false;
 };
 
+//Toestand van de pick-readback. Web lost mapAsync pas tussen frames af (de
+//JS-eventloop moet draaien), dus daar wordt het resultaat één frame uitgesteld
+//geconsumeerd; native wacht synchroon in doePickPass en gebruikt dezelfde velden.
 struct pickToestandje {
-	WGPUBuffer buffer = nullptr;
-	bool klaar = false;
+	WGPUBuffer buffer = nullptr;   ///< de readback-buffer (_pickLees)
+	bool klaar = false;            ///< map afgerond, wacht op decode (_rondPickAf)
+	bool inVoortgang = false;      ///< mapAsync in de lucht (render/copy zijn al gedaan)
+	uint32_t id = 0xFFFFFFFFu;     ///< laatst gedecodeerde cel-ID (geenCelId = achtergrond)
 };
 
 struct rijSyncje {
@@ -300,7 +305,8 @@ private:
 	void doeSchaduwPass();
 	void doeRenderPassen();
 	void doeHoogtepuntPass();
-	uint32_t doePickPass();   ///< rendert de ID-pass en leest de cel onder de cursor terug
+	uint32_t doePickPass();   ///< rendert de ID-pass en leest de cel onder de cursor terug (web: resultaat van de vorige frame)
+	void _rondPickAf();       ///< decodeert een afgeronde pick-map en unmap't de buffer
 	void _maakSchaduwKaart();
 	void _maakPenseelBuffer();
 	bool _laadMola();        // true bij succes

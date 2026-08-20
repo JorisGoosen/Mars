@@ -167,10 +167,18 @@ static void shotVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 	((shotToestandje *)gebruiker1)->klaar = true;
 }
 
-static void pickVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebruiker1, void *)
+static void pickVerwerker(WGPUMapAsyncStatus status, WGPUStringView boodschap, void * gebruiker1, void *)
 {
-	(void)status;
-	((pickToestandje *)gebruiker1)->klaar = true;
+	pickToestandje * pick = (pickToestandje *)gebruiker1;
+	pick->inVoortgang = false;
+	pick->klaar = (status == WGPUMapAsyncStatus_Success);
+
+	if(!pick->klaar)
+	{
+		pick->id = geenCelId;
+		std::string tekst = boodschap.data ? std::string(boodschap.data, boodschap.length) : "";
+		std::cerr << "[pick] mapAsync mislukt (status " << (int)status << "): " << tekst << std::endl;
+	}
 }
 
 // ── Veldkaarten (--veldKaart e.a.): kleurhelpers + equirectangulaire heatmaps ─
@@ -681,6 +689,7 @@ bool Simulatie::init()
 		pickDesc.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
 		pickDesc.size  = 256;
 		_pickLees = wgpuDeviceCreateBuffer(weergaveScherm::deelApparaat(), &pickDesc);
+		_pick.buffer = _pickLees;
 
 		weergaveScherm::zetMuisPosVerwerker([this](double x, double y)
 		{
@@ -1298,11 +1307,39 @@ void Simulatie::doeHoogtepuntPass()
 	_scherm->pasRondRenderAf();
 }
 
+///Decodeert een afgeronde pick-map (buffer is mapped) en maakt de buffer weer
+///vrij. Native: meteen na de synchrone wait in doePickPass. Web: bij de volgende
+///doePickPass-aanroep — getMappedRange blijft geldig tot unmap en de map-callback
+///vuurt (AllowSpontaneous) tussen frames op de JS-eventloop.
+void Simulatie::_rondPickAf()
+{
+	if(!_pick.klaar || !_pick.buffer)
+		return;
+
+	//Let op: read-map dus GetConstMappedRange — emdawnwebgpu's GetMappedRange
+	//levert bij een read-only map steevast nullptr (wgpu-native maakt dat
+	//onderscheid niet, maar de const-variant werkt aan beide kanten).
+	const unsigned char * p = (const unsigned char *)wgpuBufferGetConstMappedRange(_pick.buffer, 0, 256);
+	_pick.id = p ? planeetAanwijzer::decode(p) : geenCelId;
+	wgpuBufferUnmap(_pick.buffer);
+	_pick.klaar = false;
+}
+
 uint32_t Simulatie::doePickPass()
 {
 	uint32_t w = _scherm->oppervlakBreedte(), h = _scherm->oppervlakHoogte();
 	if(w == 0 || h == 0 || !_penseelGereedschap)
 		return geenCelId;
+
+	//Web: er hangt nog een mapAsync in de lucht (de JS-eventloop moet eerst
+	//draaien). Geef het vorige resultaat terug (cursor loopt 1 frame achter) en
+	//probeer het volgende frame opnieuw. Native: hier hangt nooit een verzoek,
+	//want onderaan wordt synchroon afgewacht.
+	if(_pick.inVoortgang)
+		return _pick.id;
+
+	//Web: resultaat van de vorige aanvraag (map is inmiddels afgerond) binnenhalen.
+	_rondPickAf();
 
 	if(!_pickTextuur || _pickBreedte != w || _pickHoogte != h)
 	{
@@ -1338,8 +1375,9 @@ uint32_t Simulatie::doePickPass()
 	_scherm->zetWeergaveKleur(0.0f, 0.0f, 0.0f, 1.0f);
 	_scherm->ontkoppelRekenBuffers();
 
-	//Kopieer 1 texel onder de cursor en decodeer de cel-ID. Blokkerend, maar alleen
-	//als een penseel-gereedschap actief is (zie stap()).
+	//Kopieer 1 texel onder de cursor en decodeer de cel-ID. Native wacht hier
+	//synchroon (alleen bij een actief penseel-gereedschap, zie stap()); web laat
+	//de map tussen frames afhandelen en leest hem de volgende frame uit.
 	WGPUCommandEncoder enc = wgpuDeviceCreateCommandEncoder(weergaveScherm::deelApparaat(), nullptr);
 	WGPUTexelCopyTextureInfo bron = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
 	bron.texture  = _pickTextuur;
@@ -1361,29 +1399,22 @@ uint32_t Simulatie::doePickPass()
 	wgpuCommandEncoderRelease(enc);
 
 	_pick.klaar = false;
+	_pick.inVoortgang = true;
 	WGPUBufferMapCallbackInfo info = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
 	info.mode      = WGPUCallbackMode_AllowSpontaneous;
 	info.callback  = pickVerwerker;
 	info.userdata1 = &_pick;
-	WGPUFuture pickToekomst = wgpuBufferMapAsync(_pickLees, WGPUMapMode_Read, 0, 256, info);
-#ifdef __EMSCRIPTEN__
-	//Web: buffer.mapAsync() is async; een busy-wait blokkeert de eventloop zodat
-	//de belofte nooit afhandelt. wgpuInstanceWaitAny laat (via asyncify) JS
-	//tussendoor draaien en hervat zodra de readback klaar is.
-	{
-		WGPUFutureWaitInfo wacht = WGPU_FUTURE_WAIT_INFO_INIT;
-		wacht.future = pickToekomst;
-		wgpuInstanceWaitAny(_scherm->instantie(), 1, &wacht, UINT64_MAX);
-	}
-#else
+	wgpuBufferMapAsync(_pickLees, WGPUMapMode_Read, 0, 256, info);
+
+#ifndef __EMSCRIPTEN__
+	//Native: de callback komt via ProcessEvents binnen; decode + unmap meteen.
 	while(!_pick.klaar)
 		wgpuInstanceProcessEvents(_scherm->instantie());
+	_rondPickAf();
 #endif
 
-	const unsigned char *p = (const unsigned char *)wgpuBufferGetMappedRange(_pickLees, 0, 256);
-	uint32_t id = planeetAanwijzer::decode(p);
-	wgpuBufferUnmap(_pickLees);
-	return id;
+	//Web: dit is (nog) het resultaat van de vorige aanvraep — 1 frame latentie.
+	return _pick.id;
 }
 
 void Simulatie::slaScreenshot(const std::string & pad)
