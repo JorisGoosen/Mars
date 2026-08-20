@@ -1,6 +1,7 @@
 #include "penseelGereedschap.h"
 #include "planeet.h"
 #include "penseelSelectie.h"
+#include "weergaveSchermPerspectief.h"
 #include <GLFW/glfw3.h>
 #include <cmath>
 
@@ -137,7 +138,11 @@ void penseelGereedschap::vulBuffer()
 
 void penseelGereedschap::muisPos(double x, double y)
 {
-	_aanwijzer.muisPos(x, y);
+	//De pick leest de texel onder de cursor in framebuffer-pixels; schaal de
+	//vensterpunt-coördinaten met de content-schaal (Retina). De camera werkt in
+	//vensterpunten (trackball is alleen in delta's geïnteresseerd).
+	glm::vec2 schaal = _scherm->inhoudSchaal();
+	_aanwijzer.muisPos(x * schaal.x, y * schaal.y);
 
 	if(_camera.isBezig())
 		_camera.muisPos(x, y);

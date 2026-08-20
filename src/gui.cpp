@@ -86,6 +86,9 @@ void guiOverlay::beginFrame(float deltaTijd)
 	weergaveScherm* scherm = _sim.scherm();
 	_io->DeltaTime   = deltaTijd > 0.0f ? deltaTijd : 0.001f;
 	_io->DisplaySize = ImVec2((float)scherm->oppervlakBreedte(), (float)scherm->oppervlakHoogte());
+	//NB: DisplayFramebufferScale blijft (1,1): DisplaySize is al in framebuffer-
+	//pixels, en de ImGui-backend schaalt de scissor/viewport met deze factor mee
+	//(anders 2× = validatiefout). De muis wordt in verwerkMuisPos naar framebuffer geschaald.
 
 	ImGui_ImplWGPU_NewFrame();
 	ImGui::NewFrame();
@@ -119,7 +122,9 @@ void guiOverlay::verwerkToets(int key, int scancode, int actie, int mods)
 
 void guiOverlay::verwerkMuisPos(double x, double y)
 {
-	_io->AddMousePosEvent((float)x, (float)y);
+	//Muis-coördinaten zijn vensterpunten; ImGui werkt op framebuffer-pixels (DisplaySize).
+	glm::vec2 schaal = _sim.scherm()->inhoudSchaal();
+	_io->AddMousePosEvent((float)(x * schaal.x), (float)(y * schaal.y));
 }
 
 void guiOverlay::verwerkMuisKnop(int knop, int actie, int mods)

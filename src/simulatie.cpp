@@ -1023,6 +1023,11 @@ void Simulatie::stap()
 		else
 			_penseelGereedschap->zetCenterId(doePickPass());
 	}
+	else if(_penseelGereedschap && _penseelGereedschap->heeftCursor())
+	{
+		//Penseel niet langer actief: cursor/highlight weghalen.
+		_penseelGereedschap->zetCenterId(geenCelId);
+	}
 	if(_penseelGereedschap && _penseelGereedschap->bufferVuil())
 	{
 		_penseelGereedschap->vulBuffer();
@@ -1360,9 +1365,20 @@ uint32_t Simulatie::doePickPass()
 	info.mode      = WGPUCallbackMode_AllowSpontaneous;
 	info.callback  = pickVerwerker;
 	info.userdata1 = &_pick;
-	wgpuBufferMapAsync(_pickLees, WGPUMapMode_Read, 0, 256, info);
+	WGPUFuture pickToekomst = wgpuBufferMapAsync(_pickLees, WGPUMapMode_Read, 0, 256, info);
+#ifdef __EMSCRIPTEN__
+	//Web: buffer.mapAsync() is async; een busy-wait blokkeert de eventloop zodat
+	//de belofte nooit afhandelt. wgpuInstanceWaitAny laat (via asyncify) JS
+	//tussendoor draaien en hervat zodra de readback klaar is.
+	{
+		WGPUFutureWaitInfo wacht = WGPU_FUTURE_WAIT_INFO_INIT;
+		wacht.future = pickToekomst;
+		wgpuInstanceWaitAny(_scherm->instantie(), 1, &wacht, UINT64_MAX);
+	}
+#else
 	while(!_pick.klaar)
 		wgpuInstanceProcessEvents(_scherm->instantie());
+#endif
 
 	const unsigned char *p = (const unsigned char *)wgpuBufferGetMappedRange(_pickLees, 0, 256);
 	uint32_t id = planeetAanwijzer::decode(p);
