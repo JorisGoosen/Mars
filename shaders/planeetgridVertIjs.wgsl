@@ -3,9 +3,10 @@
 //"grond onder water" (vereenvoudiging), maar de weergave toont het erbovenop.
 //
 //De onderkant zit in planeetgridVertIjsOnder.wgsl (waterspiegel, cull Front);
-//beide delen een fragment-shader (planeetgridFragIjs.wgsl). Waar het ijs naar 0
-//afneemt sluiten beide vlakken vanzelf (geen zijwanden nodig); de randcel ("rok")
-//wordt meegenomen zolang een buur ijs heeft.
+//beide delen een fragment-shader (planeetgridFragIjs.wgsl) en geven de echte
+//ijsdikte als interpolant door. De fragment-shader snijdt top én bottom op de
+//interpolatie-iso-lijn (ijs <= miniJs weg): de wand sluit daar vanzelf en de
+//ijsrand volgt de echte ijsdikte i.p.v. celranden (geen rok meer).
 #include "planeetDefinitiesRender.wgsl"
 
 struct matricesDaar {
@@ -23,12 +24,12 @@ struct vertexIn {
 struct naarFrag {
     @builtin(position) glPos   : vec4f,
     @location(0) normaal : vec3f,
-    @location(1) randCel : f32,
+    @location(1) ijsDikte : f32,
     @location(2) modelPos : vec3f,
 };
 
 //Dun ijs z-fight met de grond eronder; echt ijs (dikker dan miniJs) krijgt deze
-//lift op de bovenkant. De buitenste rok-cellen niet, anders sluit de rand niet.
+//lift op de bovenkant, zodat de top los blijft van de onderkant.
 const ijsLift = 0.01;
 
 @vertex
@@ -36,18 +37,11 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     var uit : naarFrag;
     let ID = vertexIndex;
 
-    //Randcel: eigen cel of een buur heeft ijs. Zo houdt een oprukkende ijswand
-    //langs de buitenrand een dichte zijkant (de bovenkant loopt af naar de
-    //waterspiegel en raakt daar de onderkant).
-    var randCel = vakken0[ID].ijs > miniJs;
-    if(!randCel) {
-        for(var b = 0u; b < vakMetas[ID].burenAantal && b < maxBuren; b = b + 1u) {
-            if(vakken0[buurID(ID, b)].ijs > miniJs) { randCel = true; break; }
-        }
-    }
-    uit.randCel = select(0.0, 1.0, randCel);
+    //De echte ijsdikte als interpolant: de fragment-shader snijdt de ijsoppervlak-
+    //ken op de iso-lijn ijs = miniJs, zodat de ijsrand de echte dikte volgt.
+    uit.ijsDikte = vakken0[ID].ijs;
 
-    //Lift alleen op echt ijs zodat de rok strak blijft aansluiten.
+    //Lift alleen op echt ijs zodat de rand strak aansluit.
     let isEchtIjs = vakken0[ID].ijs > miniJs;
     let lift  = select(0.0, ijsLift, isEchtIjs);
     let hoogte = grondHoogte(vakken0[ID]) + vakken0[ID].waterSchijn + vakken0[ID].ijs + lift;

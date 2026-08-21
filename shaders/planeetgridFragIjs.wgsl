@@ -1,7 +1,8 @@
 //WGSL fragment-shader voor de ijs-pass (gedeeld door onder- en bovenkant):
-//wit ijsdeksel, belicht door de zon en met terreinschaduw, dekkend. De randcel
-//wordt meegenomen zodat de ijswand dicht blijft; echte ijsloze cellen (en hun
-//buren) worden weggelaten.
+//wit ijsdeksel, belicht door de zon en met terreinschaduw, dekkend. De vertex-
+//shaders geven de echte ijsdikte als interpolant door; hier wordt het ijs
+//gesneden op de iso-lijn ijs = miniJs. Daardoor volgt de ijsrand de echte
+//dikte i.p.v. celranden en sluiten top/bottom vanzelf (geen rok meer).
 #include "planeetStructen.wgsl"
 
 //De schaduwkaart van de zon (bind-groep 3; het framework bindt anders een 1x1 wit
@@ -22,13 +23,13 @@ struct matricesDaar {
 struct naarFrag {
     @builtin(position) glPos   : vec4f,
     @location(0) normaal : vec3f,
-    @location(1) randCel : f32,
+    @location(1) ijsDikte : f32,
     @location(2) modelPos : vec3f,
 };
 
 @fragment
 fn main(in : naarFrag) -> @location(0) vec4f {
-    if(in.randCel < 0.5) {
+    if(in.ijsDikte <= miniJs) {
         discard;
     }
 

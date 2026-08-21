@@ -1,6 +1,7 @@
 //WGSL vertex-shader voor de ONDERKANT van de ijs-pass: het vlak op de waterspiegel
 //(grond + waterSchijn) dat de ijswand aan de onderkant sluit ("andersom" getekend
-//via cull Front). Gedeelde fragment-shader: planeetgridFragIjs.wgsl.
+//via cull Front). Gedeelde fragment-shader: planeetgridFragIjs.wgsl; die snijdt
+//onder- en bovenkant op de iso-lijn ijs = miniJs (geen rok meer).
 #include "planeetDefinitiesRender.wgsl"
 
 struct matricesDaar {
@@ -18,7 +19,7 @@ struct vertexIn {
 struct naarFrag {
     @builtin(position) glPos   : vec4f,
     @location(0) normaal : vec3f,
-    @location(1) randCel : f32,
+    @location(1) ijsDikte : f32,
     @location(2) modelPos : vec3f,
 };
 
@@ -27,14 +28,9 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     var uit : naarFrag;
     let ID = vertexIndex;
 
-    //Randcel (zelfde regel als de bovenkant) zodat de rok overal sluit.
-    var randCel = vakken0[ID].ijs > miniJs;
-    if(!randCel) {
-        for(var b = 0u; b < vakMetas[ID].burenAantal && b < maxBuren; b = b + 1u) {
-            if(vakken0[buurID(ID, b)].ijs > miniJs) { randCel = true; break; }
-        }
-    }
-    uit.randCel = select(0.0, 1.0, randCel);
+    //Zelfde interpolant als de bovenkant: de fragment-shader snijdt top én bottom
+    //op de iso-lijn ijs = miniJs, dus de wand sluit op de ijsrand.
+    uit.ijsDikte = vakken0[ID].ijs;
 
     //Geen dikte en geen lift: de onderkant ligt op de waterspiegel.
     let hoogte = grondHoogte(vakken0[ID]) + vakken0[ID].waterSchijn;
