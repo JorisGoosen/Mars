@@ -55,6 +55,7 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     let bewolkt = smoothstep(0.1, 0.35, in.wolken);
     var a = bewolkt * clamp(wolkenWaas * 3.0, 0.0, 1.0);
     a = clamp(a, 0.0, 0.85);
+    a *= clamp(extra.wolkAlpha, 0.0, 1.0); //doorzichtigheids-slider
 
     //Nachtzijde zakt naar een zwak schemerlicht i.p.v. een vlakke 0.25-vloer.
     let helderheid = clamp(0.10 + 0.90 * diffuus, 0.0, 1.0);

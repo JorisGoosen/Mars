@@ -33,12 +33,22 @@ static_assert(sizeof(rekenParameters) == 96 + 6 * 16, "rekenParameters moet byte
 // ── Configuratie ────────────────────────────────────────────────────────────
 
 struct SimulatieConfig {
-	bool                beginMetWater     = true;
 	bool                erosieAan         = true;
 	bool                levenAan          = true;
 	bool                atmosfeerAan      = true;
 	bool                procedural        = false;
 	uint32_t            zaadje            = 0;   // 0 = willekeurig; >0 = reproduceerbaar (--zaadje)
+
+	// ── Beginwaarden per cel (de "lege Mars" start op 0; temperatuur in Kelvin) ──
+	float               startWater        = 0.0f; //waterHoogte per cel
+	float               startBodemVocht   = 0.0f;
+	float               startWolken       = 0.0f;
+	float               startLeven        = 0.0f;
+	float               startIjs          = 0.0f;
+	float               startDamp         = 0.0f; //luchtVocht
+	float               startZandDeksel   = 0.0f; //dikte van de begin-zandlaag
+	float               startTemperatuur  = 273.0f; //vlakke begintemperatuur (K; = 0 °C)
+
 	bool                hoofdloos         = false;
 	int                 subdiv            = 5;
 	int                 schaduwGrootte    = 4096;
@@ -177,9 +187,10 @@ public:
 		//Leven
 		float *levenGroeiBand, *levenDroogTempo, *levenVerwelk, *levenKoudTempo;
 		float *zandGroei, *zandBuur, *rotsGroei, *rotsBuur;
-		bool  *bevroren, *waterStroomt, *tekenWater, *tekenWolken, *zonRoteert, *roteerMaar;
+		bool  *bevroren, *waterStroomt, *tekenWater, *tekenIjs, *tekenWolken, *zonRoteert, *roteerMaar;
 		bool  *schaduwAan, *erosieAan, *levenAan, *atmosfeerAan, *waterStap;
 		int   *overlayKeuze;
+		float *wolkAlpha;
 		size_t* luchtStappen;
 	};
 	Tunables tunables();
@@ -270,11 +281,13 @@ private:
 	float     _dagHoek      = 0.0f;
 	float     _seizoenTeller = 0.0f;
 	int       _overlayKeuze = 0;
+	float     _wolkAlpha    = 1.0f; //doorzichtigheid van het wolkendek (0..1)
 
 	bool _roteerMaar      = false;
 	bool _waterStroomt    = true;
 	bool _waterStap       = false;
 	bool _tekenWater      = true;
+	bool _tekenIjs        = true;
 	bool _tekenWolken     = true;
 	bool _zonRoteert      = true;
 

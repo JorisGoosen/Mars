@@ -51,13 +51,26 @@ struct vakMeta
 	float		gradSchaal		;	// 2 / gemiddelde buurafstand: schaalt de LS-gradient/divergentie naar de ware waarde (diepte-onafhankelijk)
 };									//
 
+//Beginwaarden per cel bij het maken van de planeet (defaults = lege Mars).
+struct planeetInit
+{
+	float	water			= 0.0f;	//waterHoogte per cel
+	float	bodemVocht		= 0.0f;
+	float	wolken			= 0.0f;
+	float	leven			= 0.0f;
+	float	ijs				= 0.0f;
+	float	damp			= 0.0f;	//luchtVocht
+	float	zandDeksel		= 0.0f;	//dikte van de begin-zandlaag bovenop de rots
+	float	temperatuur		= 273.0f;	//vlakke begintemperatuur (Kelvin)
+};
+
 class planeet : public geodesisch
 {
 public:
 	typedef std::vector<std::set<glm::uint32>> buurt;
 	
-	planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar, bool beginMetWater = true);
-	planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis, bool beginMetWater = true);
+	planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar, const planeetInit & init = planeetInit());
+	planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis, const planeetInit & init = planeetInit());
 
 	size_t 	aantalVakjes() const { return _vakken[0].size(); }
 	float	hoogsteGrond() const { return _hoogsteGrond; }
@@ -95,7 +108,7 @@ private:
 	std::function<float(glm::vec2)> 	_hoogteMonsteraar;
 	std::function<float(glm::vec3)> 	_ruis;
 	bool								_isRuis;
-	bool								_beginMetWater	= true;
+	planeetInit							_init;
 	float								_hoogsteGrond	= 0.0f;
 									
 										

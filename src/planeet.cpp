@@ -18,12 +18,12 @@ static_assert(sizeof(vakMeta) == 144, "vakMeta-struct moet 144 bytes groot zijn 
 
 using namespace glm;
 
-planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis, bool beginMetWater) : geodesisch(onderverdelingen), _ruis(ruis), _isRuis(true), _beginMetWater(beginMetWater)
+planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis, const planeetInit & init) : geodesisch(onderverdelingen), _ruis(ruis), _isRuis(true), _init(init)
 {
 	bouwPlaneet();
 }
 
-planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar, bool beginMetWater) : geodesisch(onderverdelingen), _hoogteMonsteraar(hoogteMonsteraar), _isRuis(false), _beginMetWater(beginMetWater)
+planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar, const planeetInit & init) : geodesisch(onderverdelingen), _hoogteMonsteraar(hoogteMonsteraar), _isRuis(false), _init(init)
 {
 	bouwPlaneet();
 }
@@ -107,7 +107,7 @@ void planeet::burenAlsEigenschapWijzers()
 		//Waar die laag ligt is het oppervlak zand (maakPingPongOpslagen zet dat als
 		//grondSoort); diepere ondergrond is rots, die 100x langzamer erodeert.
 		//Beide lagen worden apart bijgehouden; de terreinhoogte is hun som.
-		const float zandDeklaag = 2.0f;
+		const float zandDeklaag = _init.zandDeksel;
 		_vakken[0][i].rotsHoogte = glm::clamp(startHoogte - zandDeklaag, minGrondHoogte, maxGrondHoogte);
 		_vakken[0][i].zandHoogte = startHoogte - _vakken[0][i].rotsHoogte;
 		
@@ -127,30 +127,21 @@ void planeet::burenAlsEigenschapWijzers()
 		}
 		else
 		{
-			//Luchttoestand: evenwichtstemperatuur naar breedte (palen koud, evenaar
-			//warm) en hoogte (lapse-rate), neutrale druk, stilstaande wind, geen wolken.
-			//Mars begint koud: evenaar rond -20 °C (253.15 K).
-			glm::vec3 wijst = glm::normalize(_punten->ggvPunt3(i));
-			float breedte  = glm::clamp(wijst.y, -1.0f, 1.0f); //noordpool=+1
-			float hoogteF  = glm::clamp((_vakken[0][i].rotsHoogte + _vakken[0][i].zandHoogte - 10.0f) / (200.0f - 10.0f), 0.0f, 1.0f);
-			_vakken[0][i].temperatuur = 253.15f - 20.0f * glm::abs(breedte) - 10.0f * hoogteF;
+			//Luchttoestand: vlakke begintemperatuur, neutrale druk, stilstaande
+			//wind, geen wolken. De init-hoeveelheden (water/bodemvocht/wolk/leven/
+			//ijs/damp) komen uit planeetInit; de sim evolueert ze daarna zelf.
+			_vakken[0][i].temperatuur = _init.temperatuur;
 			_vakken[0][i].luchtdruk   = 1.0f;
 			_vakken[0][i].wind        = glm::vec2(0.0f);
-			_vakken[0][i].wolken      = 0.0f;
+			_vakken[0][i].wolken      = _init.wolken;
 			_vakken[0][i].zonZicht    = 1.0f; //volle zon tot de schaduwkaart het tegendeel zegt
 
-			//IJskap: dik op de polen, nagenoeg nul bij de evenaar. Het gemiddelde
-			//van |breedte|^3 over de bol is 1/4, dus met ijs = 4·b³ blijft het totale
-			//watervolume (≈ ijs=1 per cel voorheen) hetzelfde: 4·(1/4) = 1 per cel.
-			float ijsDik = 4.0f * glm::abs(breedte) * glm::abs(breedte) * glm::abs(breedte);
-			_vakken[0][i].ijs			=  ijsDik;
-			//De jonge planeet start overal met een ondiepe oceaan: 1,5 hoog water op elke
-			//cel (ook onder de ijskappen), zodat er meteen zee is i.p.v. droge woestijn.
-			_vakken[0][i].waterHoogte	=  1.5f;
-			_vakken[0][i].bodemVocht	=  1.0f;
-			_vakken[0][i].luchtVocht	=  0.0f;
-			_vakken[0][i].leven			=  0.00001f;
-			_vakken[0][i].droesem		=  0.0f;
+			_vakken[0][i].ijs			= _init.ijs;
+			_vakken[0][i].waterHoogte	= _init.water;
+			_vakken[0][i].bodemVocht	= _init.bodemVocht;
+			_vakken[0][i].luchtVocht	= _init.damp;
+			_vakken[0][i].leven			= _init.leven;
+			_vakken[0][i].droesem		= 0.0f;
 			_vakken[0][i].plek			= glm::vec2(0.0f);
 		}
 	}	

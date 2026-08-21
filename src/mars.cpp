@@ -33,9 +33,17 @@ static void toonHelp()
 "  --zonder-atmosfeer    houdt de lucht volledig stil (geen wind/verdamping/neerslag)\n"
 "  --zonder-schaduw      zet de schaduwkaart uit (geen terreinschaduwen, volle zoninstraling)\n"
 "  --schaduwGrootte <n>  resolutie van de schaduwkaart (standaard 4096; hoger = scherper, meer geheugen)\n"
- "  --procedureel         genereer het terrein met ruis i.p.v. de MOLA-hoogtekaart\n"
- "  --zaadje <n>          vast zaadje voor het procedurele terrein (0 = willekeurig)\n"
-"  --diepte <n>          icosahedron-onderverdelingsniveau (standaard 5)\n"
+  "  --procedureel         genereer het terrein met ruis i.p.v. de MOLA-hoogtekaart\n"
+  "  --zaadje <n>          vast zaadje voor het procedurele terrein (0 = willekeurig)\n"
+  "  --water <n>           begin-waterhoogte per cel (standaard 0)\n"
+  "  --bodemvocht <n>      begin-bodemvocht per cel (standaard 0)\n"
+  "  --wolk <n>            begin-wolken per cel (standaard 0)\n"
+  "  --leven <n>           begin-leven per cel (standaard 0)\n"
+  "  --ijs <n>             begin-ijsdikte per cel (standaard 0)\n"
+  "  --damp <n>            begin-luchtvocht per cel (standaard 0)\n"
+  "  --zand <n>            begin-zanddeklaag per cel (standaard 0)\n"
+  "  --temperatuur <n>     vlakke begintemperatuur in °C (standaard 0)\n"
+  "  --diepte <n>          icosahedron-onderverdelingsniveau (standaard 5)\n"
 "  --diagnose            print elke 25 frames de extremen van de reken-stand\n"
 "  --diagnoseCsv <bestand>  dump de hele planeet naar een CSV\n"
 "  --diagnoseCsvFrames <n>  interval voor het CSV-dumpen (standaard 25)\n"
@@ -68,7 +76,7 @@ int main(int argc, char ** argv)
 			toonHelp();
 			return 0;
 		}
-		else if(vlag == "--zonder-water")          cfg.beginMetWater = false;
+		else if(vlag == "--zonder-water")          cfg.startWater = 0.0f;
 		else if(vlag == "--zonder-erosie")   cfg.erosieAan = false;
 		else if(vlag == "--zonder-leven")      cfg.levenAan = false;
 		else if(vlag == "--zonder-atmosfeer") cfg.atmosfeerAan = false;
@@ -121,6 +129,47 @@ int main(int argc, char ** argv)
 		{
 			if(a + 1 < argc) cfg.subdiv = std::max(1, std::atoi(argv[++a]));
 			else std::cerr << "--diepte verwacht een getal" << std::endl;
+		}
+		else if(vlag == "--water")
+		{
+			if(a + 1 < argc) cfg.startWater = (float)std::max(0.0, std::atof(argv[++a]));
+			else std::cerr << "--water verwacht een getal" << std::endl;
+		}
+		else if(vlag == "--bodemvocht")
+		{
+			if(a + 1 < argc) cfg.startBodemVocht = (float)std::max(0.0, std::atof(argv[++a]));
+			else std::cerr << "--bodemvocht verwacht een getal" << std::endl;
+		}
+		else if(vlag == "--wolk")
+		{
+			if(a + 1 < argc) cfg.startWolken = (float)std::max(0.0, std::atof(argv[++a]));
+			else std::cerr << "--wolk verwacht een getal" << std::endl;
+		}
+		else if(vlag == "--leven")
+		{
+			if(a + 1 < argc) cfg.startLeven = (float)std::max(0.0, std::atof(argv[++a]));
+			else std::cerr << "--leven verwacht een getal" << std::endl;
+		}
+		else if(vlag == "--ijs")
+		{
+			if(a + 1 < argc) cfg.startIjs = (float)std::max(0.0, std::atof(argv[++a]));
+			else std::cerr << "--ijs verwacht een getal" << std::endl;
+		}
+		else if(vlag == "--damp")
+		{
+			if(a + 1 < argc) cfg.startDamp = (float)std::max(0.0, std::atof(argv[++a]));
+			else std::cerr << "--damp verwacht een getal" << std::endl;
+		}
+		else if(vlag == "--zand")
+		{
+			if(a + 1 < argc) cfg.startZandDeksel = (float)std::max(0.0, std::atof(argv[++a]));
+			else std::cerr << "--zand verwacht een getal" << std::endl;
+		}
+		else if(vlag == "--temperatuur")
+		{
+			//Celsius in, Kelvin intern (net als de GUI).
+			if(a + 1 < argc) cfg.startTemperatuur = (float)(std::atof(argv[++a]) + 273.15);
+			else std::cerr << "--temperatuur verwacht een getal (°C)" << std::endl;
 		}
 		else if(vlag == "--luchtstappen")
 		{

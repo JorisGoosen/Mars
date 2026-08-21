@@ -24,6 +24,13 @@ fn vakHoogteNormaal(id : u32, water : bool) -> vec3f {
     return vakMetas[id].normaal.xyz * vakHoogte(id, water);
 }
 
+//Hoogte van het bovenste zichtbare oppervlak: grond + waterspiegel + ijs.
+//Gebruikt door de ijs-pass (bovenkant) én door highlight/pick, zodat die op
+//land, water én ijs liggen i.p.v. altijd op het kale terrein.
+fn oppervlakTopHoogte(id : u32) -> f32 {
+    return grondHoogte(vakken0[id]) + vakken0[id].waterSchijn + vakken0[id].ijs;
+}
+
 fn berekenNormaal(id : u32, water : bool) -> vec3f {
     let burenAantal = vakMetas[id].burenAantal;
     let hier = vakHoogteNormaal(id, water);

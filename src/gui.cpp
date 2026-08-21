@@ -51,9 +51,16 @@ static ImGuiKey glfwNaarImGuiKey(int key)
 guiOverlay::guiOverlay(Simulatie& sim) : _sim(sim)
 {
 	const SimulatieConfig & cfg = sim.config();
-	_nieuwDiepte      = cfg.subdiv;
-	_nieuwProcedureel = cfg.procedural;
-	_nieuwWater       = cfg.beginMetWater;
+	_nieuwDiepte       = cfg.subdiv;
+	_nieuwProcedureel  = cfg.procedural;
+	_nieuwWater        = cfg.startWater;
+	_nieuwBodemVocht   = cfg.startBodemVocht;
+	_nieuwWolk         = cfg.startWolken;
+	_nieuwLeven        = cfg.startLeven;
+	_nieuwIjs          = cfg.startIjs;
+	_nieuwDamp         = cfg.startDamp;
+	_nieuwZandDeksel   = cfg.startZandDeksel;
+	_nieuwTemperatuurC = cfg.startTemperatuur - 273.15f;
 
 	_context = ImGui::CreateContext();
 	ImGui::SetCurrentContext(_context);
@@ -152,18 +159,53 @@ void guiOverlay::bouwen()
 	auto t = _sim.tunables();
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-	// ── Boven: start-parameters + Nieuw ──────────────────────────────────
-	if(ImGui::BeginViewportSideBar("startbalk", viewport, ImGuiDir_Up, 40,
+	// ── Boven: start-parameters + Nieuw (rij 1) / sim-schakelaars (rij 2) ──
+	if(ImGui::BeginViewportSideBar("startbalk", viewport, ImGuiDir_Up, 62,
 			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
 	{
+		auto initFloat = [](const char* label, float* v, float vMin, float vMax)
+		{
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(62);
+			ImGui::DragFloat(label, v, 0.05f, vMin, vMax, "%.2f");
+		};
+
 		ImGui::TextUnformatted("Wereld");
 		ImGui::SameLine();
 		ImGui::SetNextItemWidth(70);
 		ImGui::DragInt("diepte", &_nieuwDiepte, 0.05f, 1, 10);
 		ImGui::SameLine();
 		ImGui::Checkbox("procedureel", &_nieuwProcedureel);
+		initFloat("water",   &_nieuwWater,        0.0f, 20.0f);
+		initFloat("bodem",   &_nieuwBodemVocht,   0.0f, 5.0f);
+		initFloat("wolk",    &_nieuwWolk,         0.0f, 5.0f);
+		initFloat("leven",   &_nieuwLeven,        0.0f, 1.0f);
+		initFloat("ijs",     &_nieuwIjs,          0.0f, 20.0f);
+		initFloat("damp",    &_nieuwDamp,         0.0f, 5.0f);
+		initFloat("zand",    &_nieuwZandDeksel,   0.0f, 20.0f);
+		initFloat("temp",    &_nieuwTemperatuurC, -100.0f, 100.0f);
 		ImGui::SameLine();
-		ImGui::Checkbox("water", &_nieuwWater);
+		if(ImGui::Button("Nieuw"))
+		{
+			SimulatieConfig c = _sim.config();
+			c.subdiv          = _nieuwDiepte;
+			c.procedural      = _nieuwProcedureel;
+			c.startWater      = _nieuwWater;
+			c.startBodemVocht = _nieuwBodemVocht;
+			c.startWolken     = _nieuwWolk;
+			c.startLeven      = _nieuwLeven;
+			c.startIjs        = _nieuwIjs;
+			c.startDamp       = _nieuwDamp;
+			c.startZandDeksel = _nieuwZandDeksel;
+			c.startTemperatuur = _nieuwTemperatuurC + 273.15f;
+			_sim.herstart(c);
+		}
+
+		// Rij 2: simulatie-schakelaars (niet de init — die staat op rij 1).
+		ImGui::NewLine();
+		ImGui::TextUnformatted("Simulatie");
+		ImGui::SameLine();
+		ImGui::Checkbox("water", t.waterStroomt);
 		ImGui::SameLine();
 		ImGui::Checkbox("erosie", t.erosieAan);
 		ImGui::SameLine();
@@ -172,15 +214,6 @@ void guiOverlay::bouwen()
 		ImGui::Checkbox("atmosfeer", t.atmosfeerAan);
 		ImGui::SameLine();
 		ImGui::Checkbox("schaduw", t.schaduwAan);
-		ImGui::SameLine();
-		if(ImGui::Button("Nieuw"))
-		{
-			SimulatieConfig c = _sim.config();
-			c.subdiv       = _nieuwDiepte;
-			c.procedural   = _nieuwProcedureel;
-			c.beginMetWater= _nieuwWater;
-			_sim.herstart(c);
-		}
 		ImGui::SameLine();
 		ImGui::TextUnformatted("fps");
 		ImGui::SameLine();
@@ -341,6 +374,8 @@ void guiOverlay::bouwen()
 			ImGui::Checkbox("bevroren",   t.bevroren);
 			ImGui::SameLine();
 			ImGui::Checkbox("water zichtbaar", t.tekenWater);
+			ImGui::Checkbox("ijs zichtbaar",   t.tekenIjs);
+			ImGui::SameLine();
 			ImGui::Checkbox("wolken zichtbaar", t.tekenWolken);
 			ImGui::SameLine();
 			ImGui::Checkbox("schaduw", t.schaduwAan);
@@ -418,6 +453,11 @@ void guiOverlay::bouwen()
 				ImGui::PopStyleColor(4);
 			if(i < 10) ImGui::SameLine();
 		}
+
+		//Rechts: doorzichtigheid van het wolkendek (0 = onzichtbaar, 1 = dekkend).
+		ImGui::SameLine(ImGui::GetContentRegionAvail().x - 180.0f);
+		ImGui::SetNextItemWidth(110);
+		ImGui::SliderFloat("wolk-doorzichtig", t.wolkAlpha, 0.0f, 1.0f, "%.2f");
 		ImGui::EndChild();
 	}
 	ImGui::End();

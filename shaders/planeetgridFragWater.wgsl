@@ -64,12 +64,10 @@ fn windKleur(W : vec2f, P : f32) -> vec3f {
 
 @fragment
 fn main(in : naarFrag) -> @location(0) vec4f {
-    //Alleen tonen waar er water óf een ijsdeksel is
-    if(in.waterHoogte < 0.1 && in.ijs <= 0.01) {
+    //Alleen tonen waar water is; het ijs zit in zijn eigen pass (getekend bovenop).
+    if(in.waterHoogte < 0.1) {
         discard;
     }
-
-    let isIJs = in.ijs > 0.01;
 
     //Naadloze textuur-coordinaten op basis van fwidth (Tarini 2012)
     let naadloosTex = vec2f(select(in.texDraaien.z, in.texDraaien.y, fwidth(in.texDraaien.y) <= fwidth(in.texDraaien.z) + 0.000001), in.texDraaien.x);
@@ -117,16 +115,6 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     var waterRgb = mix(waterKleur, vec3f(1.0), in.kleur.g) * max(0.15, diffuus);
     waterRgb = mix(waterRgb, vec3f(1.0), lichtheid);
     var kleur = vec4f(waterRgb, in.kleur.a);
-
-    //IJs: wit deksel; met temperatuurview aan toont ook ijs zijn temperatuurkleur,
-    //met een dunne witte contour op de rand (fwidth) zodat je ijs toch herkent.
-    let ijsRand = fwidth(select(0.0, 1.0, in.ijs > 0.01));
-
-    if(isIJs) {
-        //IJs krijgt dezelfde belichting (incl. terreinschaduw) als de rest: anders
-        //gloeit de nachtkant wit en zijn schaduwen op het ijs onzichtbaar.
-        kleur = vec4f(vec3f(0.85, 0.9, 0.95) * max(0.2, diffuus), 0.95);
-    }
 
     kleur.a = max(kleur.a, lichtheid);
 

@@ -37,7 +37,14 @@ private:
 	ImGuiIO*      _io      = nullptr;
 
 	//Wereld-parameters voor "Nieuw" (via herstart)
-	int  _nieuwDiepte      = 5;
-	bool _nieuwProcedureel = true;
-	bool _nieuwWater       = true;
+	int   _nieuwDiepte       = 5;
+	bool  _nieuwProcedureel  = true;
+	float _nieuwWater        = 0.0f;
+	float _nieuwBodemVocht   = 0.0f;
+	float _nieuwWolk         = 0.0f;
+	float _nieuwLeven        = 0.0f;
+	float _nieuwIjs          = 0.0f;
+	float _nieuwDamp         = 0.0f;
+	float _nieuwZandDeksel   = 0.0f;
+	float _nieuwTemperatuurC = 0.0f; //GUI toont Celsius
 };

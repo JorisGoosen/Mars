@@ -410,6 +410,8 @@ bool Simulatie::init()
 	{
 		_scherm->maakShader("planeetgridLand",  "shaders/planeetgridVertLand.wgsl",   "shaders/planeetgridFragLand.wgsl");
 		_scherm->maakShader("planeetgridWater", "shaders/planeetgridVertWater.wgsl",  "shaders/planeetgridFragWater.wgsl");
+		_scherm->maakShader("planeetgridIjs",   "shaders/planeetgridVertIjs.wgsl",    "shaders/planeetgridFragIjs.wgsl");
+		_scherm->maakShader("planeetgridIjsOnder", "shaders/planeetgridVertIjsOnder.wgsl", "shaders/planeetgridFragIjs.wgsl");
 		_scherm->maakShader("planeetgridWolk",  "shaders/planeetgridVertWolk.wgsl",   "shaders/planeetgridFragWolk.wgsl");
 		_scherm->maakShader("planeetgridPick",  "shaders/planeetgridVertPick.wgsl",   "shaders/planeetgridFragPick.wgsl");
 		_scherm->maakShader("planeetgridHoogtepunt", "shaders/planeetgridVertHoogtepunt.wgsl", "shaders/planeetgridFragHoogtepunt.wgsl");
@@ -788,6 +790,16 @@ bool Simulatie::_laadMola()
 
 void Simulatie::_maakPlaneet()
 {
+	planeetInit init;
+	init.water       = _cfg.startWater;
+	init.bodemVocht  = _cfg.startBodemVocht;
+	init.wolken      = _cfg.startWolken;
+	init.leven       = _cfg.startLeven;
+	init.ijs         = _cfg.startIjs;
+	init.damp        = _cfg.startDamp;
+	init.zandDeksel  = _cfg.startZandDeksel;
+	init.temperatuur = _cfg.startTemperatuur;
+
 	if(_cfg.procedural)
 	{
 		//Vast zaadje meegeven (--zaadje N) maakt het terrein reproduceerbaar; anders
@@ -835,7 +847,7 @@ void Simulatie::_maakPlaneet()
 			float h = 60.0f + 10.0f * n * versterking;
 			return glm::clamp(h, 40.0f, 140.0f);
 		};
-		_geo = new planeet(_cfg.subdiv, altura, _cfg.beginMetWater);
+		_geo = new planeet(_cfg.subdiv, altura, init);
 	}
 	else
 	{
@@ -847,7 +859,7 @@ void Simulatie::_maakPlaneet()
 			py = std::min(py, _molaHoogte - 1);
 			return _grondMult + 10.0f * _molaData[py * _molaBreedte + px];
 		};
-		_geo = new planeet(_cfg.subdiv, molaHoogte, _cfg.beginMetWater);
+		_geo = new planeet(_cfg.subdiv, molaHoogte, init);
 	}
 }
 
@@ -903,9 +915,9 @@ Simulatie::Tunables Simulatie::tunables()
 		&_condensTempo, &_regenTempo, &_wolkVerdamp, &_wolkDiffusie,
 		&_levenGroeiBand, &_levenDroogTempo, &_levenVerwelk, &_levenKoudTempo,
 		&_zandGroei, &_zandBuur, &_rotsGroei, &_rotsBuur,
-		&_cfg.bevroren, &_waterStroomt, &_tekenWater, &_tekenWolken, &_zonRoteert, &_roteerMaar,
+		&_cfg.bevroren, &_waterStroomt, &_tekenWater, &_tekenIjs, &_tekenWolken, &_zonRoteert, &_roteerMaar,
 		&_cfg.schaduwAan, &_cfg.erosieAan, &_cfg.levenAan, &_cfg.atmosfeerAan, &_waterStap,
-		&_overlayKeuze, &_cfg.luchtStappen
+		&_overlayKeuze, &_wolkAlpha, &_cfg.luchtStappen
 	};
 }
 
@@ -953,6 +965,7 @@ void Simulatie::stap()
 	_extra[0]  = _grondMult;
 	_extra[1]  = _grondSchaal;
 	_extra[2]  = (float)_cfg.schaduwGrootte;
+	_extra[3]  = _wolkAlpha;
 	_extra[4]  = _kijkPlek.x; _extra[5] = _kijkPlek.y; _extra[6] = _kijkPlek.z;
 	_extra[8]  = _zonPos.x;   _extra[9] = _zonPos.y;   _extra[10] = _zonPos.z;
 	_extra[12] = _geo->hoogsteGrond();
@@ -1230,17 +1243,40 @@ void Simulatie::doeRenderPassen()
 	_kijkPlek = glm::vec3(glm::inverse(_scherm->modelZicht())[3]);
 	_scherm->zetExtraFloats(_extra, 16);
 
+	//De eerste pass van de frame wist kleur + diepte; de rest tekent eroverheen
+	//(Load). Wolken staan er vóór (geflipt = achterkanten) én na (voorkanten),
+	//zodat het doorzichtige dek correct t.o.v. de planeet wordt gesorteerd.
+	bool eerstePass = true;
+
+	// ── Wolken: achterkanten eerst (geflipt) ────────────────────────────
+	if(_tekenWolken && _overlayKeuze == 0)
+	{
+		weergaveInstellingen wolkInstellingen;
+		wolkInstellingen.blenden = true;
+		wolkInstellingen.cullMode = WGPUCullMode_Front;
+		wolkInstellingen.diepteSchrijven = false;
+		wolkInstellingen.diepteVergelijk = WGPUCompareFunction_Less;
+		_scherm->zetWeergaveInstellingen(wolkInstellingen);
+
+		_scherm->bereidRenderVoor("planeetgridWolk", eerstePass);
+		_geo->bindVrwrkrOpslagen(*_scherm);
+		_geo->tekenJezelf();
+		_scherm->pasRondRenderAf();
+		eerstePass = false;
+	}
+
 	// Grond-pass
 	weergaveInstellingen grondInstellingen;
 	grondInstellingen.cullMode = WGPUCullMode_Back;
 	_scherm->zetWeergaveInstellingen(grondInstellingen);
 
-	_scherm->bereidRenderVoor("planeetgridLand");
+	_scherm->bereidRenderVoor("planeetgridLand", eerstePass);
 	_geo->bindVrwrkrOpslagen(*_scherm);
 	if(!_cfg.procedural)
 		_scherm->bindTextuur("marsHoogteTex", 0);
 	_geo->tekenJezelf();
 	_scherm->pasRondRenderAf();
+	eerstePass = false;
 
 	// Water-pass
 	if(_tekenWater && _overlayKeuze == 0)
@@ -1259,13 +1295,36 @@ void Simulatie::doeRenderPassen()
 		_scherm->pasRondRenderAf();
 	}
 
-	// Wolken-pass (geen culling: wolken zijn ook van de onderkant zichtbaar;
-	// de diepte-test zorgt dat ze niet dwars door de planeet heen zichtbaar zijn)
+	// IJs-pass (drijvend op de waterspiegel, echte dikte): eerst de onderkant
+	// (cull Front) op de waterspiegel, dan de bovenkant (cull Back) met het ijs erbij.
+	if(_tekenIjs && _overlayKeuze == 0)
+	{
+		weergaveInstellingen ijsInstellingen;
+		ijsInstellingen.cullMode = WGPUCullMode_Front;
+		ijsInstellingen.diepteSchrijven = true;
+		ijsInstellingen.diepteVergelijk = WGPUCompareFunction_LessEqual;
+		_scherm->zetWeergaveInstellingen(ijsInstellingen);
+
+		_scherm->bereidRenderVoor("planeetgridIjsOnder", false);
+		_geo->bindVrwrkrOpslagen(*_scherm);
+		_geo->tekenJezelf();
+		_scherm->pasRondRenderAf();
+
+		ijsInstellingen.cullMode = WGPUCullMode_Back;
+		_scherm->zetWeergaveInstellingen(ijsInstellingen);
+
+		_scherm->bereidRenderVoor("planeetgridIjs", false);
+		_geo->bindVrwrkrOpslagen(*_scherm);
+		_geo->tekenJezelf();
+		_scherm->pasRondRenderAf();
+	}
+
+	// ── Wolken: voorkanten als laatste (bovenop) ────────────────────────
 	if(_tekenWolken && _overlayKeuze == 0)
 	{
 		weergaveInstellingen wolkInstellingen;
 		wolkInstellingen.blenden = true;
-		wolkInstellingen.cullMode = WGPUCullMode_None;
+		wolkInstellingen.cullMode = WGPUCullMode_Back;
 		wolkInstellingen.diepteSchrijven = false;
 		wolkInstellingen.diepteVergelijk = WGPUCompareFunction_Less;
 		_scherm->zetWeergaveInstellingen(wolkInstellingen);
