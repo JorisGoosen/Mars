@@ -6,7 +6,10 @@
 //Vergelijkt de diepte van het punt met de kaart (3x3 PCF): 1 = vol licht,
 //0 = diepe schaduw. De rand loopt gradueel (penumbra): over schaduwZacht aan
 //diepteverschil zakt de factor van 1 naar 0, i.p.v. een harde aan/uit-knip.
-fn zonSchaduwFactor(pr : vec3f, kaartGrootte : f32) -> f32 {
+//zonshoogte (0..1) verzacht de schaduw bij een laagstaande zon: scherende
+//straling rekt schaduwen uit tot pool-tot-pool-strepen die dwars door de
+//planeet lijken te lopen; dichtbij de horizon vervaagt de schaduw naar vol licht.
+fn zonSchaduwFactor(pr : vec3f, kaartGrootte : f32, zonshoogte : f32) -> f32 {
     if(!zonBinnenKaart(pr)) {
         return 1.0;
     }
@@ -20,5 +23,6 @@ fn zonSchaduwFactor(pr : vec3f, kaartGrootte : f32) -> f32 {
             som += 1.0 - smoothstep(0.0, schaduwZacht, d);
         }
     }
-    return som / 9.0;
+    let factor = som / 9.0;
+    return mix(1.0, factor, smoothstep(0.02, 0.10, zonshoogte));
 }

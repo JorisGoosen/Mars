@@ -3,7 +3,6 @@
 //identiek aan de land-pass (vakHoogte / grondMult) en de projectie is analytisch
 //(zonProjectie), precies zoals de fragment-lookup en de reken-shaders hem gebruiken.
 #include "planeetDefinitiesRender.wgsl"
-#include "zonSchaduw.wgsl"
 
 struct vertexIn {
     @location(0) posV : vec3f,

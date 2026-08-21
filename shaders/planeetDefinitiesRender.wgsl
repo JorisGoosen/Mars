@@ -1,6 +1,7 @@
 //Hulpdefinities voor de weergave-vertex-shaders.
 //De opslag-buffers hangen hier aan bind-groep 2 (zoals Gereedschap die bindt).
 #include "planeetStructen.wgsl"
+#include "zonSchaduw.wgsl"
 
 @group(0) @binding(2) var<uniform> extra : extraParameters;
 
@@ -29,6 +30,19 @@ fn vakHoogteNormaal(id : u32, water : bool) -> vec3f {
 //land, water én ijs liggen i.p.v. altijd op het kale terrein.
 fn oppervlakTopHoogte(id : u32) -> f32 {
     return grondHoogte(vakken0[id]) + vakken0[id].waterSchijn + vakken0[id].ijs;
+}
+
+//Spiegelpositie van de schaduwkaart-CASTERS: het bovenste zichtbare oppervlak op
+//de vertex-richting posV, met dezelfde epsilon-push langs de zon als de
+//schaduw-pass zelf (planeetgridVertSchaduw.wgsl). Elke schaduw-LOOKUP moet deze
+//positie bemonsteren — niet het eigen render-oppervlak — anders correleren kaart
+//en lezer niet: de oude zeebodem-lookup las op elke nat/ijectige cel het
+//"waterspiegel-membraan" erboven en gaf bij lage zon schaduwbanden die dwars
+//door de planeet leken te lopen.
+fn schaduwSpiegelPos(posV : vec3f, id : u32) -> vec3f {
+    let top = oppervlakTopHoogte(id);
+    let zon = normalize(extra.zonPos.xyz);
+    return posV * (max(0.001, 1.0 + top * extra.grondSchaal) / extra.grondMult) - zon * schaduwEpsilon;
 }
 
 fn berekenNormaal(id : u32, water : bool) -> vec3f {

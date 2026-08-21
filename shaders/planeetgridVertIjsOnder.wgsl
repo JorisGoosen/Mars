@@ -42,7 +42,9 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
 
     //Normaal gespiegeld: de onderzijde lijkt donker (in de schaduw).
     uit.normaal = -normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, true), 0.0)).xyz);
-    uit.modelPos = hier;
+    //Onderkant rendert op de waterspiegel, maar de schaduw-lookup spiegelt de
+    //casters (bovenste oppervlak): consistent met land/water/ijs-bovenkant.
+    uit.modelPos = schaduwSpiegelPos(in.posV, ID);
     uit.glPos = matrices.projectie * matrices.modelZicht * vec4f(hier, 1.0);
 
     return uit;

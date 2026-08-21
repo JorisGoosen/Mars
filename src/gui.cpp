@@ -441,7 +441,7 @@ void guiOverlay::bouwen()
 			ImGui::BulletText("WASD/QE = bewegen | pijltjes = draaien");
 			ImGui::BulletText("Space = pauzeer/start | B = zon-omloop | N = schaduw");
 			ImGui::BulletText("R = rotatie | X = water | C = wolken");
-			ImGui::BulletText("1-9/0 = overlays | Enter = stap | ;/' = hoogte");
+			ImGui::BulletText("1-9/0 = overlays | - = schaduwdebug | Enter = stap | ;/' = hoogte");
 			ImGui::BulletText("K/L = verdamping | G/H = coriolis");
 			ImGui::BulletText("U/I = zonkracht | O/P = wrijving | ./ = neerslag");
 			ImGui::Separator();
@@ -455,10 +455,10 @@ void guiOverlay::bouwen()
 	if(ImGui::BeginViewportSideBar("overlaybalk", viewport, ImGuiDir_Down, 38.0f * _schaal,
 			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
 	{
-		static const char* overlays[11] = {
+		static const char* overlays[12] = {
 			"Natuurlijk", "Temperatuur", "Wind & druk", "Bodemvocht",
 			"Lucht/Wolken", "IJs/Water", "Wolken", "Zonlicht", "Leven", "Hoogte",
-			"Water & droesem"
+			"Water & droesem", "Schaduw"
 		};
 		const ImVec4 actiefAchterG = ImVec4(0.25f, 0.55f, 0.90f, 1.0f);  //opvallend blauw
 		const ImVec4 actiefTekst    = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -473,7 +473,7 @@ void guiOverlay::bouwen()
 			_schaal = std::clamp(_schaal, 0.25f, 4.0f);
 		ImGui::SameLine();
 
-		for(int i = 0; i < 11; i++)
+		for(int i = 0; i < 12; i++)
 		{
 			const bool gekozen = (*t.overlayKeuze == i);
 			if(gekozen)

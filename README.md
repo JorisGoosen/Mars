@@ -146,6 +146,14 @@ ijs-fragmentshaders doen een 3×3 PCF-lookup en dempen het diffuse licht waar
 bergen, ijs of de waterspiegel tussen het punt en de zon staan; de waterspiegel
 werpt schaduw op de zeebodem eronder.
 
+De lezende fragmenten bemonsteren exact de **spiegelpositie van de casters**
+(`schaduwSpiegelPos` in `planeetDefinitiesRender.wgsl`: bovenste oppervlak +
+dezelfde epsilon-push), zodat kaart en lookup perfect correleren. Bij een
+laagstaande zon vervaagt de schaduwsterkte met de zonshoogte (`zonSchaduwPCF`),
+anders rekt scherende schaduw uit tot banden die dwars door de planeet lijken te
+lopen. De schaduw-debugoverlay (toets **-** of "Schaduw" in de onderbalk) toont
+de ruwe schaduwkaart-factor: wit = vol licht, rood = schaduw.
+
 De zonpositie staat vast in het beeld: de cameradraai (sleep op de planeet) laat
 haar bewust niet meebewegen. Alleen **zonrotatie** beweegt haar: **B** (of de
 "zon-omloop"-checkbox) draait haar traag in het beeld rond, en met het

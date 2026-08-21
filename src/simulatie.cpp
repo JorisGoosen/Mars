@@ -601,6 +601,10 @@ bool Simulatie::init()
 					_overlayKeuze = 9;
 					std::cout << "Terreinhoogte-overlay." << std::endl;
 					break;
+				case GLFW_KEY_MINUS:
+					_overlayKeuze = 11;
+					std::cout << "Schaduw-overlay (ruwe schaduwkaart-factor)." << std::endl;
+					break;
 				case GLFW_KEY_ENTER:
 					_waterStap = true;
 					std::cout << "Eén sim-stap." << std::endl;

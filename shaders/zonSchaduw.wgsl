@@ -14,7 +14,9 @@ const schaduwZacht = 0.01;    //penumbra-verzachting: over dit diepteverschil (g
 const schaduwEpsilon = 0.005; //caster-oppervlak wordt langs de zon teruggeduwd (render-eenheden),
                               //zodat een oppervlak nooit zijn eigen diepte bemonstert; echte
                               //occluders dieper dan epsilon werpen nog steeds schaduw.
-const schaduwMarge = 1.02;    //marge rond de planeet voor het orthografische kader
+const schaduwMarge = 1.30;    //marge rond de planeet voor het orthografische kader: ruime
+                              //hoofdruimte, want het bovenste oppervlak (water/ijs) kan boven
+                              //hoogsteGrond() uitsteken en moet binnen de kaart blijven
 
 //Deterministische orthonormale basis (u, v, zon) loodrecht op de zonrichting.
 fn zonBasis(zon : vec3f) -> mat3x3f {

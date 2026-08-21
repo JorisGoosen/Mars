@@ -40,7 +40,7 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     //Terreinschaduw op het ijs (zelfde lookup als land/water).
     if(extra.schaduwAan > 0.5 && diffuus > 0.0) {
         let straal = zonStraal(extra.grondMult, extra.grondSchaal, extra.maxGrondHoogte);
-        diffuus *= zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte);
+        diffuus *= zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte, diffuus);
     }
 
     let kleur = vec3f(0.85, 0.9, 0.95) * max(0.2, diffuus);

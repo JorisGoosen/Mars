@@ -46,7 +46,7 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     //terrein, dus de lookup vergelijkt tegen terrein+ijs die dieper ligt.
     if(extra.schaduwAan > 0.5 && diffuus > 0.0) {
         let straal = zonStraal(extra.grondMult, extra.grondSchaal, extra.maxGrondHoogte);
-        diffuus *= zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte);
+        diffuus *= zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte, diffuus);
     }
 
     //Lichte golfjes voor wat volume/wisp in de wolken

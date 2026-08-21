@@ -133,10 +133,17 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     var schaduw = 1.0;
     if(extra.schaduwAan > 0.5 && diffuus > 0.0) {
         let straal = zonStraal(extra.grondMult, extra.grondSchaal, extra.maxGrondHoogte);
-        schaduw = zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte);
+        schaduw = zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte, diffuus);
     }
 
     var kleur = mix(in.kleur * clamp(marsHoogte * 3.0, 0.35, 1.0), vec4f(0.0, 0.35, 0.0, 1.0), clamp(in.leven, 0.0, 1.0));
+
+    //Schaduw-debugoverlay (toets - / GUI "Schaduw"): de ruwe schaduwkaart-factor
+    //als diagnosebeeld — wit = vol licht, rood = diepe schaduw. De eindkleur
+    //hieronder past dezelfde factor toe, dus dit toont exact wat de verduistering doet.
+    if(extra.overlayKeuze > 10.5 && extra.overlayKeuze < 11.5) {
+        return vec4f(mix(vec3f(1.0, 0.0, 0.0), vec3f(1.0), schaduw), 1.0);
+    }
 
     //Overlay (cijfertoetsen 1-0): vervang de oppervlaktekleur door de kleurkaart
     if(extra.overlayKeuze > 0.5) {

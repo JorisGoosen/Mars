@@ -68,7 +68,9 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
 
     let hier = in.posV * (vakHoogte(ID, false) / extra.grondMult);
 
-    uit.modelPos = hier;
+    //Schaduw-lookup op de SPIEGELpositie van de casters (bovenste oppervlak +
+    //epsilon), niet op het kale terrein: kaart en lezer correleren dan exact.
+    uit.modelPos = schaduwSpiegelPos(in.posV, ID);
     uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, false), 0.0)).xyz);
     uit.pos = matrices.modelZicht * vec4f(hier, 1.0);
     uit.glPos = matrices.projectie * uit.pos;

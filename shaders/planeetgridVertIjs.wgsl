@@ -56,7 +56,9 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
 
     //Belichting volgt de waterspiegel (glad ijsdek).
     uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, true), 0.0)).xyz);
-    uit.modelPos = hier;
+    //Schaduw-lookup op de spiegelpositie (zonder de ijsLift-render-truc): de
+    //schaduwkaart zelf bevat het echte ijs-top.
+    uit.modelPos = schaduwSpiegelPos(in.posV, ID);
     uit.glPos = matrices.projectie * matrices.modelZicht * vec4f(hier, 1.0);
 
     return uit;

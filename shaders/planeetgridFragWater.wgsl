@@ -95,7 +95,7 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     //Terrein-schaduw: bergen gooien hun schaduw ook op het water/ijs
     if(extra.schaduwAan > 0.5 && diffuus > 0.0) {
         let straal = zonStraal(extra.grondMult, extra.grondSchaal, extra.maxGrondHoogte);
-        schaduw = zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte);
+        schaduw = zonSchaduwFactor(zonProjectie(in.modelPos, zonModel, straal), extra.schaduwGrootte, diffuus);
         diffuus *= schaduw;
     }
 
