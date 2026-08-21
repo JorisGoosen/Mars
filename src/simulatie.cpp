@@ -1295,8 +1295,11 @@ void Simulatie::doeRenderPassen()
 	_scherm->pasRondRenderAf();
 	eerstePass = false;
 
-	// IJs-onderkant (drijvend op de waterspiegel): eerst de onderkant (cull Front),
-	// vóór het water, zodat het ijs onder de waterspiegel correct gesorteerd is.
+	// IJs-passen (drijvend op de waterspiegel): onder- én bovenkant vóór het water.
+	// Beide schrijven diepte, zodat het transparante water (LessEqual, geen
+	// diepte-schrijf) daarna alleen tekent waar het vóór het ijs ligt: een grote
+	// waterbult die boven het ijs uitsteekt bedekt het ijs correct, en waar het
+	// water ónder de ijs-top ligt faalt de dieptetest (ijs blijft schoon).
 	if(_tekenIjs && _overlayKeuze == 0)
 	{
 		weergaveInstellingen ijsInstellingen;
@@ -1309,9 +1312,20 @@ void Simulatie::doeRenderPassen()
 		_geo->bindVrwrkrOpslagen(*_scherm);
 		_geo->tekenJezelf();
 		_scherm->pasRondRenderAf();
+
+		//Bovenkant (cull Back, echte ijsdikte) direct erbovenop.
+		ijsInstellingen.cullMode = WGPUCullMode_Back;
+		_scherm->zetWeergaveInstellingen(ijsInstellingen);
+
+		_scherm->bereidRenderVoor("planeetgridIjs", false);
+		_geo->bindVrwrkrOpslagen(*_scherm);
+		_geo->tekenJezelf();
+		_scherm->pasRondRenderAf();
 	}
 
-	// Water-pass
+	// Water-pass: tekent na het ijs; op de waterlijn ligt de ijs-onderkant op
+	// gelijke hoogte als het water, dus LessEqual laat het water daar over die
+	// rand tekenen (de ijswand onder de waterlijn krijgt een watertint).
 	if(_tekenWater && _overlayKeuze == 0)
 	{
 		weergaveInstellingen waterInstellingen;
@@ -1324,21 +1338,6 @@ void Simulatie::doeRenderPassen()
 		_scherm->bereidRenderVoor("planeetgridWater", false);
 		_geo->bindVrwrkrOpslagen(*_scherm);
 		_scherm->bindTextuur("waterBumpTex", 0);
-		_geo->tekenJezelf();
-		_scherm->pasRondRenderAf();
-	}
-
-	// IJs-bovenkant (cull Back) met het ijs erbij, bovenop het water.
-	if(_tekenIjs && _overlayKeuze == 0)
-	{
-		weergaveInstellingen ijsInstellingen;
-		ijsInstellingen.cullMode = WGPUCullMode_Back;
-		ijsInstellingen.diepteSchrijven = true;
-		ijsInstellingen.diepteVergelijk = WGPUCompareFunction_LessEqual;
-		_scherm->zetWeergaveInstellingen(ijsInstellingen);
-
-		_scherm->bereidRenderVoor("planeetgridIjs", false);
-		_geo->bindVrwrkrOpslagen(*_scherm);
 		_geo->tekenJezelf();
 		_scherm->pasRondRenderAf();
 	}
