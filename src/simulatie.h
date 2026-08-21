@@ -242,7 +242,7 @@ private:
 
 	// ── Toestand ──────────────────────────────────────────────────────────
 	glm::vec3 _kijkPlek;
-	glm::vec3 _zonPos = glm::normalize(glm::vec3(0.3f, 0.2f, 1.0f)); //render-zon (los van de sim-zon); B/sleep-roteren veranderen alleen dit
+	glm::vec3 _zonPos = glm::normalize(glm::vec3(0.3f, 0.2f, 1.0f)); //render-zon als kijkrichting (vast in het beeld; alleen B/sleep-rotatie beweegt haar — cameradraai niet); per frame naar modelruimte voor de shaders
 	float     _grondMult    = 100.0f;
 	float     _grondSchaal  = 1.0f;
 	float _verdamping   = 0.0001f;

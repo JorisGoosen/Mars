@@ -664,16 +664,14 @@ bool Simulatie::init()
 		_gereedschap = new verplaatsGereedschap(_scherm);
 		_penseelGereedschap = new penseelGereedschap(_scherm, _geo);
 
-		//Sleep op de ACHTERGROND (pick mist de planeet) roteert de zichtbare zon om
-		//de origin, via de camera-asjes; sleep op de planeet blijft cameradraai.
-		//De sim-zon merkt hier niets van: die kent alleen jaar-/dagvertellers.
+		//Sleep op de ACHTERGROND (pick mist de planeet) roteert de zichtbare zon in
+		//het beeld (view-ruimte); sleep op de planeet draait de camera. De zon
+		//beweegt dus ALLEEN door zonrotatie (B of deze sleep) — cameradraai van
+		//de planeet laat haar vast staan in de viewer. De sim-zon merkt niets.
 		_gereedschap->zetZonRoteer([this](double dx, double dy)
 		{
-			glm::mat4 invMZ  = glm::inverse(_scherm->modelZicht());
-			glm::vec3 rechts = glm::normalize(glm::vec3(invMZ[0]));
-			glm::vec3 omhoog = glm::normalize(glm::vec3(invMZ[1]));
-			glm::mat4 zonDraai = glm::rotate(glm::mat4(1.0f), (float)(-dx * 0.005), omhoog)
-			                   * glm::rotate(glm::mat4(1.0f), (float)(dy * 0.005), rechts);
+			glm::mat4 zonDraai = glm::rotate(glm::mat4(1.0f), (float)(-dx * 0.005f), glm::vec3(0.0f, 1.0f, 0.0f))
+			                   * glm::rotate(glm::mat4(1.0f), (float)(dy * 0.005f), glm::vec3(1.0f, 0.0f, 0.0f));
 			_zonPos = glm::normalize(glm::vec3(zonDraai * glm::vec4(_zonPos, 0.0f)));
 		});
 
@@ -935,9 +933,12 @@ void Simulatie::stap()
 		if(_gui) _gui->beginFrame((float)dt);
 	}
 
-	// ── Zon: de render-zon blijft een vaste richting in de viewer ──────────
-	//(B laat haar traag om de origin draaien; sleep op de achtergrond draait haar
-	// met de hand). De sim-zon (rekenPar.zonRicht hieronder) is hier los van.
+	// ── Zon: de render-zon staat vast in de VIEWER (een kijkrichting) ─────
+	//Alleen zonrotatie beweegt haar: B draait haar omhoog/opzij in het beeld,
+	//sleep op de achtergrond roteert haar met de hand. Camera-/planeetdraai doet
+	//niets met _zonPos (de extra-uniformz wordt per frame naar modelruimte omgezet
+	//zodat de schaduwkaart/fragments hem in het beeld stilhouden). De sim-zon
+	//(rekenPar.zonRicht hieronder) staat daar volledig los van.
 	if(!_cfg.bevroren && _zonRoteert)
 		_zonPos = glm::normalize(glm::vec3(
 			glm::rotate(glm::mat4(1.0f), 0.003f, glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(_zonPos, 0.0f)));
@@ -947,13 +948,17 @@ void Simulatie::stap()
 
 	// ── Uniformen ───────────────────────────────────────────────────────
 	_kijkPlek = glm::vec3(glm::inverse(_scherm->modelZicht())[3]);
+	//De viewer-zon is een kijkrichting; modelruimte-versie voor shaders en
+	//schaduwkaart: inverse(MZ) — cameradraai laat haar daardoor in beeld vast.
+	glm::vec3 zonModel = glm::normalize(glm::vec3(
+		glm::inverse(_scherm->modelZicht()) * glm::vec4(_zonPos, 0.0f)));
 	_extra[0]  = _grondMult;
 	_extra[1]  = _grondSchaal;
 	_extra[2]  = (float)_cfg.schaduwGrootte;
 	_extra[3]  = _wolkAlpha;
 	_extra[4]  = _kijkPlek.x; _extra[5] = _kijkPlek.y; _extra[6] = _kijkPlek.z;
 	_extra[7]  = _waterReflectie;
-	_extra[8]  = _zonPos.x;   _extra[9] = _zonPos.y;   _extra[10] = _zonPos.z;
+	_extra[8]  = zonModel.x;  _extra[9] = zonModel.y;   _extra[10] = zonModel.z;
 	_extra[12] = _geo->hoogsteGrond();
 	_extra[13] = (float)_overlayKeuze;
 	_extra[14] = 0.0f;

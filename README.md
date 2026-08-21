@@ -146,10 +146,11 @@ ijs-fragmentshaders doen een 3×3 PCF-lookup en dempen het diffuse licht waar
 bergen, ijs of de waterspiegel tussen het punt en de zon staan; de waterspiegel
 werpt schaduw op de zeebodem eronder.
 
-De zonpositie staat stil in de viewer. **B** (of de "zon-omloop"-checkbox) laat
-haar traag om de origin draaien; met het verplaats-gereedschap roteer je haar met
-de hand: sleep op de **planeet** = camera draaien (trackball), sleep op de
-**achtergrond** = de zon om de origin draaien. De sim merkt daar niets van.
+De zonpositie staat vast in het beeld: de cameradraai (sleep op de planeet) laat
+haar bewust niet meebewegen. Alleen **zonrotatie** beweegt haar: **B** (of de
+"zon-omloop"-checkbox) draait haar traag in het beeld rond, en met het
+verplaats-gereedschap roteer je haar met de hand: sleep op de **achtergrond** =
+de zon draaien, sleep op de planeet = camera draaien. De sim merkt daar niets van.
 
 ### Sim-zon (`zonlicht`)
 Het klimaat-veld `zonlicht` (per cel, in `vak`) is een lopend **daggemiddelde**
