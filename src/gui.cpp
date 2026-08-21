@@ -5,6 +5,7 @@
 #include "gereedschapUitvoer.h"
 #include <GLFW/glfw3.h>
 #include "imgui_internal.h"
+#include <algorithm>
 
 // ── Invoermapping GLFW -> ImGui ──────────────────────────────────────────────
 
@@ -411,6 +412,7 @@ void guiOverlay::bouwen()
 			ImGui::Checkbox("zon-rotatie", t.zonRoteert);
 			ImGui::SameLine();
 			ImGui::Checkbox("planeet-rotatie", t.roteerMaar);
+			ImGui::SliderFloat("waterreflectie", t.waterReflectie, 0.0f, 2.0f, "%.2f");
 			if(ImGui::Button("Eén sim-stap"))
 				*t.waterStap = true;
 			ImGui::SameLine();
@@ -464,11 +466,12 @@ void guiOverlay::bouwen()
 
 		ImGui::BeginChild("ovk", ImVec2(0, 0), false, ImGuiWindowFlags_NoScrollbar);
 
-		//Links: ImGui-schaal (label links van de slider).
+		//Links: ImGui-schaal (label links; intikveld, pas toe bij Enter/wegklikken).
 		ImGui::TextUnformatted("imguischaal");
 		ImGui::SameLine();
-		ImGui::SetNextItemWidth(70.0f * _schaal);
-		ImGui::SliderFloat("##imguischaal", &_schaal, 0.25f, 4.0f, "%.2f");
+		ImGui::SetNextItemWidth(60.0f * _schaal);
+		if(ImGui::InputFloat("##imguischaal", &_schaal, 0.05f, 0.5f, "%.2f"))
+			_schaal = std::clamp(_schaal, 0.25f, 4.0f);
 		ImGui::SameLine();
 
 		for(int i = 0; i < 11; i++)

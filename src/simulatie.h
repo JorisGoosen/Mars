@@ -193,6 +193,7 @@ public:
 		bool  *schaduwAan, *erosieAan, *levenAan, *atmosfeerAan, *waterStap;
 		int   *overlayKeuze;
 		float *wolkAlpha;
+		float *waterReflectie;
 		size_t* luchtStappen;
 	};
 	Tunables tunables();
@@ -287,6 +288,7 @@ private:
 	float     _seizoenTeller = 0.0f;
 	int       _overlayKeuze = 0;
 	float     _wolkAlpha    = 1.0f; //doorzichtigheid van het wolkendek (0..1)
+	float     _waterReflectie = 1.0f; //sterkte waterspiegel + randreflectie (0..2)
 
 	bool _roteerMaar      = false;
 	bool _waterStroomt    = true;

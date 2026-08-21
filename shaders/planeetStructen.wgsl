@@ -189,7 +189,7 @@ struct extraParameters {
     schaduwGrootte : f32, //resolutie van de schaduwkaart (pixels per zijde)
     wolkAlpha   : f32, //doorzichtigheid van het wolkendek (0 = onzichtbaar, 1 = dekkend; GUI-slider)
     kijkPlek    : vec3f,
-    _padC       : f32,
+    waterReflectie : f32, //sterkte van de waterspiegel+randreflectie (GUI-slider; ex-_padC)
     zonPos      : vec3f,
     _padD       : f32,
     maxGrondHoogte : f32, //hoogste terreinpunt (bepaald bij het laden); basis voor het wolkendek

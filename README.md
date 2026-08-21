@@ -132,7 +132,8 @@ plek op te laaien. Zie ook `--luchtstappen` om de beweging per beeld te
 versnellen.
 
 ## Schaduwkaart & binnenkomend zonlicht
-Elke frame wordt het terrein in een orthografische dieptekaart gerenderd, bekeken
+Elke frame wordt het bovenste zichtbare oppervlak (terrein, waterspiegel en drijvend
+ijs) in een orthografische dieptekaart gerenderd, bekeken
 vanuit de zon (de *schaduwkaart*; toets **N**, `--zonder-schaduw`,
 `--schaduwGrootte`). De projectie is analytisch (`zonProjectie` in
 `shaders/zonSchaduw.wgsl`): dezelfde formule in de schaduw-pass, de fragment-shaders
@@ -140,7 +141,9 @@ en de reken-shaders, dus geen matrices om uit de pas te lopen.
 
 De kaart wordt drie keer gebruikt:
 1. **Weergave**: de land/water-fragmentshader doet een 3×3 PCF-lookup en dempt het
-   diffuse licht waar bergen/flanken tussen het punt en de zon staan.
+   diffuse licht waar bergen, ijs of de waterspiegel tussen het punt en de zon staan.
+   Het water wordt op zijn eigen oppervlaktehoogte bemonsterd; de waterspiegel werpt
+   schaduw op de zeebodem eronder.
 2. **Energiebalans**: `luchtStroming.comp` projecteert elke cel op de kaart en
    vermenigvuldigt de instraling met de gevonden zichtfactor — dalen en
    kraterwanden in de schaduw van een berg warmen dus echt langzamer op. De fractie

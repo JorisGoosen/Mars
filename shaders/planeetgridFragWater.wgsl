@@ -104,7 +104,8 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     if(diffuus > 0.0) {
         //De spiegel wordt óók gedimd met het schaduwbedrag: in halfschaduw niet
         //vol stonderschaduw, in volle schaduw volledig uit.
-        lichtheid = pow(max(0.0, dot(lichtSpiegel, oogRicht)), 200.0) * 0.8 * schaduw;
+        lichtheid = pow(max(0.0, dot(lichtSpiegel, oogRicht)), 150.0) * schaduw * extra.waterReflectie;
+        lichtheid = min(lichtheid, 1.0);
     }
 
     //Basiswaterkleur: blauw, maar mengt naar modderbruin naarmate er droesem in zit.
@@ -114,6 +115,13 @@ fn main(in : naarFrag) -> @location(0) vec4f {
     //diff belicht/verduisterd: het wit volgt dus óók de nachtzijde (lichtval).
     var waterRgb = mix(waterKleur, vec3f(1.0), in.kleur.g) * max(0.15, diffuus);
     waterRgb = mix(waterRgb, vec3f(1.0), lichtheid);
+
+    //Fresnel-rand: schuin gekeken water (randen/silhouet) reflecteert extra een
+    //lichtblauw-witte 'hemel'-gloed, meeschalend met het daglicht en de slider.
+    //kleur.a blijft erbuiten, anders wordt de planeetrand opaak.
+    let fresnel = pow(1.0 - clamp(dot(oogRicht, vervormdN), 0.0, 1.0), 1.5);
+    waterRgb = mix(waterRgb, vec3f(0.85, 0.93, 1.0), fresnel * max(0.15, diffuus) * 0.30 * extra.waterReflectie);
+
     var kleur = vec4f(waterRgb, in.kleur.a);
 
     kleur.a = max(kleur.a, lichtheid);

@@ -9,6 +9,8 @@
 //de rand van de planeet net buiten de kaart valt (alles buiten de kaart = verlicht).
 
 const schaduwBias = 0.0002;   //diepte-marge tegen zelf-schaduw (acne), in genormaliseerde diepte
+const schaduwZacht = 0.01;    //penumbra-verzachting: over dit diepteverschil (genormaliseerd, ≈ 4 hoogte-eenheden)
+                              //loopt de schaduwrand gradueel van vol licht naar volle schaduw
 const schaduwEpsilon = 0.005; //caster-oppervlak wordt langs de zon teruggeduwd (render-eenheden),
                               //zodat een oppervlak nooit zijn eigen diepte bemonstert; echte
                               //occluders dieper dan epsilon werpen nog steeds schaduw.

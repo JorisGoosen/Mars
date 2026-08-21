@@ -14,9 +14,10 @@ struct vertexIn {
 fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> @builtin(position) vec4f {
     let ID = vertexIndex;
 
-    //IJs ligt bovenop het terrein en werpt dus zelf schaduw: de kaart bevat
-    //terreinhoogte + ijs. Vloeibaar water telt niet mee (dat is doorzichtig).
-    let schaduwHoogte = grondHoogte(vakken0[ID]) + vakken0[ID].ijs;
+    //De kaart bevat het bovenste zichtbare oppervlak: terrein + waterspiegel +
+    //ijs. Het ijs drijft op het water (grond + waterSchijn + ijs), precies zoals
+    //de render-pass hem tekent — niet zoals de sim het als "grond onder water" rekent.
+    let schaduwHoogte = grondHoogte(vakken0[ID]) + vakken0[ID].waterSchijn + vakken0[ID].ijs;
 
     let zon  = normalize(extra.zonPos.xyz);
     //Duw de caster een epsilon van de zon af zodat vlakken die van de zon af kijken

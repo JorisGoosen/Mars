@@ -919,7 +919,7 @@ Simulatie::Tunables Simulatie::tunables()
 		&_levensDamp, &_waterDoodTempo,
 		&_cfg.bevroren, &_waterStroomt, &_tekenWater, &_tekenIjs, &_tekenWolken, &_zonRoteert, &_roteerMaar,
 		&_cfg.schaduwAan, &_cfg.erosieAan, &_cfg.levenAan, &_cfg.atmosfeerAan, &_waterStap,
-		&_overlayKeuze, &_wolkAlpha, &_cfg.luchtStappen
+		&_overlayKeuze, &_wolkAlpha, &_waterReflectie, &_cfg.luchtStappen
 	};
 }
 
@@ -969,6 +969,7 @@ void Simulatie::stap()
 	_extra[2]  = (float)_cfg.schaduwGrootte;
 	_extra[3]  = _wolkAlpha;
 	_extra[4]  = _kijkPlek.x; _extra[5] = _kijkPlek.y; _extra[6] = _kijkPlek.z;
+	_extra[7]  = _waterReflectie;
 	_extra[8]  = _zonPos.x;   _extra[9] = _zonPos.y;   _extra[10] = _zonPos.z;
 	_extra[12] = _geo->hoogsteGrond();
 	_extra[13] = (float)_overlayKeuze;
