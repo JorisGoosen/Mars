@@ -249,14 +249,13 @@ void guiOverlay::bouwen()
 		if(ImGui::CollapsingHeader("Zon & verwarming", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			ImGui::SliderFloat("zonkracht",   t.zonKracht, 0.0f, 200.0f, "%.1f");
-			ImGui::SliderFloat("winterzon",   t.winterZonneKracht, 0.0f, 200.0f, "%.1f");
+			ImGui::SliderFloat("baanelips",   t.elips, 0.0f, 0.9f, "%.2f");
 			ImGui::SliderFloat("askanteling", t.obliquity, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("uitstraling", t.stralingKracht, 0.0f, 1.0f, "%.3f");
 			ImGui::SliderFloat("verwarmtijd", t.verwarmtijd, 0.01f, 1.0f, "%.2f");
 		}
 		if(ImGui::CollapsingHeader("Atmosfeer", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::SliderFloat("rotatieOmega", t.rotatieOmega, 0.0f, 1.0f, "%.4f");
 			ImGui::SliderFloat("coriolis",     t.coriolisOmega, 0.0f, 5.0f, "%.2f");
 			ImGui::SliderFloat("wrijving",     t.wrijving, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("diffusie",     t.diffusie, 0.0f, 1.0f, "%.2f");
@@ -266,7 +265,6 @@ void guiOverlay::bouwen()
 			ImGui::TextUnformatted("Verdamping & verzadiging");
 			ImGui::SliderFloat("verdamping",    t.verdamping, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("basisverzadiging", t.basisVerzadiging, 0.0f, 0.5f, "%.3f");
-			ImGui::SliderFloat("hoogtekoel",    t.hoogteKoel, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("neerslag",      t.neerslagFactor, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("orografie",     t.orografieFactor, 0.0f, 1.0f, "%.2f");
 			ImGui::Separator();
@@ -409,7 +407,7 @@ void guiOverlay::bouwen()
 			ImGui::Checkbox("wolken zichtbaar", t.tekenWolken);
 			ImGui::SameLine();
 			ImGui::Checkbox("schaduw", t.schaduwAan);
-			ImGui::Checkbox("zon-rotatie", t.zonRoteert);
+			ImGui::Checkbox("zon-omloop", t.zonRoteert);
 			ImGui::SameLine();
 			ImGui::Checkbox("planeet-rotatie", t.roteerMaar);
 			ImGui::SliderFloat("waterreflectie", t.waterReflectie, 0.0f, 2.0f, "%.2f");
@@ -433,17 +431,18 @@ void guiOverlay::bouwen()
 		if(ImGui::CollapsingHeader("Besturing"))
 		{
 			ImGui::TextUnformatted("Muis & trackpad");
-			ImGui::BulletText("Klik+slepen = planeet draaien (trackball)");
+			ImGui::BulletText("Klik+slepen op de planeet = camera draaien (trackball)");
+			ImGui::BulletText("Klik+slepen op de achtergrond = zon om de origin draaien");
 			ImGui::BulletText("Horizontale swipe = roteren");
 			ImGui::BulletText("Verticaal scrollen / pinch = zoomen");
 			ImGui::BulletText("Penseel (paneel 'Gereedschap'): links-sleep = schilderen, Shift+links = verwijderen, rechts-sleep = draaien, wiel = zoomen");
 			ImGui::Separator();
 			ImGui::TextUnformatted("Toetsen");
 			ImGui::BulletText("WASD/QE = bewegen | pijltjes = draaien");
-			ImGui::BulletText("Space = pauzeer/start | B = zon | N = schaduw");
+			ImGui::BulletText("Space = pauzeer/start | B = zon-omloop | N = schaduw");
 			ImGui::BulletText("R = rotatie | X = water | C = wolken");
 			ImGui::BulletText("1-9/0 = overlays | Enter = stap | ;/' = hoogte");
-			ImGui::BulletText("K/L = verdamping | [/] = dagduur | G/H = coriolis");
+			ImGui::BulletText("K/L = verdamping | G/H = coriolis");
 			ImGui::BulletText("U/I = zonkracht | O/P = wrijving | ./ = neerslag");
 			ImGui::Separator();
 			ImGui::TextWrapped("Let op: diepte 9/10 betekent ~5M/20M vakjes "
@@ -458,7 +457,7 @@ void guiOverlay::bouwen()
 	{
 		static const char* overlays[11] = {
 			"Natuurlijk", "Temperatuur", "Wind & druk", "Bodemvocht",
-			"Lucht/Wolken", "IJs/Water", "Wolken", "ZonZicht", "Leven", "Hoogte",
+			"Lucht/Wolken", "IJs/Water", "Wolken", "Zonlicht", "Leven", "Hoogte",
 			"Water & droesem"
 		};
 		const ImVec4 actiefAchterG = ImVec4(0.25f, 0.55f, 0.90f, 1.0f);  //opvallend blauw

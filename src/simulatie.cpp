@@ -119,7 +119,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 	std::ofstream & uit = *t->uit;
 	if(t->teller == 0)
 		uit << "id,x,y,z,grond,rots,zand,water,bodemVocht,leven,droesem,luchtVocht,"
-		       "temperatuur,luchtdruk,windX,windY,wolken,ijs,zonZicht,asym\n";
+		       "temperatuur,luchtdruk,windX,windY,wolken,ijs,zonlicht,asym\n";
 
 	for(size_t i = 0; i < aantal; i++)
 	{
@@ -130,7 +130,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 			<< cel.bodemVocht << "," << cel.leven << "," << cel.droesem << ","
 			<< cel.luchtVocht << "," << cel.temperatuur << "," << cel.luchtdruk << ","
 			<< cel.wind.x << "," << cel.wind.y << "," << cel.wolken << ","
-			<< cel.ijs << "," << cel.zonZicht << "," << t->geo->buurAsymmetrie(i) << "\n";
+			<< cel.ijs << "," << cel.zonlicht << "," << t->geo->buurAsymmetrie(i) << "\n";
 	}
 
 	wgpuBufferUnmap(t->buffer);
@@ -227,7 +227,7 @@ static float veldWaardeC(const vak & c, const std::string & veld)
 	if(veld == "wolken")   return c.wolken;
 	if(veld == "leven")    return c.leven;
 	if(veld == "droesem")  return c.droesem;
-	if(veld == "zonZicht" || veld == "zonlicht") return c.zonZicht;
+	if(veld == "zonZicht" || veld == "zonlicht") return c.zonlicht;
 	if(veld == "bodemvocht") return c.bodemVocht;
 	if(veld == "luchtvocht") return c.luchtVocht;
 	return c.temperatuur;
@@ -424,6 +424,7 @@ bool Simulatie::init()
 	_scherm->maakRekenShader("luchtStroming",  "shaders/luchtStroming.comp");
 	_scherm->maakRekenShader("vochtStroming",  "shaders/vochtStroming.comp");
 	_scherm->maakRekenShader("waterLucht",     "shaders/waterLucht.comp");
+	_scherm->maakRekenShader("zonSchijn",      "shaders/zonSchijn.comp");
 	_scherm->maakRekenShader("penseel",        "shaders/penseel.comp");
 
 	_scherm->maakDiepteShader("planeetSchaduw", "shaders/planeetgridVertSchaduw.wgsl");
@@ -534,7 +535,7 @@ bool Simulatie::init()
 					break;
 				case GLFW_KEY_B:
 					_zonRoteert = !_zonRoteert;
-					std::cout << "Zon " << (_zonRoteert ? "voort" : "stil") << "." << std::endl;
+					std::cout << "Zon " << (_zonRoteert ? "draait om de oorsprong" : "staat stil in de viewer") << "." << std::endl;
 					break;
 				case GLFW_KEY_N:
 					_cfg.schaduwAan = !_cfg.schaduwAan;
@@ -590,7 +591,7 @@ bool Simulatie::init()
 					break;
 				case GLFW_KEY_8:
 					_overlayKeuze = 7;
-					std::cout << "ZonZicht-overlay." << std::endl;
+					std::cout << "Zonlicht-overlay." << std::endl;
 					break;
 				case GLFW_KEY_9:
 					_overlayKeuze = 8;
@@ -619,30 +620,6 @@ bool Simulatie::init()
 				case GLFW_KEY_L:
 					_verdamping = glm::max(0.0f, _verdamping + 0.001f);
 					std::cout << "Verdamping = " << _verdamping << "." << std::endl;
-					break;
-				case GLFW_KEY_LEFT_BRACKET:
-					if(mods & GLFW_MOD_SHIFT)
-					{
-						_winterZonneKracht = glm::max(0.0f, _winterZonneKracht - 5.0f);
-						std::cout << "Winterzonkracht = " << _winterZonneKracht << "." << std::endl;
-					}
-					else
-					{
-						_rotatieOmega = glm::max(0.0f, _rotatieOmega - 0.002f);
-						std::cout << "RotatieOmega = " << _rotatieOmega << "." << std::endl;
-					}
-					break;
-				case GLFW_KEY_RIGHT_BRACKET:
-					if(mods & GLFW_MOD_SHIFT)
-					{
-						_winterZonneKracht = glm::min(_zonKracht, _winterZonneKracht + 5.0f);
-						std::cout << "Winterzonkracht = " << _winterZonneKracht << "." << std::endl;
-					}
-					else
-					{
-						_rotatieOmega = glm::min(0.2f, _rotatieOmega + 0.002f);
-						std::cout << "RotatieOmega = " << _rotatieOmega << "." << std::endl;
-					}
 					break;
 				case GLFW_KEY_G:
 					_coriolisOmega = glm::max(0.0f, _coriolisOmega - 0.05f);
@@ -686,6 +663,19 @@ bool Simulatie::init()
 		_gui = new guiOverlay(*this);
 		_gereedschap = new verplaatsGereedschap(_scherm);
 		_penseelGereedschap = new penseelGereedschap(_scherm, _geo);
+
+		//Sleep op de ACHTERGROND (pick mist de planeet) roteert de zichtbare zon om
+		//de origin, via de camera-asjes; sleep op de planeet blijft cameradraai.
+		//De sim-zon merkt hier niets van: die kent alleen jaar-/dagvertellers.
+		_gereedschap->zetZonRoteer([this](double dx, double dy)
+		{
+			glm::mat4 invMZ  = glm::inverse(_scherm->modelZicht());
+			glm::vec3 rechts = glm::normalize(glm::vec3(invMZ[0]));
+			glm::vec3 omhoog = glm::normalize(glm::vec3(invMZ[1]));
+			glm::mat4 zonDraai = glm::rotate(glm::mat4(1.0f), (float)(-dx * 0.005), omhoog)
+			                   * glm::rotate(glm::mat4(1.0f), (float)(dy * 0.005), rechts);
+			_zonPos = glm::normalize(glm::vec3(zonDraai * glm::vec4(_zonPos, 0.0f)));
+		});
 
 		//Readback-buffer voor de pick-pass (1 texel, 256 bytes; bytesPerRow-alignment).
 		WGPUBufferDescriptor pickDesc = WGPU_BUFFER_DESCRIPTOR_INIT;
@@ -867,8 +857,8 @@ void Simulatie::_maakPlaneet()
 void Simulatie::_resetStaat()
 {
 	_frameNummer     = 0;
-	_dagHoek         = 0.0f;
-	_seizoenTeller   = 0.0f;
+	_jaarTeller      = 0;
+	_zonSlotTeller   = 0;
 	_waterStap       = false;
 	_loopStart       = std::chrono::steady_clock::now();
 	_vorigeFrameTijd = _loopStart;
@@ -907,9 +897,9 @@ bool Simulatie::herstart(const SimulatieConfig & nieuweCfg)
 Simulatie::Tunables Simulatie::tunables()
 {
 	return {
-		&_zonKracht, &_winterZonneKracht, &_obliquity, &_verwarmtijd, &_stralingKracht,
-		&_rotatieOmega, &_coriolisOmega, &_wrijving, &_diffusie,
-		&_verdamping, &_basisVerzadiging, &_hoogteKoel, &_neerslagFactor, &_orografieFactor,
+		&_zonKracht, &_elips, &_obliquity, &_verwarmtijd, &_stralingKracht,
+		&_coriolisOmega, &_wrijving, &_diffusie,
+		&_verdamping, &_basisVerzadiging, &_neerslagFactor, &_orografieFactor,
 		&_grondMult, &_grondSchaal,
 		&_zandErosie, &_rotsErosie, &_bezinkheid, &_zandRepose, &_hellingKracht, &_oplosheid,
 		&_evapotranspiratie, &_infiltratie, &_bodemDiffusie, &_veldCapaciteit,
@@ -945,19 +935,12 @@ void Simulatie::stap()
 		if(_gui) _gui->beginFrame((float)dt);
 	}
 
-	// ── Zonrotatie ──────────────────────────────────────────────────────
+	// ── Zon: de render-zon blijft een vaste richting in de viewer ──────────
+	//(B laat haar traag om de origin draaien; sleep op de achtergrond draait haar
+	// met de hand). De sim-zon (rekenPar.zonRicht hieronder) is hier los van.
 	if(!_cfg.bevroren && _zonRoteert)
-	{
-		_dagHoek += _rotatieOmega;
-		_seizoenTeller += _rotatieOmega;
-	}
-	_dagHoek = glm::mod(_dagHoek, 6.28318530718f);
-
-	glm::mat4 zonRoteerder =
-		glm::rotate(glm::rotate(glm::mat4(1.0f), _dagHoek, glm::vec3(0.0f, 1.0f, 0.0f)),
-		             _obliquity, glm::vec3(1.0f, 0.0f, 0.0f));
-	glm::vec4 zonRicht4 = zonRoteerder * glm::normalize(glm::vec4(0.0f, 0.2f, 1.0f, 0.0f));
-	_zonPos = glm::normalize(glm::vec3(zonRicht4));
+		_zonPos = glm::normalize(glm::vec3(
+			glm::rotate(glm::mat4(1.0f), 0.003f, glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(_zonPos, 0.0f)));
 
 	if(!_cfg.bevroren && _roteerMaar)
 		_scherm->zetModelZicht(glm::rotate(_scherm->modelZicht(), 0.01f, glm::vec3(0.0f, 1.0f, 0.0f)));
@@ -983,26 +966,34 @@ void Simulatie::stap()
 	rekenPar.erosie       = _cfg.erosieAan ? 1.0f : 0.0f;
 	rekenPar.levenAan     = _cfg.levenAan ? 1.0f : 0.0f;
 
-	float seizoenPos = glm::mod(_seizoenTeller, 25.1327412f) / 12.5663706f;
-	float winterVerhouding = _zonKracht > 0.001f ? _winterZonneKracht / _zonKracht : 0.0f;
-	float seizoenFactor = 1.0f;
-	if(seizoenPos < 0.25f)
-		seizoenFactor = 1.0f;
-	else if(seizoenPos < 0.5f)
-		seizoenFactor = winterVerhouding + (1.0f - winterVerhouding) * (1.0f - (seizoenPos - 0.25f) / 0.25f);
-	else if(seizoenPos < 0.75f)
-		seizoenFactor = winterVerhouding;
-	else
-		seizoenFactor = winterVerhouding + (1.0f - winterVerhouding) * (seizoenPos - 0.75f) / 0.25f;
-
+	//Seizoenen uit de baanellips: hoe excentrieker de baan, hoe sterker het
+	//zomer/winter-verschil in zonkracht. Gemiddeld blijft de zonkracht gelijk;
+	//de sim-zon hieronder gaat óók met de askanteling de declinatie in, zodat
+	//het ene halfrond zomer heeft als het andere winter (seizoen = 1000 frames).
+	constexpr float pi       = 3.14159265f;
+	constexpr float dagSlots = 360.0f;
+	constexpr float jaarLengte = 4000.0f;
+	constexpr float perihelFase = 0.0f;
+	float jaarHoek    = 2.0f * pi * (float)(_jaarTeller % (size_t)jaarLengte) / jaarLengte;
+	float seizoenFactor = 1.0f + _elips * glm::cos(jaarHoek - perihelFase);
 	rekenPar.atmosfeer[0] = _cfg.atmosfeerAan ? _zonKracht * seizoenFactor : 0.0f;
 	rekenPar.atmosfeer[1] = _coriolisOmega;
 	rekenPar.atmosfeer[2] = _cfg.atmosfeerAan ? _wrijving : 0.0f;
 	rekenPar.atmosfeer[3] = _cfg.atmosfeerAan ? _diffusie : 0.0f;
-	rekenPar.zonRicht[0]  = _zonPos.x; rekenPar.zonRicht[1] = _zonPos.y;
-	rekenPar.zonRicht[2]  = _zonPos.z; rekenPar.zonRicht[3] = 0.0f;
+	//Sim-zonrichting van deze frame: declinatie uit de askanteling + jaarhoek,
+	//dag-rotatie uit de slot-teller (dezelfde daglengte als het zonlicht-EMA).
+	//De sim start in de WINTER: declinatie = −askanteling bij frame 0 (noordpool
+	//donker, zuidpool helder), lente-equinox op frame 1000, zomer op 2000.
+	float declinatie = -_obliquity * glm::cos(jaarHoek);
+	float slotHoek   = 2.0f * pi * (float)(_zonSlotTeller % (size_t)dagSlots) / dagSlots;
+	glm::vec3 simZon   = glm::normalize(glm::vec3(
+		glm::cos(declinatie) * glm::sin(slotHoek),
+		glm::sin(declinatie),
+		glm::cos(declinatie) * glm::cos(slotHoek)));
+	rekenPar.zonRicht[0]  = simZon.x; rekenPar.zonRicht[1] = simZon.y;
+	rekenPar.zonRicht[2]  = simZon.z; rekenPar.zonRicht[3] = 0.0f;
 	rekenPar.condenseer[0] = _basisVerzadiging;
-	rekenPar.condenseer[1] = _hoogteKoel;
+	rekenPar.condenseer[1] = 0.0f; //voormalig hoogteKoel: de lapse zit nu in het WGSL-gedeelde lapse
 	rekenPar.condenseer[2] = _neerslagFactor;
 	rekenPar.condenseer[3] = _orografieFactor;
 	rekenPar.fasen[0]      = _verwarmtijd;
@@ -1049,12 +1040,28 @@ void Simulatie::stap()
 		if((_gui && _gui->wilMuis()) || !_penseelGereedschap->heeftPlek())
 			_penseelGereedschap->zetCenterId(geenCelId);
 		else
-			_penseelGereedschap->zetCenterId(doePickPass());
+		{
+			uint32_t w = _scherm->oppervlakBreedte(), h = _scherm->oppervlakHoogte();
+			_penseelGereedschap->zetCenterId(doePickPass(
+				(uint32_t)_penseelGereedschap->texelX((int)w),
+				(uint32_t)_penseelGereedschap->texelY((int)h)));
+		}
 	}
 	else if(_penseelGereedschap && _penseelGereedschap->heeftCursor())
 	{
 		//Penseel niet langer actief: cursor/highlight weghalen.
 		_penseelGereedschap->zetCenterId(geenCelId);
+	}
+	//Verplaats-gereedschap: één pick bij het begin van een sleep beslist de modus:
+	//planeet geraakt = cameradraai (trackball); achtergrond = de zichtbare zon
+	//roteert om de origin. De gebufferde eerste delta wordt bij zetModus geflushed.
+	if(!_cfg.hoofdloos && !_penseelActief && _gereedschap &&
+	   _gereedschap->isBezig() && _gereedschap->modusOnbekend())
+	{
+		uint32_t w = _scherm->oppervlakBreedte(), h = _scherm->oppervlakHoogte();
+		uint32_t id = doePickPass((uint32_t)_gereedschap->cursorTexelX((int)w),
+		                          (uint32_t)_gereedschap->cursorTexelY((int)h));
+		_gereedschap->zetModus(id == geenCelId ? verplaatsGereedschap::mZon : verplaatsGereedschap::mPlaneet);
 	}
 	if(_penseelGereedschap && _penseelGereedschap->bufferVuil())
 	{
@@ -1107,23 +1114,21 @@ void Simulatie::stap()
 			_scherm->verbindRekenBuffer(3, _rekenParBuffer);
 		};
 
-		auto berekenShaderBindenMetSchaduw = [this, &berekenShaderBinden]()
-		{
-			berekenShaderBinden();
-			_scherm->bindTextuur(_cfg.schaduwAan ? "zonSchaduwKaart" : "", 0);
-		};
-
 		for(int substap = 0; substap < _cfg.luchtStappen; substap++)
 		{
 			_scherm->doeRekenVerwerker("waterStroming",  glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 			_scherm->doeRekenVerwerker("waterDruk",      glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 			_scherm->doeRekenVerwerker("waterGemiddelde", glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
-			_scherm->doeRekenVerwerker("luchtStroming",  glm::uvec3(rekenGroepen, 1, 1), berekenShaderBindenMetSchaduw);
-			_scherm->bindTextuur("", 0);
+			_scherm->doeRekenVerwerker("luchtStroming",  glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 			_scherm->doeRekenVerwerker("vochtStroming",  glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 			_scherm->doeRekenVerwerker("waterLucht",     glm::uvec3(rekenGroepen, 1, 1), berekenShaderBinden);
 			_geo->volgendeRonde();
 		}
+		//Jaar/dag lopen met de rekenketen mee; daarna één frame zonlicht-EMA
+		//(zonSchijn, op de verse vakken0), zodat de dagomloop compleet wordt.
+		_jaarTeller++;
+		_zonSlotTeller++;
+		doeZonSchijnPass();
 		_waterStap = false;
 	}
 
@@ -1232,6 +1237,19 @@ void Simulatie::stap()
 }
 
 // ── Private helpers ─────────────────────────────────────────────────────────
+
+void Simulatie::doeZonSchijnPass()
+{
+	//Eén frame van het zonlicht-EMA: vakken0.zonlicht += (nieuw − oud)/dagSlots,
+	//met nieuw = invalsFactor × horizonversperring voor de sim-zonrichting van
+	//deze frame (rekenPar.zonRicht). Geen shadowmap: de render-zon staat los.
+	const uint32_t groepen = (uint32_t)((_geo->aantalVakjes() + 63) / 64);
+	_scherm->doeRekenVerwerker("zonSchijn", glm::uvec3(groepen, 1, 1), [this]()
+	{
+		_geo->bindVrwrkrOpslagen(*_scherm);
+		_scherm->verbindRekenBuffer(3, _rekenParBuffer);
+	});
+}
 
 void Simulatie::doeSchaduwPass()
 {
@@ -1412,10 +1430,10 @@ void Simulatie::_rondPickAf()
 	_pick.klaar = false;
 }
 
-uint32_t Simulatie::doePickPass()
+uint32_t Simulatie::doePickPass(uint32_t px, uint32_t py)
 {
 	uint32_t w = _scherm->oppervlakBreedte(), h = _scherm->oppervlakHoogte();
-	if(w == 0 || h == 0 || !_penseelGereedschap)
+	if(w == 0 || h == 0)
 		return geenCelId;
 
 	//Web: er hangt nog een mapAsync in de lucht (de JS-eventloop moet eerst
@@ -1441,9 +1459,6 @@ uint32_t Simulatie::doePickPass()
 		_pickTextuur = wgpuDeviceCreateTexture(weergaveScherm::deelApparaat(), &td);
 		_pickBreedte = w; _pickHoogte = h;
 	}
-
-	int px = _penseelGereedschap->texelX((int)w);
-	int py = _penseelGereedschap->texelY((int)h);
 
 	weergaveInstellingen inst;
 	inst.cullMode = WGPUCullMode_Back;

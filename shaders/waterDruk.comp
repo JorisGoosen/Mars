@@ -316,7 +316,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //Lichtmaat: fotosynthese — leven groeit alleen in het zonlicht, en dan
     //proportioneel aan hoeveel licht er valt (schaduw dempt de groei).
-    let lichtmaat = clamp(vakken0[ID].zonZicht, 0.0, 1.0);
+    let lichtmaat = clamp(vakken0[ID].zonlicht, 0.0, 1.0);
     let groeiSchaal = groeiTemp * vochtmaat * lichtmaat;
 
     //Bestaande vocht-afhankelijke groei, nu ook geschaald met temperatuur en vocht:

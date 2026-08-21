@@ -94,7 +94,7 @@ Kies in de GUI (paneel "Gereedschap (penseel)") een gereedschap in plaats van
 - `--stil`: bevries alles vanaf het begin (sim, zon- en modelrotatie). Handig met `--hoofdloos --schermafbeeldingElkeFrames 1` om te controleren dat opeenvolgende beelden identiek zijn (geen flikker).
 - `--luchtstappen <n>`: aantal atmosfeer-simstappen per beeld (standaard 1). Hoger zet de wind de damp/wolken per beeld verder, zodat je de wolkbeweging op het scherm zichtbaar sneller voorbij ziet trekken (bijv. `--luchtstappen 8`).
 - `--overlay <n>`: weergave-overlay bij start (0..10), zelfde reeks als de overlay-knoppen in de GUI (1 temperatuur, 2 wind+druk, … 10 water & droesem); ook headless te gebruiken.
-- `--veldKaart <veld> [bestand]`: volledige-planeet heatmap als equirectangulaire PNG (default bestandsnaam `veldkaart_<veld>.png`); herhaalbaar voor meerdere kaarten in één draai. Velden o.a. `temperatuur`, `wind`, `druk`, `grond`, `water`, `ijs`, `wolken`, `leven`, `droesem`, `zonZicht`, `oppervlakte`.
+- `--veldKaart <veld> [bestand]`: volledige-planeet heatmap als equirectangulaire PNG (default bestandsnaam `veldkaart_<veld>.png`); herhaalbaar voor meerdere kaarten in één draai. Velden o.a. `temperatuur`, `wind`, `druk`, `grond`, `water`, `ijs`, `wolken`, `leven`, `droesem`, `zonlicht`, `oppervlakte`.
 - `--kaartFactor <n>`: veldkaart-resolutie gedeeld door n (standaard 1; klem 1..40).
 - `--veldKaartFrames <n>`: (hoofdloos) schrijf de laatste n frames als `veldkaart0.png` .. `veldkaartN-1.png` (grond-heatmap).
 - `--veldKaartElkeFrames <n> <veld>`: (hoofdloos) schrijf elke n frames als `veldkaart_N.png` (standaard veld `grond`).
@@ -131,29 +131,55 @@ naaste stroomopwaartse buur (sub-cel diffusie) en lijkt hij stil te staan op zij
 plek op te laaien. Zie ook `--luchtstappen` om de beweging per beeld te
 versnellen.
 
-## Schaduwkaart & binnenkomend zonlicht
+## Twee zonnen: de render-zon en de sim-zon
+De zichtbare zon (licht, glans, schaduwen) en de zon die het klimaat aandrijft zijn
+**volledig losgekoppeld**.
+
+### Render-zon (het beeld)
 Elke frame wordt het bovenste zichtbare oppervlak (terrein, waterspiegel en drijvend
 ijs) in een orthografische dieptekaart gerenderd, bekeken
 vanuit de zon (de *schaduwkaart*; toets **N**, `--zonder-schaduw`,
 `--schaduwGrootte`). De projectie is analytisch (`zonProjectie` in
-`shaders/zonSchaduw.wgsl`): dezelfde formule in de schaduw-pass, de fragment-shaders
-en de reken-shaders, dus geen matrices om uit de pas te lopen.
+`shaders/zonSchaduw.wgsl`): dezelfde formule in de schaduw-pass en de
+fragment-shaders, dus geen matrices om uit de pas te lopen. De land/water- en
+ijs-fragmentshaders doen een 3×3 PCF-lookup en dempen het diffuse licht waar
+bergen, ijs of de waterspiegel tussen het punt en de zon staan; de waterspiegel
+werpt schaduw op de zeebodem eronder.
 
-De kaart wordt drie keer gebruikt:
-1. **Weergave**: de land/water-fragmentshader doet een 3×3 PCF-lookup en dempt het
-   diffuse licht waar bergen, ijs of de waterspiegel tussen het punt en de zon staan.
-   Het water wordt op zijn eigen oppervlaktehoogte bemonsterd; de waterspiegel werpt
-   schaduw op de zeebodem eronder.
-2. **Energiebalans**: `luchtStroming.comp` projecteert elke cel op de kaart en
-   vermenigvuldigt de instraling met de gevonden zichtfactor — dalen en
-   kraterwanden in de schaduw van een berg warmen dus echt langzamer op. De fractie
-   wordt per cel bewaard in `zonZicht` (voorheen ongebruikte opvulling in `vak`).
-3. **Verdamping**: `waterLucht.comp` dempt het verdampingslicht met dezelfde
-   `zonZicht`-factor.
+De zonpositie staat stil in de viewer. **B** (of de "zon-omloop"-checkbox) laat
+haar traag om de origin draaien; met het verplaats-gereedschap roteer je haar met
+de hand: sleep op de **planeet** = camera draaien (trackball), sleep op de
+**achtergrond** = de zon om de origin draaien. De sim merkt daar niets van.
 
-`--veldKaart zonZicht` tekent de benaderde binnenkomende zonnestraling als heatmap
-(1 = volle zon, 0 = volledig overschaduwd); `--diagnoseCsv` heeft er een
-`zonZicht`-kolom bij. Wolken werpen voorlopig geen schaduw (hun albedo dempt de
+### Sim-zon (`zonlicht`)
+Het klimaat-veld `zonlicht` (per cel, in `vak`) is een lopend **daggemiddelde**
+(EMA, tijdconstante 360 frames) van de binnenkomende instraling: per frame rekent
+`shaders/zonSchijn.comp` voor de actuele sim-zonrichting de *invalsfactor* uit
+(sinus van de zonshoogte boven het oppervlak) maal een *horizon-versperring* (een
+straal die over het grid zelf naar de zon-azimut wandelt — door bergflanken en
+kraters). De bijdrage wordt via `zonlicht += (nieuw − zonlicht)/360` in het
+gemiddelde gemengd: geen dag-nacht-schok in de temperatuur meer, alleen het
+seizoens- en breedteklimaat blijft over.
+
+- Het jaar duurt **4000 frames** (seizoen = 1000); de sim start in de **winter**
+  (noordpool donker, zuidpool helder). De declinatie van de sim-zon volgt de
+  **askanteling** (GUI-slider), de dag-rotatie telt in slotjes van 360 frames.
+- Het zomer/winter-verschil in zonkracht komt uit de **baanelips** (GUI-slider,
+  excentriciteit): de zonkracht schommelt rond de sliderwaarde met de afstand
+  tot de zon op de ellipsbaan.
+- **Hoogtekoeling** is één gedeelde lapse rate (`lapse` in
+  `shaders/planeetStructen.wgsl`): in `luchtStroming.comp` versterkt de uitstraling
+  naar de ruimte met de hoogte (atmosfeergebrek: minder luchtkolom boven de cel),
+  en in `waterLucht.comp` rekent de verzadiging met de adiabatisch opgetilde
+  pakkettemperatuur — bergen worden dus koud én droog met dezelfde helling.
+- Verwarming: `luchtStroming.comp` vermenigvuldigt `atmosfeer.zonkracht ×
+  (1−albedo) × zonlicht × zonlichtSchaal`; het leven (fotosynthese) in
+  `waterDruk.comp` schaalt met hetzelfde `zonlicht`; verdamping is net als eerst
+  temperatuur-afhankelijk (niet licht-afhankelijk).
+
+`--veldKaart zonlicht` (alias `zonZicht`) tekent het daggemiddelde als heatmap
+(1 = constante volle zon, 0 = nooit licht); `--diagnoseCsv` heeft er een
+`zonlicht`-kolom bij. Wolken werpen voorlopig geen schaduw (hun albedo dempt de
 instraling wel via de bestaande energiebalans).
 
 ## Beweegtest (wolken)

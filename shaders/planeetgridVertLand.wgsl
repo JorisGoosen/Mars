@@ -33,7 +33,7 @@ struct naarFrag {
     @location(12) luchtdruk     : f32,
     @location(13) modelPos      : vec3f,
     @location(14) overlayVelden : vec4f, //(bodemVocht, ijs, wolken, luchtVocht)
-    @location(15) zonZicht      : f32,
+    @location(15) zonlicht     : f32,
 };
 
 @vertex
@@ -63,7 +63,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     uit.wind      = vakken0[ID].wind;
     uit.luchtdruk = vakken0[ID].luchtdruk;
     uit.overlayVelden = vec4f(vakken0[ID].bodemVocht, vakken0[ID].ijs, vakken0[ID].wolken, vakken0[ID].luchtVocht);
-    uit.zonZicht   = vakken0[ID].zonZicht;
+    uit.zonlicht  = vakken0[ID].zonlicht;
     uit.droesem   = vakken0[ID].droesem;
 
     let hier = in.posV * (vakHoogte(ID, false) / extra.grondMult);

@@ -16,7 +16,7 @@ struct rekenParameters {
 	float	grondSchaal, verdamping, erosie, levenAan;
 	float	atmosfeer[4];   //(zonkracht, rotatieOmega, wrijving, diffusie)
 	float	zonRicht[4];    //zonrichting (dagzijde; de planeet draait t.o.v. de zon)
-	float	condenseer[4];  //basisVerzadiging, hoogteKoel, neerslagFactor, orografieFactor
+	float	condenseer[4];  //basisVerzadiging, ongebruikt, neerslagFactor, orografieFactor
 	float	fasen[4];       //verwarmtijdconstante, maxGrondHoogte, grondMult, ongebruikt
 	float	schaduw[4];     //schaduwAan, schaduwKaartGrootte, stralingKracht, ongebruikt
 
@@ -132,6 +132,7 @@ struct rijSyncje {
 
 class guiOverlay; //(globale GUI-klasse; gedefinieerd in gui.h)
 class gereedschap; //(interactief muis-gereedschap; gedefinieerd in gereedschap.h)
+class verplaatsGereedschap; //(basis muis/trackpad-gereedschap; gedefinieerd in gereedschap.h)
 class penseelGereedschap; //(penseel-gereedschap; gedefinieerd in penseelGereedschap.h)
 
 // ── Klasse ──────────────────────────────────────────────────────────────────
@@ -176,9 +177,9 @@ public:
 
 	/// Alle live-tunables als pointers (voor de GUI: sliders/checkboxes).
 	struct Tunables {
-		float *zonKracht, *winterZonneKracht, *obliquity, *verwarmtijd, *stralingKracht;
-		float *rotatieOmega, *coriolisOmega, *wrijving, *diffusie;
-		float *verdamping, *basisVerzadiging, *hoogteKoel, *neerslagFactor, *orografieFactor;
+		float *zonKracht, *elips, *obliquity, *verwarmtijd, *stralingKracht;
+		float *coriolisOmega, *wrijving, *diffusie;
+		float *verdamping, *basisVerzadiging, *neerslagFactor, *orografieFactor;
 		float *grondMult, *grondSchaal;
 		//Erosie & sediment
 		float *zandErosie, *rotsErosie, *bezinkheid, *zandRepose, *hellingKracht, *oplosheid;
@@ -228,7 +229,7 @@ private:
 
 	// ── GUI (Dear ImGui) ────────────────────────────────────────────────
 	guiOverlay * _gui = nullptr;
-	gereedschap* _gereedschap = nullptr; ///<actieve muis/trackpad-tool (verplaatsGereedschap)
+	verplaatsGereedschap* _gereedschap = nullptr; ///<actieve muis/trackpad-tool (verplaatsGereedschap)
 	penseelGereedschap* _penseelGereedschap = nullptr; ///<penseel-gereedschap (scherm + planeet)
 	bool _penseelActief = false; ///<welk gereedschap de muis krijgt (false = verplaatsen)
 	bool _heeftRender = false;
@@ -241,20 +242,18 @@ private:
 
 	// ── Toestand ──────────────────────────────────────────────────────────
 	glm::vec3 _kijkPlek;
-	glm::vec3 _zonPos;
+	glm::vec3 _zonPos = glm::normalize(glm::vec3(0.3f, 0.2f, 1.0f)); //render-zon (los van de sim-zon); B/sleep-roteren veranderen alleen dit
 	float     _grondMult    = 100.0f;
 	float     _grondSchaal  = 1.0f;
 	float _verdamping   = 0.0001f;
 	float _zonKracht    = 50.0f;
-	float _rotatieOmega = 0.009f;
-	float _winterZonneKracht = 15.0f;
+	float _elips        = 0.1f;     //excentriciteit van de baan: seizoensverschil in zonkracht (0 = cirkel, ~1 = sterke ellips)
 	float _coriolisOmega = 0.2f;
 	float _wrijving     = 0.05f;
 	float _diffusie     = 0.65f;
 	float _verwarmtijd  = 0.5f;
 	float _stralingKracht = 0.05f;
 	float _basisVerzadiging = 0.10f;
-	float _hoogteKoel   = 0.4f;
 	float _neerslagFactor = 0.3f;
 	float _orografieFactor = 0.4f;
 
@@ -284,8 +283,8 @@ private:
 	float _wolkVerdamp   = 0.006f;
 	float _wolkDiffusie  = 1.0f;
 	float     _obliquity    = 0.4f;
-	float     _dagHoek      = 0.0f;
-	float     _seizoenTeller = 0.0f;
+	size_t    _jaarTeller    = 0;    //0..3999: één omloop = één jaar (seizoen = 1000 frames)
+	size_t    _zonSlotTeller = 0;    //0..359: rotatiehoek van de sim-zon (dagomloop van zonSchijn.comp)
 	int       _overlayKeuze = 0;
 	float     _wolkAlpha    = 1.0f; //doorzichtigheid van het wolkendek (0..1)
 	float     _waterReflectie = 1.0f; //sterkte waterspiegel + randreflectie (0..2)
@@ -325,7 +324,8 @@ private:
 	void doeSchaduwPass();
 	void doeRenderPassen();
 	void doeHoogtepuntPass();
-	uint32_t doePickPass();   ///< rendert de ID-pass en leest de cel onder de cursor terug (web: resultaat van de vorige frame)
+	void doeZonSchijnPass(); ///< één frame van het zonlicht-EMA (sim-zon, los van de render-zon)
+	uint32_t doePickPass(uint32_t px, uint32_t py);   ///< rendert de ID-pass en leest de cel onder de cursor terug (web: resultaat van de vorige frame)
 	void _rondPickAf();       ///< decodeert een afgeronde pick-map en unmap't de buffer
 	void _maakSchaduwKaart();
 	void _maakPenseelBuffer();

@@ -86,7 +86,12 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let convergentie = -divU;
     let dynLift      = clamp(convergentie * dynamischLift, 0.0, 0.95);
 
-    var verzadiging = sat_temp(T) * (1.0 - stijgTerm - (1.0 - stijgTerm) * dynLift) - reken.condenseer.y * hoogteFrac;
+    //Verzadiging op de adiabatisch opgetilde hoogte: dezelfde gedeelde lapse
+    //(planeetStructen.wgsl) die op grote hoogte de temperatuur/uitstraling stuurt,
+    //koelt hier het opgetilde luchtpakket zodat het er minder damp kan dragen —
+    //één lapse voor beide (hoogtekoel-schuif is vervallen). sat_temp is
+    //exponentieel (~7%/K), dus bergtoppen drogen vanzelf uit.
+    var verzadiging = sat_temp(T - lapse * hoogteFrac) * (1.0 - stijgTerm - (1.0 - stijgTerm) * dynLift);
     verzadiging = max(0.0001, verzadiging);
 
     //---- condensatie: oververzadigde damp wordt wolkwater ----

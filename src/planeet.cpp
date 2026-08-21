@@ -134,7 +134,7 @@ void planeet::burenAlsEigenschapWijzers()
 			_vakken[0][i].luchtdruk   = 1.0f;
 			_vakken[0][i].wind        = glm::vec2(0.0f);
 			_vakken[0][i].wolken      = _init.wolken;
-			_vakken[0][i].zonZicht    = 1.0f; //volle zon tot de schaduwkaart het tegendeel zegt
+			_vakken[0][i].zonlicht    = 0.0f; //klimt vanzelf op via het zonlicht-EMA (zonSchijn.comp)
 
 			_vakken[0][i].ijs			= _init.ijs;
 			_vakken[0][i].waterHoogte	= _init.water;

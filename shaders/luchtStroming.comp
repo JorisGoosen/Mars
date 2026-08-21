@@ -1,9 +1,9 @@
 //WGSL reken-shader die de atmosferische dynamica bijwerkt: een enkellaagse
 //(barotrope-achtige) circulatie met temperatuur, druk en een opgeslagen windveld.
 //Dit vervangt de oude synthetische wind die elke frame uit een draaiende as werd
-//verzonnen: hier evolueren T/P/wind écht, aangedreven door zonne-verwarming
-//(dag/nacht + breedte), Coriolis (planeetrotatie), drukgradiënten, wrijving en
-//diffusie. Straalstromen/banden ontstaan vanzelf.
+//verzonnen: hier evolueren T/P/wind écht, aangedreven door zonne-verwarming (het
+//lopende daggemiddelde zonlicht uit zonSchijn.comp), Coriolis (planeetrotatie),
+//drukgradiënten, wrijving en diffusie. Straalstromen/banden ontstaan vanzelf.
 //
 //Voor numerieke stabiliteit op de onregelmatige geodesische grid is de wind zwaar
 //gedempt (Rayleigh), begrensd op maxWindsnel en gladgestreken; de druk reageert
@@ -12,14 +12,6 @@
 //Draait ná waterGemiddelde en vóór waterLucht. Leest T/P/wind uit vakken0,
 //schrijft de nieuwe waarden naar vakken1.
 #include "planeetDefinities.wgsl"
-
-//De schaduwkaart van de zon (bind-groep 1, door het framework gebonden; het witte
-//hulpje als er geen kaart is). Wordt gebruikt om terrein-schaduw (bergen die dalen
-//overschaduwen) in de instraling mee te nemen.
-@group(1) @binding(0) var zonSchaduwKaart : texture_2d<f32>;
-@group(1) @binding(1) var zonSchaduwSmp   : sampler;
-
-#include "zonSchaduwPCF.wgsl"
 
 //De wind wordt zwaarder gedempt (Rayleigh) en zwakker door de drukgradiënt
 //aangedreven dan voorheen, zodat de velden onder de cap blijven en er coherente
@@ -71,39 +63,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let V0 = vakken0[ID].wind;
     let mijnTerrein = grondHoogte(vakken0[ID]);
 
-    //---- zonne-verwarming (zon vast in modelruimte; de planeet draait) ----
-    let zon     = normalize(reken.zonRicht.xyz);
-    //Instralingshoek: vergelijk de normaal van de cel (naar buiten) met de
-    //invalsrichting van het licht. Als de normaal naar de zon wijst (dot==+1) is de
-    //instraling maximaal; zodra de normaal weg of haaks op het licht staat (dot<=0)
-    //is er geen instraling meer. Kwadratisch, zodat scherende straling relatief
-    //zacht afvalt (minder extreme lokale hotspots).
-    let dagKant = dot(hier, zon);
+    //---- zonne-verwarming (het lopende daggemiddelde uit zonSchijn.comp) ----
+    //zonlicht is de gemiddelde instralingsfractie over de dagomloop (invalshoek ×
+    //schaduw, 0..1) — de sim-zon drijft NIET meer per frame direct de temperatuur
+    //aan; de dag is daarin gemiddeld. Breedte/jaargetijde zitten er sowieso in via
+    //de declinatie waarmee zonSchijn.comp hem heeft opgebouwd.
+    let zonlicht = vakken0[ID].zonlicht;
 
-    //Terrein-schaduw uit de schaduwkaart: bergen/flanken die tussen de cel en de zon
-    //staan dempen de instraling. De cel wordt hiervoor op zijn RENDER-positie gezet
-    //(zelfde afbeelding als de schaduw-pass: vakHoogte/grondMult) en analytisch in
-    //het orthografische zon-kader geprojecteerd (zonProjectie). Het resultaat
-    //(zonZicht, 0..1) wordt ook opgeslagen zodat de verdamping en de diagnose het
-    //kunnen gebruiken. Buiten de dagzijde is er geen instraling en dus niets te
-    //overschaduwen (zonZicht blijft dan 1.0: geen terrein-schaduw).
-    //zonZicht is de fractie volle zon die het terrein bereikt: 1.0 dag met geen schaduw,
-    //lager als terreinschaduw het blokkeert. Op de nachtzijde is er géén zon, dus 0.0
-    //(anders zou leven er 's nachts nog kunnen groeien).
-    var zonZicht = 0.0;
-    if(dagKant > 0.0) {
-        zonZicht = 1.0;
-        if(reken.schaduw.x > 0.5 && reken.schaduw.y > 0.5) {
-            let straal = zonStraal(reken.fasen.z, reken.grondSchaal, reken.fasen.y);
-            //zelfde oppervlak als de schaduw-pass: terrein + waterspiegel + drijvend ijs
-            let kolomHoogte = grondHoogte(vakken0[ID]) + vakken0[ID].waterSchijn + vakken0[ID].ijs;
-            let plek   = hier * ((1.0 + kolomHoogte * reken.grondSchaal) / reken.fasen.z);
-            let pr     = zonProjectie(plek, zon, straal);
-            zonZicht   = zonSchaduwFactor(pr, reken.schaduw.y);
-        }
-    }
-
-    let ins     = pow(max(0.0, clamp(dagKant, 0.0, 1.0)), 2.0) * zonZicht;
     let noord   = vec3f(0.0, 1.0, 0.0);              //vaste geografische rotatie-as
     let breedte = clamp(dot(hier, noord), -1.0, 1.0); //+1 = noordpool
     //Zonale profiel: 1 aan de evenaar, 0 aan de polen. Bepaalt zowel de vaste
@@ -117,10 +83,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let V_rot = vec2f(0.0);
 
     //Echte energiebalans (geen breedte-verzonnen evenwicht meer):
-    // 1) zoninstraling met invalshoek (ins = cos van de zonhoogte; scherende
-    //    straling valt over meer oppervlak -> minder warmte per cel),
+    // 1) zoninstraling uit het lopende daggemiddelde zonlicht (invalshoek ×
+    //    schaduw, modulatie door de ellips-baan zit in atmosfeer.x),
     // 2) gemoduleerd door het albedo van de getoonde oppervlakte (ijs/wolk/water/grond/leven),
-    // 3) uitstraling naar de ruimte, afgeremd door het wolkendek,
+    // 3) uitstraling naar de ruimte, afgeremd door het wolkendek, en op hoogte
+    //    VERSTERKT (atmosfeergebrek: minder luchtkolom boven de cel),
     // 4) CO2-broeikaseffect zodat niet de hele planeet bevriest.
     //De lucht-T telt door van de vorige stap en wordt advecteerd met de wind.
     //LET OP select(f,t,c) = c ? t : f: onderstaande keten stond eerder omgekeerd,
@@ -132,15 +99,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let lokaalAlbedo = select(metWolk, albedoIJs, vakken0[ID].ijs > 0.01);
     let albedo = mix(lokaalAlbedo, albedoBegroei, clamp(vakken0[ID].leven, 0.0, 1.0));
 
-    let zonWarmte = reken.atmosfeer.x * (1.0 - albedo) * ins;
+    let zonWarmte = reken.atmosfeer.x * (1.0 - albedo) * zonlicht * zonlichtSchaal;
 
     //Wolkendek houdt de uitstraling deels tegen (atmosfeer wordt 'dikker' waar bewolkt)
     let wolkBedekking = clamp(vakken0[ID].wolken * 10.0, 0.0, 1.0);
-    let afkoelen = reken.schaduw.z * (1.0 - wolkIsolatie * wolkBedekking);
+    //Hoogte-koeling via de UITSTRALING (geldige lapse-rate vervanging): hoger =
+    //dunnere atmosfeer boven de cel = sterker uitstralen, i.p.v. een kunstmatig
+    //kouder evenwichtdoel. Gecallibreerd op `lapse`; zie planeetStructen.wgsl.
+    let afkoelen = reken.schaduw.z * (1.0 + hoogteUitstraling * hoogteFrac) * (1.0 - wolkIsolatie * wolkBedekking);
 
-    //Effectieve hemeltemperatuur door CO2-broeikaseffect, met hoogte-koeling
-    //(lapse rate) ingebouwd in het stralingsevenwicht: hoger -> kouder doel.
-    let ruimteEffectief = ruimteK + broeikasK - lapseKoeling * hoogteFrac;
+    //Effectieve hemeltemperatuur door het CO2-broeikaseffect (vast; de hoogte zit
+    //in de uitstraling, die daardoor óók op dag/nacht- en wolkdynamica doorwerkt).
+    let ruimteEffectief = ruimteK + broeikasK;
 
     //---- advectie van T, P en impulsie met de wind (fluxvormig, donor-cel) ----
     //Eén gezamenlijke "luchtcel" verplaatst zich: temperatuur, druk én impulsie
@@ -299,5 +269,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     vakken1[ID].temperatuur = goed(T1, T0, 120.0, 2000.0);
     vakken1[ID].luchtdruk   = goed(clamp(P1, minLuchtdruk, maxLuchtdruk), P0, minLuchtdruk, maxLuchtdruk);
     vakken1[ID].wind        = goedV2(V1, 0.0, -maxWindsnel, maxWindsnel);
-    vakken1[ID].zonZicht    = zonZicht;
+    //zonlicht wordt hier alleen door de pingpong gekopieerd: de eigenlijke
+    //bijwerking gebeurt in zonSchijn.comp, ná de keten (op de verse vakken0).
+    vakken1[ID].zonlicht     = vakken0[ID].zonlicht;
 }

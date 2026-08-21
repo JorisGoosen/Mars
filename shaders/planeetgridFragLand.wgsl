@@ -35,7 +35,7 @@ struct naarFrag {
     @location(12) luchtdruk     : f32,
     @location(13) modelPos      : vec3f,
     @location(14) overlayVelden : vec4f, //(bodemVocht, ijs, wolken, luchtVocht)
-    @location(15) zonZicht      : f32,
+    @location(15) zonlicht     : f32,
 };
 
 //Temperatuuroverlay-kleurkaart: -35 °C (= 238 K) blauw, 0 °C (= 273 K) groen,
@@ -107,7 +107,7 @@ fn overlayKleurKeuze(in : naarFrag) -> vec3f {
             return vec3f(r, g, b);
         }
         case 6: { return mix(vec3f(0.4, 0.45, 0.55), vec3f(1.0, 0.99, 0.96), clamp(wolken * 3.0, 0.0, 1.0)); }
-        case 7: { return grijs(in.zonZicht); }
+        case 7: { return grijs(in.zonlicht); }
         case 8: { return vec3f(0.0, in.leven, 0.0) + vec3f(0.02); } //groen naar dichtheid leven
         case 9: { return grijs(clamp(in.grondHoogte / extra.maxGrondHoogte, 0.0, 1.0)); } //terreinhoogte
         case 10: { return waterKleur(in.snelheid, in.droesem); } //waterstroming + zwevend sediment

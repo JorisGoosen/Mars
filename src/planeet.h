@@ -29,7 +29,7 @@ struct vak
 				temperatuur	,
 				luchtdruk	,
 				wolken		,
-				zonZicht	, //fractie zonlicht die het terrein bereikt (schaduwkaart; 1 = volle zon)
+				zonlicht	, //lopend daggemiddelde van invalsFactor×schaduw (EMA, zie zonSchijn.comp; 0 = geen licht, 1 = volle zon)
 				pijpen[6],
 				vochtPijpenA[6], //flux van damp per buur (behoudend)
 				vochtPijpenB[6]; //flux van wolken per buur (behoudend)
