@@ -37,8 +37,13 @@ private:
 	ImGuiIO*      _io      = nullptr;
 
 	//ImGui-schaal (slider in de onderbalk; 0.25..4). Toegepast op de style +
-	//FontGlobalScale bij wijziging in beginFrame().
+	//FontGlobalScale bij wijziging in beginFrame(). Native default 2.0 (retina),
+	//web blijft op 1.0 (browser schaalt pixels al zelf).
+#ifdef __EMSCRIPTEN__
 	float      _schaal        = 1.0f;
+#else
+	float      _schaal        = 2.0f;
+#endif
 	float      _laatsteSchaal = 1.0f;
 	ImGuiStyle _basisStijl;
 
