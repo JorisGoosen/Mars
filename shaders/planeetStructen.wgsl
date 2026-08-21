@@ -37,8 +37,8 @@ const maxLuchtVocht  = 1.0e12;
 //Waterkringloop (zie waterLucht.comp en waterDruk.comp): bodemvocht is de
 //grondwatervoorraad, luchtvocht is de atmosferische vochtigheid. De bijbehorende
 //snelheden zijn runtimetunables (reken.waterPar): evapotranspiratie, infiltratie,
-//bodemDiffusie en veldCapaciteit.
-const levensDamp        = 0.004;  //hoeveel bodemvocht een cel MET leven per ronde opneemt en als damp afgeeft (5x t.o.v. evapotranspiratie: leven is een bescheiden waterpomp)
+//bodemDiffusie en veldCapaciteit. levensDamp (transpiratie door leven) zit in
+//reken.levenPar2.
 const maxWaterBergtop   = 0.1;  //max. waterlaag op een piek boven het wolkendek (waterplafond)
 
 //IJsvorming (zie waterDruk.comp): onder 273 K bevriest water tot ijs, daarboven
@@ -50,6 +50,8 @@ const miniJs        = 0.01;   //onder deze ijsdikte heet een cel ijsloos (render
 //Leven & temperatuur (zie waterDruk.comp): leven groeit alleen boven 0 °C en sterft
 //bij vorst. De groeiband, verwelkdrempel, droogte- en koude-sterftes zijn
 //runtimetunables (reken.levenPar); de vriespunten en levenMax blijven vast.
+//levensDamp (transpiratie) en waterDoodTempo (sterfte onder water) zijn
+//runtimetunables in reken.levenPar2 (defaults in C++).
 const levenBevriesK   = 273.0;   //0 °C: boven dit punt mag leven pas groeien
 const levenKoudBegin  = 253.15;  //-20 °C: de dood begint hier langzaam
 const levenKoudSnel   = 213.15;  //-60 °C: hier doodt het heel snel
@@ -176,6 +178,7 @@ struct rekenParameters {
     levenPar    : vec4f, //(levenGroeiBand, levenDroogTempo, levenVerwelk, levenKoudTempo)
     groeiPar    : vec4f, //(zandGroei, zandBuur, rotsGroei, rotsBuur) — leven + burengroei
     wolkPar     : vec4f, //(condensTempo, regenTempo, wolkVerdamp, wolkDiffusie)
+    levenPar2   : vec4f, //(levensDamp, waterDoodTempo, ongebruikt, ongebruikt)
 };
 
 //Parameters voor de weergave-shaders (bind-groep 0, binding 2)

@@ -1,0 +1,22 @@
+//Rekent waterSchijn (het gladgestreken wateroppervlak) in-place bij uit waterHoogte.
+//Gelijk aan waterGemiddelde.comp, maar leest/schrijft op vakken0 i.p.v. vakken1,
+//zodat een water-edit van de penseel direct zichtbaar is — ook als de sim bevroren
+//is en de gewone rekenketen (die waterSchijn normaal bijwerkt) niet draait.
+#include "planeetDefinities.wgsl"
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    if(ID >= arrayLength(&vakken0)) { return; }
+
+    let burenAantal = vakMetas[ID].burenAantal;
+    var waterSchijn = 0.0;
+
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        waterSchijn += vakken0[buurID(ID, buur)].waterHoogte;
+    }
+
+    waterSchijn /= f32(burenAantal);
+
+    vakken0[ID].waterSchijn = goed((waterSchijn + vakken0[ID].waterHoogte) / 2.0, 0.0, 0.0, maxWaterHoogte);
+}

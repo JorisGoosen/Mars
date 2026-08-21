@@ -420,6 +420,7 @@ bool Simulatie::init()
 	_scherm->maakRekenShader("waterStroming",  "shaders/waterStroming.comp");
 	_scherm->maakRekenShader("waterDruk",      "shaders/waterDruk.comp");
 	_scherm->maakRekenShader("waterGemiddelde", "shaders/waterGemiddelde.comp");
+	_scherm->maakRekenShader("waterSchijn",     "shaders/waterSchijn.comp");
 	_scherm->maakRekenShader("luchtStroming",  "shaders/luchtStroming.comp");
 	_scherm->maakRekenShader("vochtStroming",  "shaders/vochtStroming.comp");
 	_scherm->maakRekenShader("waterLucht",     "shaders/waterLucht.comp");
@@ -915,6 +916,7 @@ Simulatie::Tunables Simulatie::tunables()
 		&_condensTempo, &_regenTempo, &_wolkVerdamp, &_wolkDiffusie,
 		&_levenGroeiBand, &_levenDroogTempo, &_levenVerwelk, &_levenKoudTempo,
 		&_zandGroei, &_zandBuur, &_rotsGroei, &_rotsBuur,
+		&_levensDamp, &_waterDoodTempo,
 		&_cfg.bevroren, &_waterStroomt, &_tekenWater, &_tekenIjs, &_tekenWolken, &_zonRoteert, &_roteerMaar,
 		&_cfg.schaduwAan, &_cfg.erosieAan, &_cfg.levenAan, &_cfg.atmosfeerAan, &_waterStap,
 		&_overlayKeuze, &_wolkAlpha, &_cfg.luchtStappen
@@ -1034,6 +1036,8 @@ void Simulatie::stap()
 	rekenPar.wolkPar[1]    = _regenTempo;
 	rekenPar.wolkPar[2]    = _wolkVerdamp;
 	rekenPar.wolkPar[3]    = _wolkDiffusie;
+	rekenPar.levenPar2[0]  = _levensDamp;
+	rekenPar.levenPar2[1]  = _waterDoodTempo;
 
 	wgpuQueueWriteBuffer(weergaveScherm::deelRij(), _rekenParBuffer, 0, &rekenPar, sizeof(rekenParameters));
 
@@ -1077,6 +1081,17 @@ void Simulatie::stap()
 			_geo->bindVrwrkrOpslagen(*_scherm);
 			_scherm->verbindRekenBuffer(4, _penseelBuffer);
 		});
+
+		//Een water-edit verandert waterHoogte, maar de render toont waterSchijn (het
+		//gladgestreken gemiddelde). Bij een bevroren sim draait de rekenketen niet, dus
+		//herberekenen we waterSchijn hier direct zodat de edit meteen zichtbaar is.
+		if(_penseelGereedschap->mode() == penseelModeWater)
+		{
+			_scherm->doeRekenVerwerker("waterSchijn", glm::uvec3(penseelGroepen, 1, 1), [this]()
+			{
+				_geo->bindVrwrkrOpslagen(*_scherm);
+			});
+		}
 	}
 
 	// ── Rekenketen ──────────────────────────────────────────────────────

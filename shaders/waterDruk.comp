@@ -332,8 +332,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //Onder water sterft leven sneller, en hoe dieper hoe sneller (geen licht).
     //Alleen als er echt (diep)water staat: droog land mag geen 0.85-slag krijgen.
+    //waterDoodTempo (reken.levenPar2[1]) schaalt de sterkte; 0 = geen sterfte onder water.
     if(vakken1[ID].waterHoogte > 1.0) {
-        let waterDood = clamp((vakken1[ID].waterHoogte - 1.0) / 6.0, 0.0, 1.0) * 0.9;
+        let waterDood = clamp((vakken1[ID].waterHoogte - 1.0) / 6.0, 0.0, 1.0) * 0.9 * reken.levenPar2[1];
         //Tot 3m diep: leven sterft 10x langzamer onder water
         if(vakken1[ID].waterHoogte < 3.0) {
             let ondiepWater = (vakken1[ID].waterHoogte - 1.0) / 2.0; //0..1 tussen 1 en 3

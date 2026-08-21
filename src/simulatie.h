@@ -27,8 +27,9 @@ struct rekenParameters {
 	float	levenPar[4];    //(levenGroeiBand, levenDroogTempo, levenVerwelk, levenKoudTempo)
 	float	groeiPar[4];    //(zandGroei, zandBuur, rotsGroei, rotsBuur) — leven+burengroei
 	float	wolkPar[4];     //(condensTempo, regenTempo, wolkVerdamp, wolkDiffusie)
+	float	levenPar2[4];   //(levensDamp, waterDoodTempo, ongebruikt, ongebruikt)
 };
-static_assert(sizeof(rekenParameters) == 96 + 6 * 16, "rekenParameters moet byte-identiek zijn aan WGSL (96 + 6 vec4)");
+static_assert(sizeof(rekenParameters) == 96 + 7 * 16, "rekenParameters moet byte-identiek zijn aan WGSL (96 + 7 vec4)");
 
 // ── Configuratie ────────────────────────────────────────────────────────────
 
@@ -187,6 +188,7 @@ public:
 		//Leven
 		float *levenGroeiBand, *levenDroogTempo, *levenVerwelk, *levenKoudTempo;
 		float *zandGroei, *zandBuur, *rotsGroei, *rotsBuur;
+		float *levensDamp, *waterDoodTempo;
 		bool  *bevroren, *waterStroomt, *tekenWater, *tekenIjs, *tekenWolken, *zonRoteert, *roteerMaar;
 		bool  *schaduwAan, *erosieAan, *levenAan, *atmosfeerAan, *waterStap;
 		int   *overlayKeuze;
@@ -273,6 +275,8 @@ private:
 	float _zandBuur      = 0.05f;
 	float _rotsGroei     = 1.000025f;
 	float _rotsBuur      = 0.003333f;
+	float _levensDamp    = 0.004f; //transpiratie: bodemvocht → damp door leven (per ronde)
+	float _waterDoodTempo = 1.0f;  //sterkte van leven-sterfte onder water (0 = uit)
 	float _condensTempo  = 0.01f;
 	float _regenTempo    = 0.30f;
 	float _wolkVerdamp   = 0.006f;

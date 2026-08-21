@@ -228,7 +228,7 @@ var waterNieuw = vakken1[ID].waterHoogte + regenWater;
     //niet). Geschaald met de levensdichtheid; proportioneel, dus meer leven = meer.
     let levensTemp = select(0.0, 1.0, T > vriespuntK);
     let levenHier  = clamp(vakken1[ID].leven, 0.0, 1.0);
-    let transpiratie = levensDamp * levensTemp * levenHier * bodemVochtNieuw;
+    let transpiratie = reken.levenPar2[0] * levensTemp * levenHier * bodemVochtNieuw;
     if(transpiratie > zeerKlein) {
         let gone = min(transpiratie, bodemVochtNieuw);
         bodemVochtNieuw -= gone;

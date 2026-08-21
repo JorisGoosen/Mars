@@ -165,9 +165,15 @@ void guiOverlay::bouwen()
 	{
 		auto initFloat = [](const char* label, float* v, float vMin, float vMax)
 		{
+			//Label expliciet links (TextUnformatted) + unieke ID via PushID, zodat de
+			//positie consistent is en er geen ID-botsingen zijn met de sim-checkboxes.
 			ImGui::SameLine();
-			ImGui::SetNextItemWidth(62);
-			ImGui::DragFloat(label, v, 0.05f, vMin, vMax, "%.2f");
+			ImGui::TextUnformatted(label);
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(58);
+			ImGui::PushID(label);
+			ImGui::DragFloat("##waarde", v, 0.05f, vMin, vMax, "%.2f");
+			ImGui::PopID();
 		};
 
 		ImGui::TextUnformatted("Wereld");
@@ -275,6 +281,10 @@ void guiOverlay::bouwen()
 			ImGui::SliderFloat("droogtestreft", t.levenDroogTempo, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("verwelkdrempel",t.levenVerwelk, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("koudestreft",   t.levenKoudTempo, 0.0f, 2.0f, "%.2f");
+			ImGui::SliderFloat("watersterfte",  t.waterDoodTempo, 0.0f, 5.0f, "%.2f");
+			ImGui::Separator();
+			ImGui::TextUnformatted("Water & transpiratie");
+			ImGui::SliderFloat("levensdamp",    t.levensDamp, 0.0f, 0.05f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::Separator();
 			ImGui::TextUnformatted("Groei & burengroei");
 			ImGui::SliderFloat("zandgroei",     t.zandGroei, 0.9f, 1.1f, "%.4f");
