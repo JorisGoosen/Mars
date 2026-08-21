@@ -1331,7 +1331,12 @@ void Simulatie::doeRenderPassen()
 		weergaveInstellingen waterInstellingen;
 		waterInstellingen.blenden = true;
 		waterInstellingen.cullMode = WGPUCullMode_Back;
-		waterInstellingen.diepteSchrijven = false;
+		//Water schrijft óók diepte: overlappende wateroppervlakken (bulten, golf-
+		//silhouetten) worden dan per pixel op ware diepte gesorteerd i.p.v. op
+		//driehoek-volgorde — anders zie je het achterliggende oppervlak door de
+		//bult heen. Minder: een oppervlak ónder semi-transparant water doet niet
+		//meer mee (je ziet daar de grond), maar dat is de minste van twee kwaden.
+		waterInstellingen.diepteSchrijven = true;
 		waterInstellingen.diepteVergelijk = WGPUCompareFunction_LessEqual;
 		_scherm->zetWeergaveInstellingen(waterInstellingen);
 
