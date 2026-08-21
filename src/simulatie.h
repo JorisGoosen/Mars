@@ -18,7 +18,7 @@ struct rekenParameters {
 	float	zonRicht[4];    //zonrichting (dagzijde; de planeet draait t.o.v. de zon)
 	float	condenseer[4];  //basisVerzadiging, hoogteKoel, neerslagFactor, orografieFactor
 	float	fasen[4];       //verwarmtijdconstante, maxGrondHoogte, grondMult, ongebruikt
-	float	schaduw[4];     //schaduwAan, schaduwKaartGrootte, ongebruikt, ongebruikt
+	float	schaduw[4];     //schaduwAan, schaduwKaartGrootte, stralingKracht, ongebruikt
 
 	// ── Runtimetunables (GUI-sliders; defaults wijken de WGSL-waarden af) ──
 	float	erosiePar[4];   //(zandErosie, rotsErosie, bezinkheid, zandRepose)
@@ -176,7 +176,7 @@ public:
 
 	/// Alle live-tunables als pointers (voor de GUI: sliders/checkboxes).
 	struct Tunables {
-		float *zonKracht, *winterZonneKracht, *obliquity, *verwarmtijd;
+		float *zonKracht, *winterZonneKracht, *obliquity, *verwarmtijd, *stralingKracht;
 		float *rotatieOmega, *coriolisOmega, *wrijving, *diffusie;
 		float *verdamping, *basisVerzadiging, *hoogteKoel, *neerslagFactor, *orografieFactor;
 		float *grondMult, *grondSchaal;
@@ -251,6 +251,7 @@ private:
 	float _wrijving     = 0.05f;
 	float _diffusie     = 0.65f;
 	float _verwarmtijd  = 0.5f;
+	float _stralingKracht = 0.05f;
 	float _basisVerzadiging = 0.10f;
 	float _hoogteKoel   = 0.4f;
 	float _neerslagFactor = 0.3f;

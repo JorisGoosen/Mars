@@ -65,7 +65,8 @@ const maxBuren = 6u;
 const luchtBaseTemp   = 250.0;  //start/referentietemperatuur (K) van de lucht
 const lapseKoeling    = 60.0;   //koeling per genormaliseerde hoogtelaag — zorgt voor ijs op bergtoppen
 const opnameTempo     = 0.30;   //hoe snel zonne-energie de lucht opwarmt
-const stralingKracht  = 0.05;  //hoe snel de planeet afkoelt naar het omringende (uitstraling)
+//stralingKracht (uitstraling naar de ruimte) is nu een runtimetunable in
+//reken.schaduw.z (default 0.05 in C++; GUI-slider "uitstraling").
 const tempDiffusie    = 0.025; //temperatuur gladstrijken (stabiel: monotone limiter vangt clusters op)
 const ruimteK         = 180.0;  //effectieve hemeltemperatuur (K) zonder broeikas
 const broeikasK       = 96.0;   //CO2-groeikaseffect: verhoogt de effectieve hemel-T
@@ -169,7 +170,7 @@ struct rekenParameters {
     zonRicht    : vec4f, //zonrichting (dagzijde; vast in modelruimte, de planeet draait)
     condenseer  : vec4f, //(basisVerzadiging, hoogteKoel, neerslagFactor, orografieFactor)
     fasen       : vec4f, //(verwarmtijdconstante, maxGrondHoogte, grondMult, ongebruikt)
-    schaduw     : vec4f, //(schaduwAan, schaduwKaartGrootte, ongebruikt, ongebruikt)
+    schaduw     : vec4f, //(schaduwAan, schaduwKaartGrootte, stralingKracht, ongebruikt)
 
     //Runtimetunables (GUI-sliders; C++-defaults)
     erosiePar   : vec4f, //(zandErosie, rotsErosie, bezinkheid, zandRepose)

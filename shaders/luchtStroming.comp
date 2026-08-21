@@ -136,7 +136,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //Wolkendek houdt de uitstraling deels tegen (atmosfeer wordt 'dikker' waar bewolkt)
     let wolkBedekking = clamp(vakken0[ID].wolken * 10.0, 0.0, 1.0);
-    let afkoelen = stralingKracht * (1.0 - wolkIsolatie * wolkBedekking);
+    let afkoelen = reken.schaduw.z * (1.0 - wolkIsolatie * wolkBedekking);
 
     //Effectieve hemeltemperatuur door CO2-broeikaseffect, met hoogte-koeling
     //(lapse rate) ingebouwd in het stralingsevenwicht: hoger -> kouder doel.

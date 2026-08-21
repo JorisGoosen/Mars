@@ -57,7 +57,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     let wolkAan = vakken0[ID].wolken + netWolk;
 
     //---- verzadiging uit de temperatuur (+ hoogte + orografie) ----
-    let oppervlak = grondHoogte(vakken0[ID]) + vakken0[ID].waterHoogte;
+    let oppervlak = grondHoogte(vakken0[ID]) + vakken0[ID].waterHoogte + vakken0[ID].ijs;
     let hoogteFrac = clamp((oppervlak - minGrondHoogte) / (maxGrondHoogte - minGrondHoogte), 0.0, 1.0);
 
     //Stroomafwaartse buur (waar de wind heen gaat) voor orografische stijging.
@@ -75,7 +75,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 
     //Orografische stijging: stroomafwaarts stijgt het oppervlak => de lucht wordt
     //omhooggeduwd, koelt en kan minder damp houden (lagere verzadiging).
-    let oppervlakAf = grondHoogte(vakken1[afId]) + vakken1[afId].waterHoogte;
+    let oppervlakAf = grondHoogte(vakken1[afId]) + vakken1[afId].waterHoogte + vakken1[afId].ijs;
     let stijgOp     = max(0.0, min(oppervlakAf - oppervlak, 1.0));
     let stijgTerm   = clamp(reken.condenseer.w * stijgOp, 0.0, 0.9);
 

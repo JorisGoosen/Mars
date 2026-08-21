@@ -907,7 +907,7 @@ bool Simulatie::herstart(const SimulatieConfig & nieuweCfg)
 Simulatie::Tunables Simulatie::tunables()
 {
 	return {
-		&_zonKracht, &_winterZonneKracht, &_obliquity, &_verwarmtijd,
+		&_zonKracht, &_winterZonneKracht, &_obliquity, &_verwarmtijd, &_stralingKracht,
 		&_rotatieOmega, &_coriolisOmega, &_wrijving, &_diffusie,
 		&_verdamping, &_basisVerzadiging, &_hoogteKoel, &_neerslagFactor, &_orografieFactor,
 		&_grondMult, &_grondSchaal,
@@ -1010,6 +1010,7 @@ void Simulatie::stap()
 	rekenPar.fasen[3]      = std::pow(4.0f, (float)(_cfg.subdiv - 6));
 	rekenPar.schaduw[0]    = _cfg.schaduwAan ? 1.0f : 0.0f;
 	rekenPar.schaduw[1]    = (float)_cfg.schaduwGrootte;
+	rekenPar.schaduw[2]    = _stralingKracht;
 
 	// ── Runtimetunables (erosie/water/leven/wolken) ────────────────────
 	rekenPar.erosiePar[0]  = _zandErosie;
@@ -1293,6 +1294,22 @@ void Simulatie::doeRenderPassen()
 	_scherm->pasRondRenderAf();
 	eerstePass = false;
 
+	// IJs-onderkant (drijvend op de waterspiegel): eerst de onderkant (cull Front),
+	// vóór het water, zodat het ijs onder de waterspiegel correct gesorteerd is.
+	if(_tekenIjs && _overlayKeuze == 0)
+	{
+		weergaveInstellingen ijsInstellingen;
+		ijsInstellingen.cullMode = WGPUCullMode_Front;
+		ijsInstellingen.diepteSchrijven = true;
+		ijsInstellingen.diepteVergelijk = WGPUCompareFunction_LessEqual;
+		_scherm->zetWeergaveInstellingen(ijsInstellingen);
+
+		_scherm->bereidRenderVoor("planeetgridIjsOnder", false);
+		_geo->bindVrwrkrOpslagen(*_scherm);
+		_geo->tekenJezelf();
+		_scherm->pasRondRenderAf();
+	}
+
 	// Water-pass
 	if(_tekenWater && _overlayKeuze == 0)
 	{
@@ -1310,22 +1327,13 @@ void Simulatie::doeRenderPassen()
 		_scherm->pasRondRenderAf();
 	}
 
-	// IJs-pass (drijvend op de waterspiegel, echte dikte): eerst de onderkant
-	// (cull Front) op de waterspiegel, dan de bovenkant (cull Back) met het ijs erbij.
+	// IJs-bovenkant (cull Back) met het ijs erbij, bovenop het water.
 	if(_tekenIjs && _overlayKeuze == 0)
 	{
 		weergaveInstellingen ijsInstellingen;
-		ijsInstellingen.cullMode = WGPUCullMode_Front;
+		ijsInstellingen.cullMode = WGPUCullMode_Back;
 		ijsInstellingen.diepteSchrijven = true;
 		ijsInstellingen.diepteVergelijk = WGPUCompareFunction_LessEqual;
-		_scherm->zetWeergaveInstellingen(ijsInstellingen);
-
-		_scherm->bereidRenderVoor("planeetgridIjsOnder", false);
-		_geo->bindVrwrkrOpslagen(*_scherm);
-		_geo->tekenJezelf();
-		_scherm->pasRondRenderAf();
-
-		ijsInstellingen.cullMode = WGPUCullMode_Back;
 		_scherm->zetWeergaveInstellingen(ijsInstellingen);
 
 		_scherm->bereidRenderVoor("planeetgridIjs", false);

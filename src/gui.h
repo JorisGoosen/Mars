@@ -36,6 +36,12 @@ private:
 	ImGuiContext* _context = nullptr;
 	ImGuiIO*      _io      = nullptr;
 
+	//ImGui-schaal (slider in de onderbalk; 0.25..4). Toegepast op de style +
+	//FontGlobalScale bij wijziging in beginFrame().
+	float      _schaal        = 1.0f;
+	float      _laatsteSchaal = 1.0f;
+	ImGuiStyle _basisStijl;
+
 	//Wereld-parameters voor "Nieuw" (via herstart)
 	int   _nieuwDiepte       = 5;
 	bool  _nieuwProcedureel  = true;

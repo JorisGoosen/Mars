@@ -71,6 +71,7 @@ guiOverlay::guiOverlay(Simulatie& sim) : _sim(sim)
 	_io->IniFilename = nullptr; //geen sessiebestand schrijven op web/native-venster
 
 	ImGui::StyleColorsDark();
+	_basisStijl = ImGui::GetStyle();
 
 	weergaveScherm* scherm = _sim.scherm();
 	ImGui_ImplWGPU_InitInfo info;
@@ -96,6 +97,16 @@ void guiOverlay::beginFrame(float deltaTijd)
 	//NB: DisplayFramebufferScale blijft (1,1): DisplaySize is al in framebuffer-
 	//pixels, en de ImGui-backend schaalt de scissor/viewport met deze factor mee
 	//(anders 2× = validatiefout). De muis wordt in verwerkMuisPos naar framebuffer geschaald.
+
+	//ImGui-schaal toepassen (slider "imguischaal"): herstel de basis-stijl en
+	//schaal opnieuw, zodat de slider absoluut werkt i.p.v. cumulatief.
+	if(_schaal != _laatsteSchaal)
+	{
+		ImGui::GetStyle() = _basisStijl;
+		ImGui::GetStyle().ScaleAllSizes(_schaal);
+		_io->FontGlobalScale = _schaal;
+		_laatsteSchaal = _schaal;
+	}
 
 	ImGui_ImplWGPU_NewFrame();
 	ImGui::NewFrame();
@@ -160,17 +171,17 @@ void guiOverlay::bouwen()
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
 
 	// ── Boven: start-parameters + Nieuw (rij 1) / sim-schakelaars (rij 2) ──
-	if(ImGui::BeginViewportSideBar("startbalk", viewport, ImGuiDir_Up, 62,
+	if(ImGui::BeginViewportSideBar("startbalk", viewport, ImGuiDir_Up, 62.0f * _schaal,
 			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
 	{
-		auto initFloat = [](const char* label, float* v, float vMin, float vMax)
+		auto initFloat = [this](const char* label, float* v, float vMin, float vMax)
 		{
 			//Label expliciet links (TextUnformatted) + unieke ID via PushID, zodat de
 			//positie consistent is en er geen ID-botsingen zijn met de sim-checkboxes.
 			ImGui::SameLine();
 			ImGui::TextUnformatted(label);
 			ImGui::SameLine();
-			ImGui::SetNextItemWidth(58);
+			ImGui::SetNextItemWidth(58.0f * _schaal);
 			ImGui::PushID(label);
 			ImGui::DragFloat("##waarde", v, 0.05f, vMin, vMax, "%.2f");
 			ImGui::PopID();
@@ -178,7 +189,7 @@ void guiOverlay::bouwen()
 
 		ImGui::TextUnformatted("Wereld");
 		ImGui::SameLine();
-		ImGui::SetNextItemWidth(70);
+		ImGui::SetNextItemWidth(70.0f * _schaal);
 		ImGui::DragInt("diepte", &_nieuwDiepte, 0.05f, 1, 10);
 		ImGui::SameLine();
 		ImGui::Checkbox("procedureel", &_nieuwProcedureel);
@@ -228,7 +239,7 @@ void guiOverlay::bouwen()
 	ImGui::End();
 
 	// ── Links: live-tunables, gegroepeerd per categorie ──────────────────
-	if(ImGui::BeginViewportSideBar("tunabalk", viewport, ImGuiDir_Left, 330,
+	if(ImGui::BeginViewportSideBar("tunabalk", viewport, ImGuiDir_Left, 330.0f * _schaal,
 			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
 	{
 		ImGui::TextUnformatted("Live-tunables");
@@ -239,6 +250,7 @@ void guiOverlay::bouwen()
 			ImGui::SliderFloat("zonkracht",   t.zonKracht, 0.0f, 200.0f, "%.1f");
 			ImGui::SliderFloat("winterzon",   t.winterZonneKracht, 0.0f, 200.0f, "%.1f");
 			ImGui::SliderFloat("askanteling", t.obliquity, 0.0f, 1.0f, "%.2f");
+			ImGui::SliderFloat("uitstraling", t.stralingKracht, 0.0f, 1.0f, "%.3f");
 			ImGui::SliderFloat("verwarmtijd", t.verwarmtijd, 0.01f, 1.0f, "%.2f");
 		}
 		if(ImGui::CollapsingHeader("Atmosfeer", ImGuiTreeNodeFlags_DefaultOpen))
@@ -250,17 +262,20 @@ void guiOverlay::bouwen()
 		}
 		if(ImGui::CollapsingHeader("Water & klimaat", ImGuiTreeNodeFlags_DefaultOpen))
 		{
+			ImGui::TextUnformatted("Verdamping & verzadiging");
 			ImGui::SliderFloat("verdamping",    t.verdamping, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("basisverzadiging", t.basisVerzadiging, 0.0f, 0.5f, "%.3f");
 			ImGui::SliderFloat("hoogtekoel",    t.hoogteKoel, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("neerslag",      t.neerslagFactor, 0.0f, 1.0f, "%.2f");
 			ImGui::SliderFloat("orografie",     t.orografieFactor, 0.0f, 1.0f, "%.2f");
-			//Bodem & infiltratie
+			ImGui::Separator();
+			ImGui::TextUnformatted("Bodem & infiltratie");
 			ImGui::SliderFloat("evapotranspiratie", t.evapotranspiratie, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("infiltratie",   t.infiltratie, 0.0f, 1.0f, "%.3f");
 			ImGui::SliderFloat("bodemdiffusie", t.bodemDiffusie, 0.0f, 1.0f, "%.3f");
 			ImGui::SliderFloat("veldcapaciteit", t.veldCapaciteit, 0.0f, 2.0f, "%.2f");
-			//Wolken (twee-fasen vocht)
+			ImGui::Separator();
+			ImGui::TextUnformatted("Wolken (twee-fasen vocht)");
 			ImGui::SliderFloat("condensatie",   t.condensTempo, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("regentempo",    t.regenTempo, 0.0f, 1.0f, "%.3f");
 			ImGui::SliderFloat("wolkverdamping",t.wolkVerdamp, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
@@ -268,15 +283,19 @@ void guiOverlay::bouwen()
 		}
 		if(ImGui::CollapsingHeader("Erosie & sediment", ImGuiTreeNodeFlags_DefaultOpen))
 		{
+			ImGui::TextUnformatted("Erosie");
 			ImGui::SliderFloat("zanderosie",    t.zandErosie, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("rotserosie",    t.rotsErosie, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("bezinkheid",    t.bezinkheid, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
+			ImGui::SliderFloat("oplosheid",     t.oplosheid, 0.0f, 2.0f, "%.2f");
+			ImGui::Separator();
+			ImGui::TextUnformatted("Hellingen");
 			ImGui::SliderFloat("zandrusthelling", t.zandRepose, 0.0f, 5.0f, "%.2f");
 			ImGui::SliderFloat("hellingkracht", t.hellingKracht, 0.0f, 2.0f, "%.2f");
-			ImGui::SliderFloat("oplosheid",     t.oplosheid, 0.0f, 2.0f, "%.2f");
 		}
 		if(ImGui::CollapsingHeader("Leven & groei", ImGuiTreeNodeFlags_DefaultOpen))
 		{
+			ImGui::TextUnformatted("Groei & sterfte");
 			ImGui::SliderFloat("groeiband",     t.levenGroeiBand, 0.0f, 30.0f, "%.1f");
 			ImGui::SliderFloat("droogtestreft", t.levenDroogTempo, 0.0f, 1.0f, "%f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("verwelkdrempel",t.levenVerwelk, 0.0f, 1.0f, "%.2f");
@@ -398,7 +417,7 @@ void guiOverlay::bouwen()
 			ImGui::Text("luchtstappen");
 			ImGui::SameLine();
 			int lucht = (int)*t.luchtStappen;
-			ImGui::SetNextItemWidth(60);
+			ImGui::SetNextItemWidth(60.0f * _schaal);
 			if(ImGui::DragInt("##lucht", &lucht, 1.0f, 1, 100))
 				*t.luchtStappen = (size_t)std::max(1, lucht);
 		}
@@ -432,7 +451,7 @@ void guiOverlay::bouwen()
 	ImGui::End();
 
 	// ── Onder: overlaykeuze (knoppen met highlight) ──────────────────────
-	if(ImGui::BeginViewportSideBar("overlaybalk", viewport, ImGuiDir_Down, 38,
+	if(ImGui::BeginViewportSideBar("overlaybalk", viewport, ImGuiDir_Down, 38.0f * _schaal,
 			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
 	{
 		static const char* overlays[11] = {
@@ -444,6 +463,14 @@ void guiOverlay::bouwen()
 		const ImVec4 actiefTekst    = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
 
 		ImGui::BeginChild("ovk", ImVec2(0, 0), false, ImGuiWindowFlags_NoScrollbar);
+
+		//Links: ImGui-schaal (label links van de slider).
+		ImGui::TextUnformatted("imguischaal");
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(70.0f * _schaal);
+		ImGui::SliderFloat("##imguischaal", &_schaal, 0.25f, 4.0f, "%.2f");
+		ImGui::SameLine();
+
 		for(int i = 0; i < 11; i++)
 		{
 			const bool gekozen = (*t.overlayKeuze == i);
@@ -464,10 +491,12 @@ void guiOverlay::bouwen()
 			if(i < 10) ImGui::SameLine();
 		}
 
-		//Rechts: doorzichtigheid van het wolkendek (0 = onzichtbaar, 1 = dekkend).
-		ImGui::SameLine(ImGui::GetContentRegionAvail().x - 180.0f);
-		ImGui::SetNextItemWidth(110);
-		ImGui::SliderFloat("wolk-doorzichtig", t.wolkAlpha, 0.0f, 1.0f, "%.2f");
+		//Rechts: doorzichtigheid van het wolkendek (label links van de slider).
+		ImGui::SameLine(ImGui::GetContentRegionAvail().x - 190.0f * _schaal);
+		ImGui::TextUnformatted("wolk-doorzichtig");
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(70.0f * _schaal);
+		ImGui::SliderFloat("##wolkdoorzichtig", t.wolkAlpha, 0.0f, 1.0f, "%.2f");
 		ImGui::EndChild();
 	}
 	ImGui::End();
