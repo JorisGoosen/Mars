@@ -290,6 +290,8 @@ void guiOverlay::bouwen()
 			ImGui::Separator();
 			ImGui::TextUnformatted("Hellingen");
 			ImGui::SliderFloat("zandrusthelling", t.zandRepose, 0.0f, 5.0f, "%.2f");
+		ImGui::SliderFloat("ijsrusthelling",  t.ijsRepose,  0.0f, 30.0f, "%.2f");
+		ImGui::SliderFloat("ijstempo",       t.ijsTempo, 0.0001f, 0.05f, "%.4f", ImGuiSliderFlags_Logarithmic);
 			ImGui::SliderFloat("hellingkracht", t.hellingKracht, 0.0f, 2.0f, "%.2f");
 		}
 		if(ImGui::CollapsingHeader("Leven & groei", ImGuiTreeNodeFlags_DefaultOpen))

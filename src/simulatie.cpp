@@ -903,7 +903,7 @@ Simulatie::Tunables Simulatie::tunables()
 		&_coriolisOmega, &_wrijving, &_diffusie,
 		&_verdamping, &_basisVerzadiging, &_neerslagFactor, &_orografieFactor,
 		&_grondMult, &_grondSchaal,
-		&_zandErosie, &_rotsErosie, &_bezinkheid, &_zandRepose, &_hellingKracht, &_oplosheid,
+		&_zandErosie, &_rotsErosie, &_bezinkheid, &_zandRepose, &_ijsRepose, &_ijsTempo, &_hellingKracht, &_oplosheid,
 		&_evapotranspiratie, &_infiltratie, &_bodemDiffusie, &_veldCapaciteit,
 		&_condensTempo, &_regenTempo, &_wolkVerdamp, &_wolkDiffusie,
 		&_levenGroeiBand, &_levenDroogTempo, &_levenVerwelk, &_levenKoudTempo,
@@ -1020,8 +1020,8 @@ void Simulatie::stap()
 	rekenPar.erosiePar[3]  = _zandRepose;
 	rekenPar.erosiePar2[0] = _hellingKracht;
 	rekenPar.erosiePar2[1] = _oplosheid;
-	rekenPar.erosiePar2[2] = 0.0f;
-	rekenPar.erosiePar2[3] = 0.0f;
+	rekenPar.erosiePar2[2] = _ijsRepose;
+	rekenPar.erosiePar2[3] = _ijsTempo;
 	rekenPar.waterPar[0]   = _evapotranspiratie;
 	rekenPar.waterPar[1]   = _infiltratie;
 	rekenPar.waterPar[2]   = _bodemDiffusie;

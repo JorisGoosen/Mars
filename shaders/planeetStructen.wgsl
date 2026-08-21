@@ -24,6 +24,8 @@ const minWaterSed     = 0.01;  //onder deze waterdiepte erodeert een cel niet me
 //Materiaal-afhankelijke erosiesnelheden, de zand-rusthelling en de waterkringloop
 //zijn nu runtimetunables (reken.erosiePar/waterPar e.d.), defaults in C++.
 const zandZakhoek = 1.0 / 20.0;
+//IJs-rusthelling (zie waterDruk.comp): de rusthoek (ijsRepose) én het tempo
+//(ijsTempo) zijn runtimetunables in reken.erosiePar2.zw; defaults in C++.
 
 //Extreem hoge kleppen: puur bescherming tegen Niet-eindige waarden en
 //f32-overflow, ver boven elk reëel fysisch niveau. De pijpen kunnen door de
@@ -165,6 +167,13 @@ fn grondHoogte(v : vak) -> f32 {
     return v.rotsHoogte + v.zandHoogte;
 }
 
+//Bovenste oppervlak van het ijs voor de ijs-rusthelling: ijs drijft OP het water,
+//dus grond + de échte waterhoogte + ijs (zelfde idee als de render,
+//planeetDefinitiesRender.wgsl, maar op rauwe waterHoogte i.p.v. waterSchijn).
+fn ijsTop(v : vak) -> f32 {
+    return grondHoogte(v) + v.waterHoogte + v.ijs;
+}
+
 struct vakMeta {
     normaal     : vec4f,
     oost        : vec4f,        //lokale raakvlak-basis (oost) in wereldcoördinaten
@@ -190,7 +199,7 @@ struct rekenParameters {
 
     //Runtimetunables (GUI-sliders; C++-defaults)
     erosiePar   : vec4f, //(zandErosie, rotsErosie, bezinkheid, zandRepose)
-    erosiePar2  : vec4f, //(hellingKracht, oplosheid, ongebruikt, ongebruikt)
+    erosiePar2  : vec4f, //(hellingKracht, oplosheid, ijsRepose, ijsTempo)
     waterPar    : vec4f, //(evapotranspiratie, infiltratie, bodemDiffusie, veldCapaciteit)
     levenPar    : vec4f, //(levenGroeiBand, levenDroogTempo, levenVerwelk, levenKoudTempo)
     groeiPar    : vec4f, //(zandGroei, zandBuur, rotsGroei, rotsBuur) — leven + burengroei

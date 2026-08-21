@@ -21,6 +21,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     var netZand = 0.0;
     let mijnZand  = vakken0[ID].zandHoogte;
     let mijnGrond = grondHoogte(vakken0[ID]);
+    var netIjs    = 0.0;
+    let mijnIjs   = vakken0[ID].ijs;
+    let mijnIjsTop = ijsTop(vakken0[ID]);
 
     //Zand-rusthelling: als meerdere lagere buren tegelijk om zand vragen kan de som
     //van de porties de zandlaag overschrijden. De donor schaalt daarom al zijn
@@ -37,6 +40,19 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
         }
     }
     let uitSchaal = select(min(1.0, mijnZand / max(uitTotaal, zeerKlein)), 1.0, uitTotaal <= zeerKlein);
+
+    //IJs-rusthelling: zelfde donor-schaling als het zand, maar op het ijs-oppervlak
+    //(ijsTop: ijs drijft OP het water, dus grond + waterHoogte + ijs) en met de
+    //ijsRepose-drempel (reken.erosiePar2[2]). IJs is stroperiger dan zand:
+    //ijsTempo kruipt een factor 10 trager dan zandZakhoek.
+    var ijsUitTotaal = 0.0;
+    for(var ib = 0u; ib < burenAantal && ib < maxBuren; ib++) {
+        let ijsVerschilb = mijnIjsTop - ijsTop(vakken0[vakMetas[ID].buren[ib]]);
+        if(ijsVerschilb > reken.erosiePar2[2]) {
+            ijsUitTotaal += min(reken.erosiePar2[3] * (ijsVerschilb - reken.erosiePar2[2]), mijnIjs);
+        }
+    }
+    let ijsUitSchaal = select(min(1.0, mijnIjs / max(ijsUitTotaal, zeerKlein)), 1.0, ijsUitTotaal <= zeerKlein);
 
     //Droesem claim-limit: een donor mag nooit meer slib uitsturen dan hij bezit.
     //Per pijp vertrekt clamp(flux/L, 0, 1) x donor-droesem; bij meerdere uitgaande
@@ -88,6 +104,32 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
             netZand += buurAanbod * donorSchaal;
         }
 
+        //IJs-rusthelling: symmetrische, behoudende uitwisseling op het ijs-oppervlak
+        //(ijs drijft OP het water: grond + waterHoogte + ijs — de échte waterhoogte,
+        //niet de gladgestreken waterSchijn). De donor kan nooit meer uitdelen dan zijn
+        //ijs; de ontvanger rekent de donor-schaal na uit dezelfde vakken0-data.
+        let buurIjsTop = ijsTop(vakken0[buurIDv]);
+        let buurIjs    = vakken0[buurIDv].ijs;
+        let ijsVerschil = mijnIjsTop - buurIjsTop;
+        if(ijsVerschil > reken.erosiePar2[2]) {
+            let ijsOorskot = ijsVerschil - reken.erosiePar2[2];
+            netIjs -= min(reken.erosiePar2[3] * ijsOorskot, mijnIjs) * ijsUitSchaal;
+        }
+        else if(ijsVerschil < -reken.erosiePar2[2]) {
+            let ijsOorskot = -ijsVerschil - reken.erosiePar2[2];
+            let ijsAanbod = min(reken.erosiePar2[3] * ijsOorskot, buurIjs);
+            var ijsDonorTotaal = 0.0;
+            for(var ibb = 0u; ibb < buurBuren && ibb < maxBuren; ibb++) {
+                let ijsDonorLaag = vakMetas[buurIDv].buren[ibb];
+                let ijsDonorVers = buurIjsTop - ijsTop(vakken0[ijsDonorLaag]);
+                if(ijsDonorVers > reken.erosiePar2[2]) {
+                    ijsDonorTotaal += min(reken.erosiePar2[3] * (ijsDonorVers - reken.erosiePar2[2]), buurIjs);
+                }
+            }
+            let ijsDonorSchaal = select(min(1.0, buurIjs / max(ijsDonorTotaal, zeerKlein)), 1.0, ijsDonorTotaal <= zeerKlein);
+            netIjs += ijsAanbod * ijsDonorSchaal;
+        }
+
         for(var buurBuur = 0u; buurBuur < buurBuren; buurBuur++) {
             if(vakMetas[buurIDv].buren[buurBuur] == ID) {
                 let stroomBinnen = vakken1[buurIDv].pijpen[buurBuur] - vakken1[ID].pijpen[buur];
@@ -137,6 +179,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     //nog marginale afrondingsfoutjes op en kan hooguit heel iets vernietigen,
     //nooit iets creëren.
     netZand = max(netZand, -mijnZand);
+    netIjs  = max(netIjs,  -mijnIjs);
 
     //Dan tijd om het een en ander weg te schrijven
     snelheid /= f32(burenAantal);
@@ -174,7 +217,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     }
 
     vakken1[ID].waterHoogte = goed(waterNaVries, vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
-    vakken1[ID].ijs         = goed(ijsNieuw,     vakken0[ID].ijs,        0.0, maxWaterHoogte);
+    vakken1[ID].ijs         = goed(ijsNieuw + netIjs,  vakken0[ID].ijs,  0.0, maxWaterHoogte);
 
     //Bevroren fractie van de waterkolom: dezelfde fractie van het zwevende slib
     //(droesem) slaat neer in het ijs. ijs=10 en water=10 -> de helft zakt.

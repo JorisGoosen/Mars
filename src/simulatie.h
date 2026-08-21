@@ -22,7 +22,7 @@ struct rekenParameters {
 
 	// ── Runtimetunables (GUI-sliders; defaults wijken de WGSL-waarden af) ──
 	float	erosiePar[4];   //(zandErosie, rotsErosie, bezinkheid, zandRepose)
-	float	erosiePar2[4];  //(hellingKracht, oplosheid, ongebruikt, ongebruikt)
+	float	erosiePar2[4];  //(hellingKracht, oplosheid, ijsRepose, ijsTempo)
 	float	waterPar[4];    //(evapotranspiratie, infiltratie, bodemDiffusie, veldCapaciteit)
 	float	levenPar[4];    //(levenGroeiBand, levenDroogTempo, levenVerwelk, levenKoudTempo)
 	float	groeiPar[4];    //(zandGroei, zandBuur, rotsGroei, rotsBuur) — leven+burengroei
@@ -182,7 +182,7 @@ public:
 		float *verdamping, *basisVerzadiging, *neerslagFactor, *orografieFactor;
 		float *grondMult, *grondSchaal;
 		//Erosie & sediment
-		float *zandErosie, *rotsErosie, *bezinkheid, *zandRepose, *hellingKracht, *oplosheid;
+		float *zandErosie, *rotsErosie, *bezinkheid, *zandRepose, *ijsRepose, *ijsTempo, *hellingKracht, *oplosheid;
 		//Water & wolken
 		float *evapotranspiratie, *infiltratie, *bodemDiffusie, *veldCapaciteit;
 		float *condensTempo, *regenTempo, *wolkVerdamp, *wolkDiffusie;
@@ -261,7 +261,9 @@ private:
 	float _zandErosie    = 0.001f;
 	float _rotsErosie    = 0.0002f;
 	float _bezinkheid    = 0.001f;
-	float _zandRepose    = 1.5f;
+	float _zandRepose    = 2.0f;
+	float _ijsRepose     = 5.0f;   //ijs-rusthelling: ijs zakt pas bij een hogere hellingsdrempel dan zand
+	float _ijsTempo      = 1.0f / 200.0f; //tempo van de ijs-rusthelling: fractie van de drempeloverschrijding die per ronde verschuift (10x trager dan zand)
 	float _hellingKracht = 0.5f;
 	float _oplosheid     = 0.70f;
 	float _evapotranspiratie = 0.001f;
