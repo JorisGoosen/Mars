@@ -114,6 +114,7 @@ struct veldKaartToestandje {
 
 struct shotToestandje {
 	bool klaar = false;
+	bool gelukt = false;
 };
 
 //Toestand van de pick-readback. Web lost mapAsync pas tussen frames af (de
@@ -246,26 +247,26 @@ private:
 	float     _grondMult    = 100.0f;
 	float     _grondSchaal  = 1.0f;
 	float _verdamping   = 0.0001f;
-	float _zonKracht    = 50.0f;
-	float _elips        = 0.1f;     //excentriciteit van de baan: seizoensverschil in zonkracht (0 = cirkel, ~1 = sterke ellips)
+	float _zonKracht    = 80.0f;
+	float _elips        = 0.3f;     //excentriciteit van de baan: seizoensverschil in zonkracht (0 = cirkel, ~1 = sterke ellips)
 	float _coriolisOmega = 0.2f;
 	float _wrijving     = 0.05f;
 	float _diffusie     = 0.65f;
 	float _verwarmtijd  = 0.5f;
 	float _stralingKracht = 0.05f;
 	float _basisVerzadiging = 0.10f;
-	float _neerslagFactor = 0.3f;
+	float _neerslagFactor = 0.1f;
 	float _orografieFactor = 0.4f;
 
 	// ── Runtimetunables (WGSL-constanten die nu via de GUI aanpasbaar zijn) ──
-	float _zandErosie    = 0.001f;
-	float _rotsErosie    = 0.0002f;
-	float _bezinkheid    = 0.001f;
-	float _zandRepose    = 2.0f;
-	float _ijsRepose     = 5.0f;   //ijs-rusthelling: ijs zakt pas bij een hogere hellingsdrempel dan zand
+	float _zandErosie    = 0.1f;
+	float _rotsErosie    = 0.01f;
+	float _bezinkheid    = 0.05f;
+	float _zandRepose    = 1.0f;
+	float _ijsRepose     = 1.5f;   //ijs-rusthelling: ijs zakt pas bij een hogere hellingsdrempel dan zand
 	float _ijsTempo      = 1.0f / 200.0f; //tempo van de ijs-rusthelling: fractie van de drempeloverschrijding die per ronde verschuift (10x trager dan zand)
-	float _hellingKracht = 0.5f;
-	float _oplosheid     = 0.70f;
+	float _hellingKracht = 2.0f;
+	float _oplosheid     = 0.90f;
 	float _evapotranspiratie = 0.001f;
 	float _infiltratie   = 0.3f;
 	float _bodemDiffusie = 0.5f;
@@ -279,7 +280,7 @@ private:
 	float _rotsGroei     = 1.000025f;
 	float _rotsBuur      = 0.003333f;
 	float _levensDamp    = 0.004f; //transpiratie: bodemvocht → damp door leven (per ronde)
-	float _waterDoodTempo = 1.0f;  //sterkte van leven-sterfte onder water (0 = uit)
+	float _waterDoodTempo = 4.0f;  //sterkte van leven-sterfte onder water (0 = uit)
 	float _condensTempo  = 0.01f;
 	float _regenTempo    = 0.30f;
 	float _wolkVerdamp   = 0.006f;
@@ -288,7 +289,7 @@ private:
 	size_t    _jaarTeller    = 0;    //0..3999: één omloop = één jaar (seizoen = 1000 frames)
 	size_t    _zonSlotTeller = 0;    //0..359: rotatiehoek van de sim-zon (dagomloop van zonSchijn.comp)
 	int       _overlayKeuze = 0;
-	float     _wolkAlpha    = 1.0f; //doorzichtigheid van het wolkendek (0..1)
+	float     _wolkAlpha    = 0.333333f; //doorzichtigheid van het wolkendek (0..1)
 	float     _waterReflectie = 1.0f; //sterkte waterspiegel + randreflectie (0..2)
 
 	bool _roteerMaar      = false;

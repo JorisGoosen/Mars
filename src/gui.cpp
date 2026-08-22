@@ -231,8 +231,6 @@ void guiOverlay::bouwen()
 		ImGui::SameLine();
 		ImGui::Checkbox("atmosfeer", t.atmosfeerAan);
 		ImGui::SameLine();
-		ImGui::Checkbox("schaduw", t.schaduwAan);
-		ImGui::SameLine();
 		ImGui::TextUnformatted("fps");
 		ImGui::SameLine();
 		ImGui::Text("%.1f (%.2f ms)", _sim.fps(), _sim.frameTijdMS());
@@ -317,6 +315,20 @@ void guiOverlay::bouwen()
 			ImGui::SliderFloat("grondmult",  t.grondMult, 1.0f, 1000.0f, "%.0f");
 			ImGui::SliderFloat("grondschaal", t.grondSchaal, 0.1f, 5.0f, "%.2f");
 		}
+		ImGui::Separator();
+		ImGui::TextUnformatted("Stats");
+		ImGui::Text("vakjes: %zu", _sim.aantalVakjes());
+		ImGui::Text("hoogste grond: %.1f", _sim.hoogsteGrond());
+	}
+	ImGui::End();
+
+	// ── Rechts: weergave-opties, gereedschapkeuze + UI-schaal ────────────
+	if(ImGui::BeginViewportSideBar("weergavebalk", viewport, ImGuiDir_Right, 280.0f * _schaal,
+			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
+	{
+		ImGui::TextUnformatted("Weergave & gereedschap");
+		ImGui::Separator();
+
 		if(ImGui::CollapsingHeader("Gereedschap (penseel)", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			penseelGereedschap *p = _sim.penseel();
@@ -413,6 +425,7 @@ void guiOverlay::bouwen()
 			ImGui::SameLine();
 			ImGui::Checkbox("planeet-rotatie", t.roteerMaar);
 			ImGui::SliderFloat("waterreflectie", t.waterReflectie, 0.0f, 2.0f, "%.2f");
+			ImGui::SliderFloat("wolk-doorzichtigheid", t.wolkAlpha, 0.0f, 1.0f, "%.2f");
 			if(ImGui::Button("Eén sim-stap"))
 				*t.waterStap = true;
 			ImGui::SameLine();
@@ -425,27 +438,41 @@ void guiOverlay::bouwen()
 		}
 
 		ImGui::Separator();
-		ImGui::TextUnformatted("Stats");
-		ImGui::Text("vakjes: %zu", _sim.aantalVakjes());
-		ImGui::Text("hoogste grond: %.1f", _sim.hoogsteGrond());
+		//UI-schaal (label links; intikveld, pas toe bij Enter/wegklikken).
+		ImGui::TextUnformatted("imguischaal");
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(60.0f * _schaal);
+		if(ImGui::InputFloat("##imguischaal", &_schaal, 0.05f, 0.5f, "%.2f"))
+			_schaal = std::clamp(_schaal, 0.25f, 4.0f);
 
 		ImGui::Separator();
 		if(ImGui::CollapsingHeader("Besturing"))
 		{
 			ImGui::TextUnformatted("Muis & trackpad");
-			ImGui::BulletText("Klik+slepen op de planeet = camera draaien (trackball)");
-			ImGui::BulletText("Klik+slepen op de achtergrond = zon om de origin draaien");
-			ImGui::BulletText("Horizontale swipe = roteren");
-			ImGui::BulletText("Verticaal scrollen / pinch = zoomen");
-			ImGui::BulletText("Penseel (paneel 'Gereedschap'): links-sleep = schilderen, Shift+links = verwijderen, rechts-sleep = draaien, wiel = zoomen");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("Klik+slepen op de planeet = camera draaien (trackball)");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("Klik+slepen op de achtergrond = zon om de origin draaien");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("Horizontale swipe = roteren");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("Verticaal scrollen / pinch = zoomen");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("Penseel (paneel 'Gereedschap'): links-sleep = schilderen, Shift+links = verwijderen, rechts-sleep = draaien, wiel = zoomen");
 			ImGui::Separator();
 			ImGui::TextUnformatted("Toetsen");
-			ImGui::BulletText("WASD/QE = bewegen | pijltjes = draaien");
-			ImGui::BulletText("Space = pauzeer/start | B = zon-omloop | N = schaduw");
-			ImGui::BulletText("R = rotatie | X = water | C = wolken");
-			ImGui::BulletText("1-9/0 = overlays | - = schaduwdebug | Enter = stap | ;/' = hoogte");
-			ImGui::BulletText("K/L = verdamping | G/H = coriolis");
-			ImGui::BulletText("U/I = zonkracht | O/P = wrijving | ./ = neerslag");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("WASD/QE = bewegen | pijltjes = draaien");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("Space = pauzeer/start | B = zon-omloop | N = schaduw");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("R = rotatie | X = water | C = wolken");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("1-9/0 = overlays | - = schaduwdebug | Enter = stap | ;/' = hoogte");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("K/L = verdamping | G/H = coriolis");
+			ImGui::Bullet(); ImGui::SameLine();
+			ImGui::TextWrapped("U/I = zonkracht | O/P = wrijving | ./ = neerslag");
 			ImGui::Separator();
 			ImGui::TextWrapped("Let op: diepte 9/10 betekent ~5M/20M vakjes "
 			                   "(ongeveer 0,8/3 GB) — de meeste machines halen dat niet.");
@@ -454,29 +481,51 @@ void guiOverlay::bouwen()
 	ImGui::End();
 
 	// ── Onder: overlaykeuze (knoppen met highlight) ──────────────────────
-	if(ImGui::BeginViewportSideBar("overlaybalk", viewport, ImGuiDir_Down, 38.0f * _schaal,
+	//Knoppen vullen de rij; pas als de rij vol is komt de volgende op een
+	//nieuw niveau. De balkhoogte past exact bij het aantal rijen dat in de
+	//beschikbare breedte nodig is (zelfde model als de wrap hieronder).
+	const ImGuiStyle& stijl = ImGui::GetStyle();
+	static const char* overlays[12] = {
+		"Natuurlijk", "Temperatuur", "Wind & druk", "Bodemvocht",
+		"Lucht/Wolken", "IJs/Water", "Wolken", "Zonlicht", "Leven", "Hoogte",
+		"Water & droesem", "Schaduw"
+	};
+	const float rijHoogte = ImGui::GetFontSize() + stijl.FramePadding.y * 2.0f;
+	const float inhoudBreedte = ((ImGuiViewportP*)(void*)viewport)->GetBuildWorkRect().GetSize().x - stijl.WindowPadding.x * 2.0f;
+	int   rijenAantal = 1;
+	float rijBreedte  = 0.0f;
+	for(int i = 0; i < 12; i++)
+	{
+		const float breedte = ImGui::CalcTextSize(overlays[i]).x + stijl.FramePadding.x * 2.0f;
+		if(i > 0 && rijBreedte + stijl.ItemSpacing.x + breedte > inhoudBreedte)
+		{
+			rijenAantal++;
+			rijBreedte = breedte;
+		}
+		else
+			rijBreedte += (i > 0 ? stijl.ItemSpacing.x : 0.0f) + breedte;
+	}
+	const float balkHoogte = stijl.WindowPadding.y * 2.0f + rijenAantal * rijHoogte + (rijenAantal - 1) * stijl.ItemSpacing.y;
+	if(ImGui::BeginViewportSideBar("overlaybalk", viewport, ImGuiDir_Down, balkHoogte,
 			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar))
 	{
-		static const char* overlays[12] = {
-			"Natuurlijk", "Temperatuur", "Wind & druk", "Bodemvocht",
-			"Lucht/Wolken", "IJs/Water", "Wolken", "Zonlicht", "Leven", "Hoogte",
-			"Water & droesem", "Schaduw"
-		};
 		const ImVec4 actiefAchterG = ImVec4(0.25f, 0.55f, 0.90f, 1.0f);  //opvallend blauw
 		const ImVec4 actiefTekst    = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
 
-		ImGui::BeginChild("ovk", ImVec2(0, 0), false, ImGuiWindowFlags_NoScrollbar);
-
-		//Links: ImGui-schaal (label links; intikveld, pas toe bij Enter/wegklikken).
-		ImGui::TextUnformatted("imguischaal");
-		ImGui::SameLine();
-		ImGui::SetNextItemWidth(60.0f * _schaal);
-		if(ImGui::InputFloat("##imguischaal", &_schaal, 0.05f, 0.5f, "%.2f"))
-			_schaal = std::clamp(_schaal, 0.25f, 4.0f);
-		ImGui::SameLine();
-
+		const float rijLinkerRand  = ImGui::GetWindowContentRegionMin().x;
+		const float rijRechterRand = ImGui::GetWindowContentRegionMax().x;
+		float knopX = rijLinkerRand;
 		for(int i = 0; i < 12; i++)
 		{
+			const float breedte = ImGui::CalcTextSize(overlays[i]).x + stijl.FramePadding.x * 2.0f;
+			if(i > 0)
+			{
+				knopX += stijl.ItemSpacing.x;
+				if(knopX + breedte > rijRechterRand)
+					knopX = rijLinkerRand; //rij vol: knop begint een rij lager
+				else
+					ImGui::SameLine();
+			}
 			const bool gekozen = (*t.overlayKeuze == i);
 			if(gekozen)
 			{
@@ -492,16 +541,8 @@ void guiOverlay::bouwen()
 			}
 			if(gekozen)
 				ImGui::PopStyleColor(4);
-			if(i < 10) ImGui::SameLine();
+			knopX += breedte;
 		}
-
-		//Rechts: doorzichtigheid van het wolkendek (label links van de slider).
-		ImGui::SameLine(ImGui::GetContentRegionAvail().x - 190.0f * _schaal);
-		ImGui::TextUnformatted("wolk-doorzichtig");
-		ImGui::SameLine();
-		ImGui::SetNextItemWidth(70.0f * _schaal);
-		ImGui::SliderFloat("##wolkdoorzichtig", t.wolkAlpha, 0.0f, 1.0f, "%.2f");
-		ImGui::EndChild();
 	}
 	ImGui::End();
 }

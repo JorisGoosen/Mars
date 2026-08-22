@@ -71,6 +71,7 @@ public:
 	
 	planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogteMonsteraar, const planeetInit & init = planeetInit());
 	planeet(size_t onderverdelingen, std::function<float(glm::vec3)> ruis, const planeetInit & init = planeetInit());
+	~planeet() override;
 
 	size_t 	aantalVakjes() const { return _vakken[0].size(); }
 	float	hoogsteGrond() const { return _hoogsteGrond; }
@@ -101,9 +102,9 @@ private:
 	std::vector<glm::uint32> 			_eigenschappen;
 	buurt								_buren;
 	std::vector<vak>					_vakken			[2];
-	vrwrkrOpslagDing<vak>			*	_pingPongVakken	[2];
+	vrwrkrOpslagDing<vak>			*	_pingPongVakken	[2]	= { nullptr, nullptr };
 	std::vector<vakMeta>				_vakMetas;
-	vrwrkrOpslagDing<vakMeta>		*	_vakMetaOpslag;
+	vrwrkrOpslagDing<vakMeta>		*	_vakMetaOpslag	= nullptr;
 	size_t								_pingIsDit	= 0;
 	std::function<float(glm::vec2)> 	_hoogteMonsteraar;
 	std::function<float(glm::vec3)> 	_ruis;

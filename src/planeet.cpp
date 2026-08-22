@@ -28,6 +28,19 @@ planeet::planeet(size_t onderverdelingen, std::function<float(glm::vec2)> hoogte
 	bouwPlaneet();
 }
 
+planeet::~planeet()
+{
+	//De opslag-dingen zijn met new gemaakt in maakPingPongOpslagen; die horen
+	//hier vrij te komen (vóór het apparaat dichtgaat, zie Simulatie::~Simulatie).
+	delete _pingPongVakken[0];
+	delete _pingPongVakken[1];
+	delete _vakMetaOpslag;
+
+	_pingPongVakken[0] = nullptr;
+	_pingPongVakken[1] = nullptr;
+	_vakMetaOpslag     = nullptr;
+}
+
 void planeet::bouwPlaneet()
 {
 	//geodesisch zorgt ervoor dat we een boel punten krijgen, gesorteerd op nabijheid en met bijbehorende breedte- en lentegraden.

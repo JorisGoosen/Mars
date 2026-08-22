@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <random>
 #include <png.h>
 #ifdef __EMSCRIPTEN__
@@ -35,7 +36,7 @@ static void diagVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebr
 	diagToestandje * t = (diagToestandje *)gebruiker1;
 	t->klaar = true;
 
-	if(status != WGPUMapAsyncStatus_Success) { std::cerr << "[diag] lezen mislukt\n"; return; }
+	if(status != WGPUMapAsyncStatus_Success) { std::cerr << "[diag] lezen mislukt\n"; wgpuBufferUnmap(t->buffer); return; }
 
 	const vak * cellen = (const vak *)wgpuBufferGetMappedRange(t->buffer, 0, t->grootte);
 	const size_t aantal = t->grootte / sizeof(vak);
@@ -112,7 +113,7 @@ static void csvVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebru
 	csvToestandje * t = (csvToestandje *)gebruiker1;
 	t->klaar = true;
 
-	if(status != WGPUMapAsyncStatus_Success) { std::cerr << "[csv] lezen mislukt\n"; return; }
+	if(status != WGPUMapAsyncStatus_Success) { std::cerr << "[csv] lezen mislukt\n"; wgpuBufferUnmap(t->buffer); return; }
 
 	const vak * cellen = (const vak *)wgpuBufferGetMappedRange(t->buffer, 0, t->grootte);
 	const size_t aantal = t->grootte / sizeof(vak);
@@ -141,7 +142,7 @@ static void conservatieVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void
 	conservatieToestandje * t = (conservatieToestandje *)gebruiker1;
 	t->klaar = true;
 
-	if(status != WGPUMapAsyncStatus_Success) { std::cerr << "[conservering] lezen mislukt\n"; return; }
+	if(status != WGPUMapAsyncStatus_Success) { std::cerr << "[conservering] lezen mislukt\n"; wgpuBufferUnmap(t->buffer); return; }
 
 	const vak * cellen = (const vak *)wgpuBufferGetMappedRange(t->buffer, 0, t->grootte);
 	const size_t aantal = t->grootte / sizeof(vak);
@@ -163,8 +164,10 @@ static void conservatieVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void
 
 static void shotVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void * gebruiker1, void * gebruiker2)
 {
-	(void)status; (void)gebruiker2;
-	((shotToestandje *)gebruiker1)->klaar = true;
+	(void)gebruiker2;
+	shotToestandje * t = (shotToestandje *)gebruiker1;
+	t->klaar  = true;
+	t->gelukt = (status == WGPUMapAsyncStatus_Success);
 }
 
 static void pickVerwerker(WGPUMapAsyncStatus status, WGPUStringView boodschap, void * gebruiker1, void *)
@@ -332,6 +335,7 @@ static void veldKaartVerwerker(WGPUMapAsyncStatus status, WGPUStringView, void *
 	if(status != WGPUMapAsyncStatus_Success)
 	{
 		std::cerr << "[veldKaart] lezen mislukt (status " << (uint32_t)status << ")" << std::endl;
+		wgpuBufferUnmap(t->buffer);
 		return;
 	}
 
@@ -446,15 +450,14 @@ bool Simulatie::init()
 
 	// Bump-kaart voor water
 	size_t bumpW, bumpH, bumpK;
-	png_byte * bumpData = laadPNG("plaatjes/zeewater_bump.png", bumpW, bumpH, bumpK);
+	std::unique_ptr<png_byte[]> bumpData(laadPNG("plaatjes/zeewater_bump.png", bumpW, bumpH, bumpK));
 	if(!bumpData)
 	{
 		std::cerr << "Kon zeewater_bump.png niet laden!" << std::endl;
 		return false;
 	}
 	if(heeftRender)
-		_scherm->maakTextuur("waterBumpTex", bumpW, bumpH, true, true, false, GL_RGBA8, bumpData, GL_RGBA, GL_UNSIGNED_BYTE);
-	delete[] bumpData;
+		_scherm->maakTextuur("waterBumpTex", bumpW, bumpH, true, true, false, GL_RGBA8, bumpData.get(), GL_RGBA, GL_UNSIGNED_BYTE);
 
 	// ── Buffers ─────────────────────────────────────────────────────────
 	WGPUDevice apparaat = weergaveScherm::deelApparaat();
@@ -747,7 +750,7 @@ bool Simulatie::_laadMola()
 #endif
 
 	size_t w, h, kanalen;
-	png_byte * MarsHoogte = laadPNG("MARS_Hoogte.png", w, h, kanalen);
+	std::unique_ptr<png_byte[]> MarsHoogte(laadPNG("MARS_Hoogte.png", w, h, kanalen));
 	if(!MarsHoogte)
 	{
 		std::cerr << "Kon MARS_Hoogte.png niet laden! Gebruik --procedureel." << std::endl;
@@ -767,7 +770,7 @@ bool Simulatie::_laadMola()
 		}
 
 	if(_heeftRender)
-		_scherm->vervangTextuur("marsHoogteTex", w, h, true, false, false, GL_RGBA8, MarsHoogte, GL_RGBA, GL_UNSIGNED_BYTE);
+		_scherm->vervangTextuur("marsHoogteTex", w, h, true, false, false, GL_RGBA8, MarsHoogte.get(), GL_RGBA, GL_UNSIGNED_BYTE);
 
 	// Bewaar grijswaarden voor de altura-lambda (rode kanaal / 255.0)
 	_molaBreedte = w;
@@ -777,7 +780,6 @@ bool Simulatie::_laadMola()
 		for(size_t x = 0; x < w; x++)
 			_molaData[y * w + x] = (float)MarsHoogte[(y * w + x) * 4] / 255.0f;
 
-	delete[] MarsHoogte;
 	return true;
 }
 
@@ -883,6 +885,18 @@ bool Simulatie::herstart(const SimulatieConfig & nieuweCfg)
 	delete _geo;
 	_geo = nullptr;
 	_maakPlaneet();
+
+	//Readback-buffer op maat van het nieuwe aantal vakjes: bij een andere diepte
+	//past de oude grootte niet meer bij huidigeOpslag() (overrun of dubbele map-fout).
+	if(_diagLees)
+	{
+		_diagGrootte = _geo->aantalVakjes() * sizeof(vak);
+		wgpuBufferRelease(_diagLees);
+		WGPUBufferDescriptor leesBeschrijving = WGPU_BUFFER_DESCRIPTOR_INIT;
+		leesBeschrijving.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
+		leesBeschrijving.size = _diagGrootte;
+		_diagLees = wgpuDeviceCreateBuffer(weergaveScherm::deelApparaat(), &leesBeschrijving);
+	}
 
 	//Penseel-buffer (andere celgrootte) + gereedschap opnieuw koppelen aan de planeet.
 	_maakPenseelBuffer();
@@ -1558,6 +1572,7 @@ void Simulatie::slaScreenshot(const std::string & pad)
 	wgpuCommandEncoderRelease(enc);
 
 	_shot.klaar = false;
+	_shot.gelukt = false;
 	WGPUBufferMapCallbackInfo info = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
 	info.mode = WGPUCallbackMode_AllowSpontaneous;
 	info.callback = shotVerwerker;
@@ -1567,6 +1582,12 @@ void Simulatie::slaScreenshot(const std::string & pad)
 		wgpuInstanceProcessEvents(_scherm->instantie());
 
 	const unsigned char * pixels = (const unsigned char *)wgpuBufferGetMappedRange(_shotLees, 0, shotBytes);
+	if(!_shot.gelukt || !pixels)
+	{
+		std::cerr << "schermafbeelding: map mislukt (" << (int)_shot.gelukt << ", pixels " << (pixels ? "aanwezig" : "null") << ")" << std::endl;
+		if(pixels) wgpuBufferUnmap(_shotLees);
+		return;
+	}
 	std::vector<unsigned char> kopie(pixels, pixels + shotBytes);
 	wgpuBufferUnmap(_shotLees);
 
