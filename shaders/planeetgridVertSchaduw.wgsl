@@ -14,9 +14,10 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> @builtin(pos
     let ID = vertexIndex;
 
     //De kaart bevat het bovenste zichtbare oppervlak: terrein + waterspiegel +
-    //ijs. Het ijs drijft op het water (grond + waterSchijn + ijs), precies zoals
-    //de render-pass hem tekent — niet zoals de sim het als "grond onder water" rekent.
-    let schaduwHoogte = grondHoogte(vakken0[ID]) + vakken0[ID].waterSchijn + vakken0[ID].ijs;
+    //ijs. Het ijs drijft op het water (ijsSchijn), precies zoals de render-pass
+    //hem tekent — niet zoals de sim het als "grond onder water" rekent.
+    let v = vakken0[ID];
+    let schaduwHoogte = select(grondHoogte(v) + v.waterSchijn, v.ijsSchijn, v.ijs > miniJs);
 
     let zon  = normalize(extra.zonPos.xyz);
     //Duw de caster een epsilon van de zon af zodat vlakken die van de zon af kijken

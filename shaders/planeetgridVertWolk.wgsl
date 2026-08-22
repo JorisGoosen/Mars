@@ -62,7 +62,7 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     let hierWolk = in.posV * max(rWolk, 0.15);
 
     //Bergtoppen boven het lokale dek: geen wolk (piek steekt erbovenuit).
-    let terreinR = vakHoogte(ID, false) / extra.grondMult;
+    let terreinR = vakHoogte(ID, hLand) / extra.grondMult;
     if(terreinR >= rWolk) {
         uit.wolken = 0.0;
     } else {

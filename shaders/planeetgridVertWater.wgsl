@@ -61,7 +61,8 @@ let lokaalWater = select(vakken0[ID].waterHoogte / waterSchaler, 1.0, vakken0[ID
     uit.luchtdruk = vakken0[ID].luchtdruk;
 
     //het water ligt boven op de grond: schijnbare waterhoogte telt mee
-    let hier = in.posV * (vakHoogte(ID, true) / extra.grondMult);
+    let diepWater = vakken0[ID].waterSchijn > 1.0 && vakken0[ID].ijs <= 0.01;
+    let hier = in.posV * (vakHoogte(ID, select(hLand, hWater, diepWater)) / extra.grondMult);
 
     //Voor de schaduw-lookup wordt de SPIEGELpositie van de casters bemonsterd
     //(bovenste oppervlak: grond + waterspiegel + drijvend ijs, met dezelfde
@@ -71,11 +72,9 @@ let lokaalWater = select(vakken0[ID].waterHoogte / waterSchaler, 1.0, vakken0[ID
     //het terrein — de waterSchijn-gradaciënten van zo'n vel geven anders lelijke
     //facet-vlakken die op geprojecteerde schaduwen lijken. Alleen echt diep water
     //krijgt zijn eigen (vlakke) oppervlakte-normaal.
-    let diepWater = vakken0[ID].waterSchijn > 1.0 && vakken0[ID].ijs <= 0.01;
-
     uit.modelPos = schaduwSpiegelPos(in.posV, ID);
-    uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, diepWater), 0.0)).xyz);
-    uit.hoeks = cross(normalize((matrices.modelZicht * vec4f(vakHoogteNormaal(buurID(ID, 0u), diepWater), 0.0)).xyz), uit.normaal);
+    uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, select(hLand, hWater, diepWater)), 0.0)).xyz);
+    uit.hoeks = cross(normalize((matrices.modelZicht * vec4f(vakHoogteNormaal(buurID(ID, 0u), select(hLand, hWater, diepWater)), 0.0)).xyz), uit.normaal);
     uit.diepWater = select(0.0, 1.0, diepWater);
     uit.pos = matrices.modelZicht * vec4f(hier, 1.0);
     uit.glPos = matrices.projectie * uit.pos;

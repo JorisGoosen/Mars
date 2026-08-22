@@ -262,8 +262,8 @@ private:
 	float _zandErosie    = 0.1f;
 	float _rotsErosie    = 0.01f;
 	float _bezinkheid    = 0.05f;
-	float _zandRepose    = 1.0f;
-	float _ijsRepose     = 1.5f;   //ijs-rusthelling: ijs zakt pas bij een hogere hellingsdrempel dan zand
+	float _zandRepose    = 0.6f;
+	float _ijsRepose     = 0.2f;   //ijs-rusthelling: ijs zakt pas bij een hogere hellingsdrempel dan zand
 	float _ijsTempo      = 1.0f / 200.0f; //tempo van de ijs-rusthelling: fractie van de drempeloverschrijding die per ronde verschuift (10x trager dan zand)
 	float _hellingKracht = 2.0f;
 	float _oplosheid     = 0.90f;

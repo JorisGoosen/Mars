@@ -10,7 +10,7 @@ const float maxGrondHoogte = 200.0f;
 //De vak-struct moet byte-gelijk zijn aan de WGSL-struct (152 bytes: 104 + 2x24
 //voor de vochtpijpen). Laat het compileren falen als iemand straks een veld
 //toevoegt zonder de layout te fixen.
-static_assert(sizeof(vak) == 152, "vak-struct moet 152 bytes groot zijn (gelijk aan WGSL)");
+static_assert(sizeof(vak) == 160, "vak-struct moet 160 bytes groot zijn (gelijk aan WGSL)");
 
 //vakMeta: normaal(16) + oost(16) + noord(16) + gradWeights(12) + padding(4) + buurRicht(48) + buren(24) + burenAantal(4) + opvulling(4) = 144
 static_assert(sizeof(vakMeta) == 144, "vakMeta-struct moet 144 bytes groot zijn (gelijk aan WGSL)");
@@ -151,6 +151,7 @@ void planeet::burenAlsEigenschapWijzers()
 
 			_vakken[0][i].ijs			= _init.ijs;
 			_vakken[0][i].waterHoogte	= _init.water;
+			_vakken[0][i].ijsSchijn		= _vakken[0][i].rotsHoogte + _vakken[0][i].zandHoogte + _init.water + _init.ijs;
 			_vakken[0][i].bodemVocht	= _init.bodemVocht;
 			_vakken[0][i].luchtVocht	= _init.damp;
 			_vakken[0][i].leven			= _init.leven;

@@ -13,23 +13,33 @@ fn buurID(id : u32, buur : u32) -> u32 {
     return vakMetas[id].buren[buur];
 }
 
-fn hoogteBuur(id : u32, water : bool) -> f32 {
-    return grondHoogte(vakken0[id]) + select(0.0, vakken0[id].waterSchijn, water);
+//Hoogtemodus: 0 = land, 1 = water, 2 = ijs
+const hLand  = 0u;
+const hWater = 1u;
+const hIjs   = 2u;
+
+fn hoogteBuur(id : u32, modus : u32) -> f32 {
+    if(modus == hIjs) {
+        return vakken0[id].ijsSchijn;
+    }
+    let v = vakken0[id];
+    return grondHoogte(v) + select(0.0, v.waterSchijn, modus == hWater);
 }
 
-fn vakHoogte(id : u32, water : bool) -> f32 {
-    return max(0.001, 1.0 + (hoogteBuur(id, water) * extra.grondSchaal));
+fn vakHoogte(id : u32, modus : u32) -> f32 {
+    return max(0.001, 1.0 + (hoogteBuur(id, modus) * extra.grondSchaal));
 }
 
-fn vakHoogteNormaal(id : u32, water : bool) -> vec3f {
-    return vakMetas[id].normaal.xyz * vakHoogte(id, water);
+fn vakHoogteNormaal(id : u32, modus : u32) -> vec3f {
+    return vakMetas[id].normaal.xyz * vakHoogte(id, modus);
 }
 
 //Hoogte van het bovenste zichtbare oppervlak: grond + waterspiegel + ijs.
 //Gebruikt door de ijs-pass (bovenkant) én door highlight/pick, zodat die op
 //land, water én ijs liggen i.p.v. altijd op het kale terrein.
 fn oppervlakTopHoogte(id : u32) -> f32 {
-    return grondHoogte(vakken0[id]) + vakken0[id].waterSchijn + vakken0[id].ijs;
+    let v = vakken0[id];
+    return select(grondHoogte(v) + v.waterSchijn, v.ijsSchijn, v.ijs > miniJs);
 }
 
 //Spiegelpositie van de schaduwkaart-CASTERS: het bovenste zichtbare oppervlak op
@@ -45,14 +55,14 @@ fn schaduwSpiegelPos(posV : vec3f, id : u32) -> vec3f {
     return posV * (max(0.001, 1.0 + top * extra.grondSchaal) / extra.grondMult) - zon * schaduwEpsilon;
 }
 
-fn berekenNormaal(id : u32, water : bool) -> vec3f {
+fn berekenNormaal(id : u32, modus : u32) -> vec3f {
     let burenAantal = vakMetas[id].burenAantal;
-    let hier = vakHoogteNormaal(id, water);
+    let hier = vakHoogteNormaal(id, modus);
     var kruis = vec3f(0.0);
     var buurPos = array<vec3f, maxBuren>(vec3f(0.0), vec3f(0.0), vec3f(0.0), vec3f(0.0), vec3f(0.0), vec3f(0.0));
 
     for(var p = 0u; p < burenAantal && p < maxBuren; p++) {
-        buurPos[p] = vakHoogteNormaal(vakMetas[id].buren[p], water);
+        buurPos[p] = vakHoogteNormaal(vakMetas[id].buren[p], modus);
     }
     for(var i = 0u; i < burenAantal && i < maxBuren; i++) {
         let tussen = cross(buurPos[i] - hier, buurPos[(i + 1u) % burenAantal] - hier);

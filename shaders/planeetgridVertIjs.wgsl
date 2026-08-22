@@ -44,12 +44,12 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     //Lift alleen op echt ijs zodat de rand strak aansluit.
     let isEchtIjs = vakken0[ID].ijs > miniJs;
     let lift  = select(0.0, ijsLift, isEchtIjs);
-    let hoogte = grondHoogte(vakken0[ID]) + vakken0[ID].waterSchijn + vakken0[ID].ijs + lift;
+    let hoogte = vakken0[ID].ijsSchijn + lift;
 
     let hier = in.posV * (max(0.001, 1.0 + hoogte * extra.grondSchaal) / extra.grondMult);
 
-    //Belichting volgt de waterspiegel (glad ijsdek).
-    uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, true), 0.0)).xyz);
+    //Belichting volgt de gladde ijsoppervlakte.
+    uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, hIjs), 0.0)).xyz);
     //Schaduw-lookup op de spiegelpositie (zonder de ijsLift-render-truc): de
     //schaduwkaart zelf bevat het echte ijs-top.
     uit.modelPos = schaduwSpiegelPos(in.posV, ID);

@@ -1117,7 +1117,8 @@ void Simulatie::stap()
 		//Een water-edit verandert waterHoogte, maar de render toont waterSchijn (het
 		//gladgestreken gemiddelde). Bij een bevroren sim draait de rekenketen niet, dus
 		//herberekenen we waterSchijn hier direct zodat de edit meteen zichtbaar is.
-		if(_penseelGereedschap->mode() == penseelModeWater)
+		//Bij ijs-edit moet ook ijsSchijn worden bijgewerkt.
+		if(_penseelGereedschap->mode() == penseelModeWater || _penseelGereedschap->mode() == penseelModeIjs)
 		{
 			_scherm->doeRekenVerwerker("waterSchijn", glm::uvec3(penseelGroepen, 1, 1), [this]()
 			{

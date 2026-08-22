@@ -144,6 +144,7 @@ struct vak {
     rotsHoogte  : f32,
     waterHoogte : f32,
     waterSchijn : f32,
+    ijsSchijn   : f32,
     bodemVocht  : f32,
     ijs         : f32,
     leven       : f32,

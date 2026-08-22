@@ -19,4 +19,5 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
     waterSchijn /= f32(burenAantal);
 
     vakken0[ID].waterSchijn = goed((waterSchijn + vakken0[ID].waterHoogte) / 2.0, 0.0, 0.0, maxWaterHoogte);
+    vakken0[ID].ijsSchijn = ijsTop(vakken0[ID]);
 }

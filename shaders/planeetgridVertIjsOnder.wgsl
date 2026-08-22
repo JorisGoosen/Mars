@@ -32,12 +32,12 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     //op de iso-lijn ijs = miniJs, dus de wand sluit op de ijsrand.
     uit.ijsDikte = vakken0[ID].ijs;
 
-    //Geen dikte en geen lift: de onderkant ligt op de waterspiegel.
-    let hoogte = grondHoogte(vakken0[ID]) + vakken0[ID].waterSchijn;
+    //Onderkant ligt op de waterspiegel.
+    let hoogte = vakken0[ID].ijsSchijn - vakken0[ID].ijs;
     let hier = in.posV * (max(0.001, 1.0 + hoogte * extra.grondSchaal) / extra.grondMult);
 
     //Normaal gespiegeld: de onderzijde lijkt donker (in de schaduw).
-    uit.normaal = -normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, true), 0.0)).xyz);
+    uit.normaal = -normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, hIjs), 0.0)).xyz);
     //Onderkant rendert op de waterspiegel, maar de schaduw-lookup spiegelt de
     //casters (bovenste oppervlak): consistent met land/water/ijs-bovenkant.
     uit.modelPos = schaduwSpiegelPos(in.posV, ID);
