@@ -35,6 +35,8 @@ static_assert(sizeof(rekenParameters) == 96 + 7 * 16, "rekenParameters moet byte
 
 struct SimulatieConfig {
 	bool                aarde             = false;
+	bool                maan              = false;
+	std::string         bestand           = "";
 	bool                erosieAan         = true;
 	bool                levenAan          = true;
 	bool                atmosfeerAan      = true;

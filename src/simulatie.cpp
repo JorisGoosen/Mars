@@ -757,10 +757,11 @@ bool Simulatie::_laadMola()
 #endif
 
 	size_t w, h, kanalen;
-	std::unique_ptr<unsigned char[], stbiDeleter> MarsHoogte(laadAfbeelding(_cfg.aarde ? "aarde.jpg" : "MARS_Hoogte.png", w, h, kanalen));
+	std::string bestandsNaam = !_cfg.bestand.empty() ? _cfg.bestand : (_cfg.maan ? "maan.jpg" : (_cfg.aarde ? "aarde.jpg" : "MARS_Hoogte.png"));
+	std::unique_ptr<unsigned char[], stbiDeleter> MarsHoogte(laadAfbeelding(bestandsNaam, w, h, kanalen));
 	if(!MarsHoogte)
 	{
-		std::cerr << "Kon " << (_cfg.aarde ? "aarde.jpg" : "MARS_Hoogte.png") << " niet laden! Gebruik --procedureel." << std::endl;
+		std::cerr << "Kon " << bestandsNaam << " niet laden! Gebruik --procedureel." << std::endl;
 		return false;
 	}
 
