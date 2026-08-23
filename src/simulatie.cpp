@@ -457,7 +457,7 @@ bool Simulatie::init()
 
 	// Bump-kaart voor water
 	size_t bumpW, bumpH, bumpK;
-	std::unique_ptr<unsigned char[], stbiDeleter> bumpData(laadAfbeelding("plaatjes/zeewater_bump.png", bumpW, bumpH, bumpK));
+	std::unique_ptr<unsigned char[], stbiDeleter> bumpData(laadAfbeelding("plaatjes/zeewater_bump.png", bumpW, bumpH, bumpK, weergaveScherm::geefMaxTextuurDimensieStatic()));
 	if(!bumpData)
 	{
 		std::cerr << "Kon zeewater_bump.png niet laden!" << std::endl;
@@ -758,7 +758,7 @@ bool Simulatie::_laadMola()
 
 	size_t w, h, kanalen;
 	std::string bestandsNaam = !_cfg.bestand.empty() ? _cfg.bestand : (_cfg.maan ? "maan.jpg" : (_cfg.aarde ? "aarde.jpg" : "MARS_Hoogte.png"));
-	std::unique_ptr<unsigned char[], stbiDeleter> MarsHoogte(laadAfbeelding(bestandsNaam, w, h, kanalen));
+	std::unique_ptr<unsigned char[], stbiDeleter> MarsHoogte(laadAfbeelding(bestandsNaam, w, h, kanalen, weergaveScherm::geefMaxTextuurDimensieStatic()));
 	if(!MarsHoogte)
 	{
 		std::cerr << "Kon " << bestandsNaam << " niet laden! Gebruik --procedureel." << std::endl;
