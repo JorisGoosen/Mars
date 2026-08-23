@@ -33,8 +33,9 @@ static void toonHelp()
 "  --zonder-atmosfeer    houdt de lucht volledig stil (geen wind/verdamping/neerslag)\n"
 "  --zonder-schaduw      zet de schaduwkaart uit (geen terreinschaduwen, volle zoninstraling)\n"
 "  --schaduwGrootte <n>  resolutie van de schaduwkaart (standaard 4096; hoger = scherper, meer geheugen)\n"
-  "  --procedureel         genereer het terrein met ruis i.p.v. de MOLA-hoogtekaart\n"
-  "  --zaadje <n>          vast zaadje voor het procedurele terrein (0 = willekeurig)\n"
+"  --procedureel         genereer het terrein met ruis i.p.v. de MOLA-hoogtekaart\n"
+"  --aarde               laad aard.jpg i.p.v. MARS_Hoogte.png\n"
+"  --zaadje <n>          vast zaadje voor het procedurele terrein (0 = willekeurig)\n"
   "  --water <n>           begin-waterhoogte per cel (standaard 0)\n"
   "  --bodemvocht <n>      begin-bodemvocht per cel (standaard 0)\n"
   "  --wolk <n>            begin-wolken per cel (standaard 0)\n"
@@ -87,6 +88,7 @@ int main(int argc, char ** argv)
 			else std::cerr << "--schaduwGrootte verwacht een getal" << std::endl;
 		}
 		else if(vlag == "--procedureel")   cfg.procedural = true;
+		else if(vlag == "--aarde")         cfg.aarde = true;
 		else if(vlag == "--zaadje")
 		{
 			if(a + 1 < argc) cfg.zaadje = (uint32_t)std::max(0, std::atoi(argv[++a]));

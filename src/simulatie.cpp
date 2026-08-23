@@ -11,6 +11,7 @@
 #include <memory>
 #include <random>
 #include <png.h>
+#include <stb_image.h>
 #ifdef __EMSCRIPTEN__
 #	include <emscripten.h>
 #endif
@@ -28,6 +29,11 @@ EM_ASYNC_JS(int, marsLaadHoogteUitBrowser, (), {
 	return 0;
 });
 #endif
+
+struct stbiDeleter
+{
+	void operator()(unsigned char *p) const { if(p) stbi_image_free(p); }
+};
 
 // ── Callbacks (namespace scope) ─────────────────────────────────────────────
 
@@ -416,7 +422,8 @@ bool Simulatie::init()
 		_scherm->maakShader("planeetgridWater", "shaders/planeetgridVertWater.wgsl",  "shaders/planeetgridFragWater.wgsl");
 		_scherm->maakShader("planeetgridIjs",   "shaders/planeetgridVertIjs.wgsl",    "shaders/planeetgridFragIjs.wgsl");
 		_scherm->maakShader("planeetgridIjsOnder", "shaders/planeetgridVertIjsOnder.wgsl", "shaders/planeetgridFragIjs.wgsl");
-		_scherm->maakShader("planeetgridWolk",  "shaders/planeetgridVertWolk.wgsl",   "shaders/planeetgridFragWolk.wgsl");
+		_scherm->maakShader("planeetgridWolk",    "shaders/planeetgridVertWolk.wgsl", "shaders/planeetgridFragWolk.wgsl");
+		_scherm->maakShader("planeetgridAtmosfeer", "shaders/planeetgridVertAtmosfeer.wgsl", "shaders/planeetgridFragAtmosfeer.wgsl");
 		_scherm->maakShader("planeetgridPick",  "shaders/planeetgridVertPick.wgsl",   "shaders/planeetgridFragPick.wgsl");
 		_scherm->maakShader("planeetgridHoogtepunt", "shaders/planeetgridVertHoogtepunt.wgsl", "shaders/planeetgridFragHoogtepunt.wgsl");
 	}
@@ -450,7 +457,7 @@ bool Simulatie::init()
 
 	// Bump-kaart voor water
 	size_t bumpW, bumpH, bumpK;
-	std::unique_ptr<png_byte[]> bumpData(laadPNG("plaatjes/zeewater_bump.png", bumpW, bumpH, bumpK));
+	std::unique_ptr<unsigned char[], stbiDeleter> bumpData(laadAfbeelding("plaatjes/zeewater_bump.png", bumpW, bumpH, bumpK));
 	if(!bumpData)
 	{
 		std::cerr << "Kon zeewater_bump.png niet laden!" << std::endl;
@@ -750,23 +757,23 @@ bool Simulatie::_laadMola()
 #endif
 
 	size_t w, h, kanalen;
-	std::unique_ptr<png_byte[]> MarsHoogte(laadPNG("MARS_Hoogte.png", w, h, kanalen));
+	std::unique_ptr<unsigned char[], stbiDeleter> MarsHoogte(laadAfbeelding(_cfg.aarde ? "aarde.jpg" : "MARS_Hoogte.png", w, h, kanalen));
 	if(!MarsHoogte)
 	{
-		std::cerr << "Kon MARS_Hoogte.png niet laden! Gebruik --procedureel." << std::endl;
+		std::cerr << "Kon " << (_cfg.aarde ? "aarde.jpg" : "MARS_Hoogte.png") << " niet laden! Gebruik --procedureel." << std::endl;
 		return false;
 	}
 
-	// Spiegel links-rechts (RGBA, 4 kanalen per pixel)
-	for(size_t y = 0; y < h; y++)
-		for(size_t x = 0; x < w / 2; x++)
+	// Spiegel boven-onder (verticaal) (RGBA, 4 kanalen per pixel)
+	for(size_t y = 0; y < h / 2; y++)
+		for(size_t x = 0; x < w; x++)
 		{
-			size_t links    = (x + y * w) * 4;
-			size_t rechts   = ((w - 1 - x) + y * w) * 4;
-			std::swap(MarsHoogte[links],     MarsHoogte[rechts]);
-			std::swap(MarsHoogte[links + 1], MarsHoogte[rechts + 1]);
-			std::swap(MarsHoogte[links + 2], MarsHoogte[rechts + 2]);
-			std::swap(MarsHoogte[links + 3], MarsHoogte[rechts + 3]);
+			size_t boven   = (x + y * w) * 4;
+			size_t onder   = (x + (h - 1 - y) * w) * 4;
+			std::swap(MarsHoogte[boven],     MarsHoogte[onder]);
+			std::swap(MarsHoogte[boven + 1], MarsHoogte[onder + 1]);
+			std::swap(MarsHoogte[boven + 2], MarsHoogte[onder + 2]);
+			std::swap(MarsHoogte[boven + 3], MarsHoogte[onder + 3]);
 		}
 
 	if(_heeftRender)
@@ -925,7 +932,7 @@ Simulatie::Tunables Simulatie::tunables()
 		&_levensDamp, &_waterDoodTempo,
 		&_cfg.bevroren, &_waterStroomt, &_tekenWater, &_tekenIjs, &_tekenWolken, &_zonRoteert, &_roteerMaar,
 		&_cfg.schaduwAan, &_cfg.erosieAan, &_cfg.levenAan, &_cfg.atmosfeerAan, &_waterStap,
-		&_overlayKeuze, &_wolkAlpha, &_waterReflectie, &_cfg.luchtStappen
+		&_overlayKeuze, &_wolkAlpha, &_waterReflectie, &_atmosfeerSterkte, &_atmosfeerDikte, &_cfg.luchtStappen
 	};
 }
 
@@ -974,12 +981,13 @@ void Simulatie::stap()
 	_extra[1]  = _grondSchaal;
 	_extra[2]  = (float)_cfg.schaduwGrootte;
 	_extra[3]  = _wolkAlpha;
+	_extra[11] = _atmosfeerSterkte;
 	_extra[4]  = _kijkPlek.x; _extra[5] = _kijkPlek.y; _extra[6] = _kijkPlek.z;
 	_extra[7]  = _waterReflectie;
 	_extra[8]  = zonModel.x;  _extra[9] = zonModel.y;   _extra[10] = zonModel.z;
 	_extra[12] = _geo->hoogsteGrond();
 	_extra[13] = (float)_overlayKeuze;
-	_extra[14] = 0.0f;
+	_extra[14] = _atmosfeerDikte;
 	_extra[15] = _cfg.schaduwAan ? 1.0f : 0.0f;
 	_scherm->zetExtraFloats(_extra, 16);
 
@@ -1303,9 +1311,26 @@ void Simulatie::doeRenderPassen()
 	_scherm->zetExtraFloats(_extra, 16);
 
 	//De eerste pass van de frame wist kleur + diepte; de rest tekent eroverheen
-	//(Load). Wolken staan er vóór (geflipt = achterkanten) én na (voorkanten),
+	//(Load). Atmosfeer en wolken staan er vóór (geflipt = achterkanten) én na (voorkanten),
 	//zodat het doorzichtige dek correct t.o.v. de planeet wordt gesorteerd.
 	bool eerstePass = true;
+
+	// ── Atmosfeer: Rayleigh-gloed achter de planeet (schil-achterkanten) ──
+	if(_overlayKeuze == 0)
+	{
+		weergaveInstellingen atmosfeerInstellingen;
+		atmosfeerInstellingen.blenden = true;
+		atmosfeerInstellingen.cullMode = WGPUCullMode_Front;
+		atmosfeerInstellingen.diepteSchrijven = false;
+		atmosfeerInstellingen.diepteVergelijk = WGPUCompareFunction_Less;
+		_scherm->zetWeergaveInstellingen(atmosfeerInstellingen);
+
+		_scherm->bereidRenderVoor("planeetgridAtmosfeer", eerstePass);
+		_geo->bindVrwrkrOpslagen(*_scherm);
+		_geo->tekenJezelf();
+		_scherm->pasRondRenderAf();
+		eerstePass = false;
+	}
 
 	// ── Wolken: achterkanten eerst (geflipt) ────────────────────────────
 	if(_tekenWolken && _overlayKeuze == 0)

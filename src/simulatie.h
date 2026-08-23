@@ -34,6 +34,7 @@ static_assert(sizeof(rekenParameters) == 96 + 7 * 16, "rekenParameters moet byte
 // ── Configuratie ────────────────────────────────────────────────────────────
 
 struct SimulatieConfig {
+	bool                aarde             = false;
 	bool                erosieAan         = true;
 	bool                levenAan          = true;
 	bool                atmosfeerAan      = true;
@@ -196,6 +197,8 @@ public:
 		int   *overlayKeuze;
 		float *wolkAlpha;
 		float *waterReflectie;
+		float *atmosfeerSterkte;
+		float *atmosfeerDikte;
 		size_t* luchtStappen;
 	};
 	Tunables tunables();
@@ -262,7 +265,7 @@ private:
 	float _zandErosie    = 0.1f;
 	float _rotsErosie    = 0.01f;
 	float _bezinkheid    = 0.05f;
-	float _zandRepose    = 0.6f;
+	float _zandRepose    = 1.0f;
 	float _ijsRepose     = 0.2f;   //ijs-rusthelling: ijs zakt pas bij een hogere hellingsdrempel dan zand
 	float _ijsTempo      = 1.0f / 200.0f; //tempo van de ijs-rusthelling: fractie van de drempeloverschrijding die per ronde verschuift (10x trager dan zand)
 	float _hellingKracht = 2.0f;
@@ -291,6 +294,8 @@ private:
 	int       _overlayKeuze = 0;
 	float     _wolkAlpha    = 0.333333f; //doorzichtigheid van het wolkendek (0..1)
 	float     _waterReflectie = 1.0f; //sterkte waterspiegel + randreflectie (0..2)
+	float     _atmosfeerSterkte = 1.0f; //sterkte van de atmosfeergloed (0 = uit, 1 = normaal)
+	float     _atmosfeerDikte   = 0.5f; //dikte van de atmosfeerschil als fractie van de planeetstraal (0.05..1.5)
 
 	bool _roteerMaar      = false;
 	bool _waterStroomt    = true;

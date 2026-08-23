@@ -426,6 +426,8 @@ void guiOverlay::bouwen()
 			ImGui::Checkbox("planeet-rotatie", t.roteerMaar);
 			ImGui::SliderFloat("waterreflectie", t.waterReflectie, 0.0f, 2.0f, "%.2f");
 			ImGui::SliderFloat("wolk-doorzichtigheid", t.wolkAlpha, 0.0f, 1.0f, "%.2f");
+			ImGui::SliderFloat("atmosfeer", t.atmosfeerSterkte, 0.0f, 2.0f, "%.2f");
+			ImGui::SliderFloat("atmosfeer-dikte", t.atmosfeerDikte, 0.05f, 1.5f, "%.2f");
 			if(ImGui::Button("Eén sim-stap"))
 				*t.waterStap = true;
 			ImGui::SameLine();

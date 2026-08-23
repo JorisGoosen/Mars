@@ -14,9 +14,9 @@ int main(int argc, const char * argv[])
 	scherm.maakShader("toonHetLand", 	"shaders/toonHetLand.vert", 	"shaders/toonHetLand.frag"	);
 	
 
-	glm::uvec2 textuurGrootte = scherm.laadTextuurUitPng("plaatjes/handLand.png", "handLand", false, false, false);
+	glm::uvec2 textuurGrootte = scherm.laadTextuurUitAfbeelding("plaatjes/handLand.png", "handLand", false, false, false);
 	//scherm.maakTextuur("handLandTwee", textuurGrootte.x, textuurGrootte.y, false, false, false);
-	scherm.laadTextuurUitPng("plaatjes/handLand.png", "handLandTwee", false, false, false);
+	scherm.laadTextuurUitAfbeelding("plaatjes/handLand.png", "handLandTwee", false, false, false);
 
 	nepScherm nepperd(&scherm, "handLandTwee");
 

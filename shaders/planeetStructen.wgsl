@@ -217,9 +217,9 @@ struct extraParameters {
     kijkPlek    : vec3f,
     waterReflectie : f32, //sterkte van de waterspiegel+randreflectie (GUI-slider; ex-_padC)
     zonPos      : vec3f,
-    _padD       : f32,
+    atmosfeerSterkte : f32, //sterkte van de atmosfeergloed (GUI-slider; ex-_padD)
     maxGrondHoogte : f32, //hoogste terreinpunt (bepaald bij het laden); basis voor het wolkendek
     overlayKeuze    : f32, //weergave-overlay (cijfertoetsen): 0 = normaal, 1 = temperatuur, 2 = wind+druk, 3 = bodemvocht, 4 = luchtvocht/wolken/druk, 5 = ijs/water/bodemvocht, 6 = wolken, 7 = zonlicht, 8 = leven, 9 = terreinhoogte, 10 = waterrichting+droesem (alleen via de GUI), 11 = schaduw-debug (toets -)
-    _padE           : f32,
+    atmosfeerDikte  : f32, //dikte van de atmosfeerschil in genormaliseerde lagen (GUI-slider; ex-_padE)
     schaduwAan      : f32, //1 = schaduwkaart aan (toets N)
 };
