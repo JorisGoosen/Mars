@@ -444,12 +444,7 @@ bool Simulatie::init()
 	_scherm->zetWeergaveKleur(0, 0, 0, 1);
 
 	// ── Texturen ────────────────────────────────────────────────────────
-	if(!_cfg.procedural)
-	{
-		if(!_laadMola())
-			return false;
-	}
-	else
+	if(_cfg.bronKeuze == "procedureel")
 	{
 		_molaBreedte = _molaHoogte = 0;
 		_molaData.clear();
@@ -757,7 +752,12 @@ bool Simulatie::_laadMola()
 #endif
 
 	size_t w, h, kanalen;
-	std::string bestandsNaam = !_cfg.bestand.empty() ? _cfg.bestand : (_cfg.maan ? "maan.jpg" : (_cfg.aarde ? "aarde.jpg" : "MARS_Hoogte.png"));
+	std::string bestandsNaam;
+	if(_cfg.bronKeuze == "procedureel") bestandsNaam = "";
+	else if(_cfg.bronKeuze == "aarde") bestandsNaam = "aarde.jpg";
+	else if(_cfg.bronKeuze == "maan") bestandsNaam = "maan.jpg";
+	else if(_cfg.bronKeuze == "bestand") bestandsNaam = _cfg.bestand;
+	else bestandsNaam = "MARS_Hoogte.png";
 	std::unique_ptr<unsigned char[], stbiDeleter> MarsHoogte(laadAfbeelding(bestandsNaam, w, h, kanalen, weergaveScherm::geefMaxTextuurDimensieStatic()));
 	if(!MarsHoogte)
 	{
@@ -803,7 +803,7 @@ void Simulatie::_maakPlaneet()
 	init.zandDeksel  = _cfg.startZandDeksel;
 	init.temperatuur = _cfg.startTemperatuur;
 
-	if(_cfg.procedural)
+	if(_cfg.bronKeuze == "procedureel")
 	{
 		//Vast zaadje meegeven (--zaadje N) maakt het terrein reproduceerbaar; anders
 		//wordt elk draaien een nieuwe wereld (nodig voor de headless A/B-workflow).
@@ -884,10 +884,10 @@ bool Simulatie::herstart(const SimulatieConfig & nieuweCfg)
 
 	_molaData.clear();
 	_molaBreedte = _molaHoogte = 0;
-	if(!_cfg.procedural && !_laadMola())
+	if(_cfg.bronKeuze != "procedureel" && !_laadMola())
 	{
 		std::cerr << "MOLA kon niet geladen worden; val terug op procedureel." << std::endl;
-		_cfg.procedural = true;
+		_cfg.bronKeuze = "procedureel";
 	}
 
 	delete _geo;
@@ -1357,7 +1357,7 @@ void Simulatie::doeRenderPassen()
 
 	_scherm->bereidRenderVoor("planeetgridLand", eerstePass);
 	_geo->bindVrwrkrOpslagen(*_scherm);
-	if(!_cfg.procedural)
+	if(_cfg.bronKeuze != "procedureel")
 		_scherm->bindTextuur("marsHoogteTex", 0);
 	_geo->tekenJezelf();
 	_scherm->pasRondRenderAf();

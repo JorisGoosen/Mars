@@ -34,13 +34,11 @@ static_assert(sizeof(rekenParameters) == 96 + 7 * 16, "rekenParameters moet byte
 // ── Configuratie ────────────────────────────────────────────────────────────
 
 struct SimulatieConfig {
-	bool                aarde             = false;
-	bool                maan              = false;
+	std::string         bronKeuze         = "procedureel";
 	std::string         bestand           = "";
 	bool                erosieAan         = true;
 	bool                levenAan          = true;
 	bool                atmosfeerAan      = true;
-	bool                procedural        = false;
 	uint32_t            zaadje            = 0;   // 0 = willekeurig; >0 = reproduceerbaar (--zaadje)
 
 	// ── Beginwaarden per cel (de "lege Mars" start op 0; temperatuur in Kelvin) ──

@@ -50,7 +50,7 @@ private:
 
 	//Wereld-parameters voor "Nieuw" (via herstart)
 	int   _nieuwDiepte       = 5;
-	bool  _nieuwProcedureel  = true;
+	int   _nieuwBronKeuze    = 0;
 	float _nieuwWater        = 0.0f;
 	float _nieuwBodemVocht   = 0.0f;
 	float _nieuwWolk         = 0.0f;

@@ -53,7 +53,10 @@ guiOverlay::guiOverlay(Simulatie& sim) : _sim(sim)
 {
 	const SimulatieConfig & cfg = sim.config();
 	_nieuwDiepte       = cfg.subdiv;
-	_nieuwProcedureel  = cfg.procedural;
+	if(cfg.bronKeuze == "aarde")       _nieuwBronKeuze = 2;
+	else if(cfg.bronKeuze == "maan")   _nieuwBronKeuze = 3;
+	else if(cfg.bronKeuze == "bestand") _nieuwBronKeuze = 4;
+	else                               _nieuwBronKeuze = 0;
 	_nieuwWater        = cfg.startWater;
 	_nieuwBodemVocht   = cfg.startBodemVocht;
 	_nieuwWolk         = cfg.startWolken;
@@ -193,7 +196,9 @@ void guiOverlay::bouwen()
 		ImGui::SetNextItemWidth(70.0f * _schaal);
 		ImGui::DragInt("diepte", &_nieuwDiepte, 0.05f, 1, 10);
 		ImGui::SameLine();
-		ImGui::Checkbox("procedureel", &_nieuwProcedureel);
+		const char* bronKeuzes = "Procedureel\0Mars\0Aarde\0Maan\0Bestand\0";
+		ImGui::SetNextItemWidth(80.0f * _schaal);
+		ImGui::Combo("bron", &_nieuwBronKeuze, bronKeuzes);
 		initFloat("water",   &_nieuwWater,        0.0f, 20.0f);
 		initFloat("bodem",   &_nieuwBodemVocht,   0.0f, 5.0f);
 		initFloat("wolk",    &_nieuwWolk,         0.0f, 5.0f);
@@ -207,7 +212,14 @@ void guiOverlay::bouwen()
 		{
 			SimulatieConfig c = _sim.config();
 			c.subdiv          = _nieuwDiepte;
-			c.procedural      = _nieuwProcedureel;
+			switch(_nieuwBronKeuze)
+			{
+				case 0: c.bronKeuze = "procedureel"; break;
+				case 1: c.bronKeuze = "mars"; break;
+				case 2: c.bronKeuze = "aarde"; break;
+				case 3: c.bronKeuze = "maan"; break;
+				case 4: c.bronKeuze = "bestand"; break;
+			}
 			c.startWater      = _nieuwWater;
 			c.startBodemVocht = _nieuwBodemVocht;
 			c.startWolken     = _nieuwWolk;

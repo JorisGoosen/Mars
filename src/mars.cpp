@@ -89,12 +89,12 @@ int main(int argc, char ** argv)
 			if(a + 1 < argc) cfg.schaduwGrootte = std::clamp(std::atoi(argv[++a]), 256, 8192);
 			else std::cerr << "--schaduwGrootte verwacht een getal" << std::endl;
 		}
-		else if(vlag == "--procedureel")   cfg.procedural = true;
-		else if(vlag == "--aarde")         cfg.aarde = true;
-		else if(vlag == "--maan")         cfg.maan = true;
+		else if(vlag == "--procedureel")   cfg.bronKeuze = "procedureel";
+		else if(vlag == "--aarde")         cfg.bronKeuze = "aarde";
+		else if(vlag == "--maan")         cfg.bronKeuze = "maan";
 		else if(vlag == "--bestand")
 		{
-			if(a + 1 < argc) cfg.bestand = argv[++a];
+			if(a + 1 < argc) { cfg.bronKeuze = "bestand"; cfg.bestand = argv[++a]; }
 			else std::cerr << "--bestand verwacht een bestandsnaam" << std::endl;
 		}
 		else if(vlag == "--zaadje")
@@ -233,7 +233,7 @@ int main(int argc, char ** argv)
 #ifdef __EMSCRIPTEN__
 	//Web draait standaard op procedureel terrein: MARS_Hoogte.png zit bewust
 	//niet in de preload (scheelt ~7 MB download).
-	cfg.procedural = true;
+	cfg.bronKeuze = "procedureel";
 #endif
 
 	Simulatie sim(std::move(cfg));
