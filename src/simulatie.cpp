@@ -449,6 +449,10 @@ bool Simulatie::init()
 		_molaBreedte = _molaHoogte = 0;
 		_molaData.clear();
 	}
+	else if(!_laadMola())
+	{
+		return false;
+	}
 
 	// Bump-kaart voor water
 	size_t bumpW, bumpH, bumpK;
@@ -854,16 +858,23 @@ void Simulatie::_maakPlaneet()
 	}
 	else
 	{
-		std::function<float(glm::vec2)> molaHoogte = [this](glm::vec2 plek) -> float
+		std::function<float(glm::vec2)> molaMonsteraar = [this](glm::vec2 plek) -> float
 		{
-			size_t px = (size_t)std::floor(plek.x * (_molaBreedte - 1));
-			size_t py = (size_t)std::floor(plek.y * (_molaHoogte - 1));
-			px = std::min(px, _molaBreedte - 1);
-			py = std::min(py, _molaHoogte - 1);
-			return _grondMult + 10.0f * _molaData[py * _molaBreedte + px];
+			return molaHoogte(plek);
 		};
-		_geo = new planeet(_cfg.subdiv, molaHoogte, init);
+		_geo = new planeet(_cfg.subdiv, molaMonsteraar, init);
 	}
+}
+
+float Simulatie::molaHoogte(const glm::vec2 plek) const
+{
+	if(_molaData.empty())
+		return _grondMult;
+	size_t px = (size_t)std::floor(plek.x * (_molaBreedte - 1));
+	size_t py = (size_t)std::floor(plek.y * (_molaHoogte - 1));
+	px = std::min(px, _molaBreedte - 1);
+	py = std::min(py, _molaHoogte - 1);
+	return _grondMult + 10.0f * _molaData[py * _molaBreedte + px];
 }
 
 void Simulatie::_resetStaat()

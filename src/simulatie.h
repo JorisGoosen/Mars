@@ -339,6 +339,7 @@ private:
 	void _maakPenseelBuffer();
 	bool _laadMola();        // true bij succes
 	void _maakPlaneet();
+	float molaHoogte(const glm::vec2 plek) const; ///< MOLA-terreinhoogte in een textuurcoördinaat (0..1)
 	void _resetStaat();
 
 	// ── MOLA-data (niet-proceduraal) ──────────────────────────────────────
