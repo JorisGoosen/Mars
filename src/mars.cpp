@@ -34,6 +34,7 @@ static void toonHelp()
 "  --zonder-schaduw      zet de schaduwkaart uit (geen terreinschaduwen, volle zoninstraling)\n"
 "  --schaduwGrootte <n>  resolutie van de schaduwkaart (standaard 4096; hoger = scherper, meer geheugen)\n"
 "  --procedureel         genereer het terrein met ruis i.p.v. de MOLA-hoogtekaart\n"
+"  --mars                laad MARS_Hoogte.png (standaard)\n"
 "  --aarde               laad aarde.jpg i.p.v. MARS_Hoogte.png\n"
 "  --maan                laad maan.jpg i.p.v. MARS_Hoogte.png\n"
 "  --bestand <naam>      laad een expliciet bestand (bijv. maan.jpg)\n"
@@ -90,6 +91,7 @@ int main(int argc, char ** argv)
 			else std::cerr << "--schaduwGrootte verwacht een getal" << std::endl;
 		}
 		else if(vlag == "--procedureel")   cfg.bronKeuze = "procedureel";
+		else if(vlag == "--mars")          cfg.bronKeuze = "mars";
 		else if(vlag == "--aarde")         cfg.bronKeuze = "aarde";
 		else if(vlag == "--maan")         cfg.bronKeuze = "maan";
 		else if(vlag == "--bestand")
