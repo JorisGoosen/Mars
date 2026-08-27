@@ -262,8 +262,8 @@ private:
 	float _orografieFactor = 0.4f;
 
 	// ── Runtimetunables (WGSL-constanten die nu via de GUI aanpasbaar zijn) ──
-	float _zandErosie    = 0.1f;
-	float _rotsErosie    = 0.01f;
+	float _zandErosie    = 0.003f;
+	float _rotsErosie    = 0.0002f;
 	float _bezinkheid    = 0.05f;
 	float _zandRepose    = 1.0f;
 	float _ijsRepose     = 0.2f;   //ijs-rusthelling: ijs zakt pas bij een hogere hellingsdrempel dan zand

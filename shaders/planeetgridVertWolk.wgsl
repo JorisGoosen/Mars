@@ -8,6 +8,14 @@
 //terreinpunt (maxGrondHoogte, bij het laden bepaald).
 #include "planeetDefinitiesRender.wgsl"
 
+//Dikte van het wolkendek (volumetrisch): de schil krijgt nu een basis (rBasis)
+//onder de top (rTop). De dikte schaalt met de wolken-waarde van de cel (dikke
+//dekken bij veel wolkwater) én met de dek-hoogte boven sealevel (die zelf uit de
+//temperatuur komt): warmere lucht houdt een hoger en dus dikker dek vast.
+const wolkDikteFactor = 0.08;   //max. dikte als fractie van de planeetstraal (schaalinvariant)
+const wolkMinZicht   = 0.1;     //onder deze wolkenwaarde is er geen zichtbare wolk
+const wolkDikVol     = 0.6;     //wolkenwaarde waarop de dikte zijn maximum bereikt
+
 struct matricesDaar {
     projectie  : mat4x4f,
     modelZicht : mat4x4f,
@@ -28,6 +36,7 @@ struct naarFrag {
     @location(3) grondHoogte    : f32,
     @location(4) pos            : vec4f,
     @location(5) modelPos       : vec3f,
+    @location(6) schil          : vec2f,   //(rBasis, rTop) van het wolkendek
 };
 
 @vertex
@@ -59,7 +68,8 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     let rWolk = 1.0 + dekFract * (rPlafond - 1.0);
 
     //Schil op absolute straal rWolk (onafhankelijk van het lokale terrein).
-    let hierWolk = in.posV * max(rWolk, 0.15);
+    let rTop    = max(rWolk, 0.15);
+    let hierWolk = in.posV * rTop;
 
     //Bergtoppen boven het lokale dek: geen wolk (piek steekt erbovenuit).
     let terreinR = vakHoogte(ID, hLand) / extra.grondMult;
@@ -68,6 +78,14 @@ fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
     } else {
         uit.wolken = vakken0[ID].wolken;
     }
+
+    //Basis van het dek: dikte schaalt met de wolkenwaarde én met de planeetstraal
+    //(schaalinvariant; onafhankelijk van de "sealevel 1.0"-referentie, zodat ook
+    //kleine procedurele planeten een evenredig dik dek krijgen).
+    let wolkFract = smoothstep(wolkMinZicht, wolkDikVol, clamp(uit.wolken, 0.0, 1.0));
+    let dikte = rTop * wolkDikteFactor * wolkFract;
+    let rBasis = max(rTop - dikte, 0.05);
+    uit.schil = vec2f(rBasis, rTop);
 
     //Radiale normaal: gladde belichting over het dek (i.p.v. het terrein te volgen)
     uit.normaal = normalize((matrices.modelZicht * vec4f(in.posV, 0.0)).xyz);
