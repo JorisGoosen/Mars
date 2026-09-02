@@ -758,7 +758,7 @@ bool Simulatie::_laadMola()
 	size_t w, h, kanalen;
 	std::string bestandsNaam;
 	if(_cfg.bronKeuze == "procedureel") bestandsNaam = "";
-	else if(_cfg.bronKeuze == "aarde") bestandsNaam = "aarde.jpg";
+	else if(_cfg.bronKeuze == "aarde") bestandsNaam = "aarde.png";
 	else if(_cfg.bronKeuze == "maan") bestandsNaam = "maan.jpg";
 	else if(_cfg.bronKeuze == "bestand") bestandsNaam = _cfg.bestand;
 	else bestandsNaam = "MARS_Hoogte.png";
