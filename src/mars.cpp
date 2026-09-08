@@ -35,7 +35,7 @@ static void toonHelp()
 "  --schaduwGrootte <n>  resolutie van de schaduwkaart (standaard 4096; hoger = scherper, meer geheugen)\n"
 "  --procedureel         genereer het terrein met ruis i.p.v. de MOLA-hoogtekaart\n"
 "  --mars                laad MARS_Hoogte.png (standaard)\n"
-"  --aarde               laad aarde.png i.p.v. MARS_Hoogte.png\n"
+"  --aarde               laad aarde.jpg i.p.v. MARS_Hoogte.png\n"
 "  --maan                laad maan.jpg i.p.v. MARS_Hoogte.png\n"
 "  --bestand <naam>      laad een expliciet bestand (bijv. maan.jpg)\n"
 "  --zaadje <n>          vast zaadje voor het procedurele terrein (0 = willekeurig)\n"

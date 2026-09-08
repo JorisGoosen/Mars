@@ -115,9 +115,14 @@ if(EMSCRIPTEN)
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/dist/plaatjes
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/plaatjes ${CMAKE_BINARY_DIR}/dist/plaatjes
-        # MARS_Hoogte.png op de server (niet gepreload) voor de lazy MOLA-fetch
+        # MARS_Hoogte.png op de server (niet gepreload) voor de lazy MOLA-fetch;
+        # aarde.jpg + maan.jpg idem voor de bronnen Aarde/Maan (GUI)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_SOURCE_DIR}/MARS_Hoogte.png ${CMAKE_BINARY_DIR}/dist/MARS_Hoogte.png
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_SOURCE_DIR}/aarde.jpg ${CMAKE_BINARY_DIR}/dist/aarde.jpg
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_SOURCE_DIR}/maan.jpg ${CMAKE_BINARY_DIR}/dist/maan.jpg
         COMMENT "Kopiëren van assets naar dist/"
     )
 

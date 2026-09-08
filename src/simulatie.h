@@ -345,5 +345,5 @@ private:
 	// ── MOLA-data (niet-proceduraal) ──────────────────────────────────────
 	size_t   _molaBreedte = 0;
 	size_t   _molaHoogte  = 0;
-	std::vector<float> _molaData; // grijswaarden per pixel
+	std::vector<unsigned char> _molaData; // grijswaarden per pixel (0..255; 1 kopie naast de GPU-textuur, daarom geen float)
 };

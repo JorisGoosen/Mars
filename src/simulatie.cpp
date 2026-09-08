@@ -17,15 +17,16 @@
 #endif
 
 #ifdef __EMSCRIPTEN__
-//Lazy-laden van MARS_Hoogte.png in de browser: fetch van de server en schrijf
-//naar het virtuele bestandssysteem, zodat laadPNG hem gewoon kan lezen. Blokkeert
+//Lazy-laden van hoogtekaarten in de browser: fetch van de server en schrijf naar
+//het virtuele bestandssysteem, zodat laadAfbeelding hem gewoon kan lezen. Blokkeert
 //(asyncify) tot de bytes binnen zijn; daarna is alles verder zoals native.
-EM_ASYNC_JS(int, marsLaadHoogteUitBrowser, (), {
-	if (FS.analyzePath('/MARS_Hoogte.png').exists) return 0;
-	const resp = await fetch('MARS_Hoogte.png');
+EM_ASYNC_JS(int, marsLaadAssetUitBrowser, (const char* bestand), {
+	const pad = '/' + bestand;
+	if (FS.analyzePath(pad).exists) return 0;
+	const resp = await fetch(bestand); //relatief fetchen: GitHub Pages draait in een submap
 	if (!resp.ok) return 1;
 	const buf  = new Uint8Array(await resp.arrayBuffer());
-	FS.writeFile('/MARS_Hoogte.png', buf);
+	FS.writeFile(pad, buf);
 	return 0;
 });
 #endif
@@ -746,22 +747,24 @@ void Simulatie::_maakPenseelBuffer()
 
 bool Simulatie::_laadMola()
 {
-#ifdef __EMSCRIPTEN__
-	//Web: haal MARS_Hoogte.png lazy van de server naar het virtuele FS.
-	if(int rc = marsLaadHoogteUitBrowser())
-	{
-		std::cerr << "Kon MARS_Hoogte.png niet uit de browser laden (rc=" << rc << ")!" << std::endl;
-		return false;
-	}
-#endif
-
 	size_t w, h, kanalen;
 	std::string bestandsNaam;
 	if(_cfg.bronKeuze == "procedureel") bestandsNaam = "";
-	else if(_cfg.bronKeuze == "aarde") bestandsNaam = "aarde.png";
+	else if(_cfg.bronKeuze == "aarde") bestandsNaam = "aarde.jpg";
 	else if(_cfg.bronKeuze == "maan") bestandsNaam = "maan.jpg";
 	else if(_cfg.bronKeuze == "bestand") bestandsNaam = _cfg.bestand;
 	else bestandsNaam = "MARS_Hoogte.png";
+
+#ifdef __EMSCRIPTEN__
+	//Web: haal de hoogtekaart lazy van de server naar het virtuele FS.
+	if(!bestandsNaam.empty())
+		if(int rc = marsLaadAssetUitBrowser(bestandsNaam.c_str()))
+		{
+			std::cerr << "Kon " << bestandsNaam << " niet uit de browser laden (rc=" << rc << ")!" << std::endl;
+			return false;
+		}
+#endif
+
 	std::unique_ptr<unsigned char[], stbiDeleter> MarsHoogte(laadAfbeelding(bestandsNaam, w, h, kanalen, weergaveScherm::geefMaxTextuurDimensieStatic()));
 	if(!MarsHoogte)
 	{
@@ -784,13 +787,13 @@ bool Simulatie::_laadMola()
 	if(_heeftRender)
 		_scherm->vervangTextuur("marsHoogteTex", w, h, true, false, false, GL_RGBA8, MarsHoogte.get(), GL_RGBA, GL_UNSIGNED_BYTE);
 
-	// Bewaar grijswaarden voor de altura-lambda (rode kanaal / 255.0)
+	// Bewaar grijswaarden voor de altura-lambda (rode kanaal, ruw u8 — zie molaHoogte)
 	_molaBreedte = w;
 	_molaHoogte  = h;
 	_molaData.resize(w * h);
 	for(size_t y = 0; y < h; y++)
 		for(size_t x = 0; x < w; x++)
-			_molaData[y * w + x] = (float)MarsHoogte[(y * w + x) * 4] / 255.0f;
+			_molaData[y * w + x] = MarsHoogte[(y * w + x) * 4];
 
 	return true;
 }
@@ -874,7 +877,7 @@ float Simulatie::molaHoogte(const glm::vec2 plek) const
 	size_t py = (size_t)std::floor(plek.y * (_molaHoogte - 1));
 	px = std::min(px, _molaBreedte - 1);
 	py = std::min(py, _molaHoogte - 1);
-	return _grondMult + 10.0f * _molaData[py * _molaBreedte + px];
+	return _grondMult + 10.0f * (_molaData[py * _molaBreedte + px] / 255.0f);
 }
 
 void Simulatie::_resetStaat()
@@ -897,7 +900,7 @@ bool Simulatie::herstart(const SimulatieConfig & nieuweCfg)
 	_molaBreedte = _molaHoogte = 0;
 	if(_cfg.bronKeuze != "procedureel" && !_laadMola())
 	{
-		std::cerr << "MOLA kon niet geladen worden; val terug op procedureel." << std::endl;
+		std::cerr << "Bron '" << _cfg.bronKeuze << "' kon niet geladen worden; val terug op procedureel." << std::endl;
 		_cfg.bronKeuze = "procedureel";
 	}
 
