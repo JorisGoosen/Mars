@@ -1,0 +1,23 @@
+//WGSL reken-shader die de "schijnbare" waterhoogte (het gemiddelde over de buren) berekent.
+//We hebben net in waterStroming.comp en waterDruk.comp naar vakken1 geschreven,
+//dus de nieuwe stromingswaardes en waterHoogtes staan daar.
+#include "planeetDefinities.wgsl"
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
+
+    let burenAantal = vakMetas[ID].burenAantal;
+    var waterSchijn = 0.0;
+
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        waterSchijn += vakken1[buurID(ID, buur)].waterHoogte;
+    }
+
+    waterSchijn /= f32(burenAantal);
+
+    vakken1[ID].waterSchijn = goed((waterSchijn + vakken1[ID].waterHoogte) / 2.0, 0.0, 0.0, maxWaterHoogte);
+    vakken1[ID].ijsSchijn = ijsTop(vakken1[ID]);
+}

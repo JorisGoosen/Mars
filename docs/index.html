@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mars - Planeet Simulatie</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        #mars-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #status {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 100;
+        }
+
+        .error { color: #ff6b6b; }
+        .success { color: #51cf66; }
+        .info { color: #74c0fc; }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="mars-canvas" tabindex="-1"></canvas>
+        <div id="status">
+            <p class="info">Wachten op simulatie...</p>
+        </div>
+    </div>
+
+    <script src="mars.js"></script>
+    <script>
+        // Canvas synchronisch op juiste grootte zetten vóór Emscripten start
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            const canvas = document.getElementById('mars-canvas');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        if (!navigator.gpu) {
+            document.getElementById('status').innerHTML =
+                '<p class="error">Deze browser ondersteunt geen WebGPU.</p>';
+            throw new Error('WebGPU niet beschikbaar');
+        }
+
+        // mars.js is met -sMODULARIZE=1 gebouwd: MarsWeb is een async factory.
+        // De module-opties gaan als argument mee, niet via een var Module-object.
+        var statusLast = { time: 0, text: '' };
+        MarsWeb({
+            canvas: document.getElementById('mars-canvas'),
+            setStatus: function(text) {
+                if (text === statusLast.text) return;
+                var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+                var now = Date.now();
+                if (m && now - statusLast.time < 30) return;
+                statusLast.time = now;
+                statusLast.text = text;
+                if (m) text = m[1];
+                document.getElementById('status').innerHTML = '<p>' + text + '</p>';
+            },
+            onRuntimeInitialized: function() {
+                console.log('[Mars] Runtime geladen — RAF-loop gestart');
+                //Status-indicator staat alleen tijdens het laden; zodra de sim
+                //draait mag hij op de achtergrond verdwijnen.
+                document.getElementById('status').style.display = 'none';
+            }
+        }).catch(function(err) {
+            console.error('[Mars] laden mislukt:', err);
+            document.getElementById('status').innerHTML = '<p class="error">Laden mislukt: ' + err + '</p>';
+        });
+    </script>
+</body>
+</html>

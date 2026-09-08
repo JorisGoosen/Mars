@@ -1,0 +1,248 @@
+//WGSL reken-shader die de vochtcyclus bijwerkt in twee fasen:
+//  damp (luchtVocht)  <->  wolken (gecondenseerd wolkwater)  <->  regen.
+//De damp-capaciteit volgt de temperatuur; als er te veel damp is condenseert
+//het tot wolkwater, en wolkwater regent uit (regen valt UITSCHLUITEND uit wolken).
+//Wolken geven hun water ook af door terug te verdampen naar damp in droge lucht.
+//
+//Draait als laatste in de keten (na luchtStroming), dus vakken1 bevat al de
+//verse wind, temperatuur, waterHoogte en bodemVocht van deze ronde.
+#include "planeetDefinities.wgsl"
+
+//Verzadigingsdampdruk, temperatuur-afhankelijk (exponentiële, Clausius-Clapeyron-
+//achtige benadering: ~7%/K). Blijft positief bij elke temperatuur, zodat ook
+//koude lucht een kleine maar reële dampcapaciteit houdt (een lineaire benadering
+//klapt onder ~257 K door nul en laat dan de hele koude planeet droog staan).
+const dynamischLift = 10.0; //hoe sterk convergentie de verzadiging verlaagt (wolkvorming)
+fn sat_temp(T : f32) -> f32 {
+    let q = reken.condenseer.x * exp(0.07 * (T - 250.0));
+    return max(0.0001, q);
+}
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
+
+    let burenAantal = vakMetas[ID].burenAantal;
+    let n = f32(burenAantal);
+
+    //Masterschakelaar: zonder atmosfeer (zonkracht reken.atmosfeer.x = 0) is er
+    //geen wind, geen verdamping en geen neerslag; het water stroomt alleen nog.
+    let luchtAan = select(0.0, 1.0, reken.atmosfeer.x > 0.0);
+
+    //---- verse wind en temperatuur van deze ronde (uit luchtStroming) ----
+    let wind = vakken1[ID].wind;
+    let T    = vakken1[ID].temperatuur;
+
+    //---- advectie van damp en wolkwater met de wind (fluxvormig, behoudend) ----
+    //vochtStroming heeft per rand de upwind flux al in de vochtpijpen gezet (met
+    //dezelfde face-snelheid als T/P in luchtStroming, dus één gezamenlijke luchtcel).
+    //Hier sommeert elke cel de NETTO-instroming: pijp van de buur-zijde min eigen
+    //pijp, per rand antisymmetrisch, zodat de totale damp+wolk exact behouden blijft.
+    var netDamp = 0.0;
+    var netWolk = 0.0;
+    for(var fv = 0u; fv < burenAantal && fv < maxBuren; fv++) {
+        let nb = vakMetas[ID].buren[fv];
+        let nbAantal = vakMetas[nb].burenAantal;
+        for(var rv = 0u; rv < nbAantal && rv < maxBuren; rv++) {
+            if(vakMetas[nb].buren[rv] == ID) {
+                netDamp += vakken1[nb].vochtPijpenA[rv] - vakken1[ID].vochtPijpenA[fv];
+                netWolk += vakken1[nb].vochtPijpenB[rv] - vakken1[ID].vochtPijpenB[fv];
+                break;
+            }
+        }
+    }
+    let dampAan = vakken0[ID].luchtVocht + netDamp;
+    let wolkAan = vakken0[ID].wolken + netWolk;
+
+    //---- verzadiging uit de temperatuur (+ hoogte + orografie) ----
+    let oppervlak = grondHoogte(vakken0[ID]) + vakken0[ID].waterHoogte + vakken0[ID].ijs;
+    let hoogteFrac = clamp((oppervlak - minGrondHoogte) / (maxGrondHoogte - minGrondHoogte), 0.0, 1.0);
+
+    //Stroomafwaartse buur (waar de wind heen gaat) voor orografische stijging.
+    var afId = ID;
+    var besteAf = -1.0;
+    var divU = 0.0;
+    var somWolk = 0.0;
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        let mee = dot(vakMetas[ID].buurRicht[buur], wind);
+        if(mee > besteAf) { besteAf = mee; afId = vakMetas[ID].buren[buur]; }
+        divU += windUC(ID, buur);
+        somWolk += vakken0[vakMetas[ID].buren[buur]].wolken / f32(vakMetas[vakMetas[ID].buren[buur]].burenAantal);
+    }
+    divU /= max(n, 1.0);
+
+    //Orografische stijging: stroomafwaarts stijgt het oppervlak => de lucht wordt
+    //omhooggeduwd, koelt en kan minder damp houden (lagere verzadiging).
+    let oppervlakAf = grondHoogte(vakken1[afId]) + vakken1[afId].waterHoogte + vakken1[afId].ijs;
+    let stijgOp     = max(0.0, min(oppervlakAf - oppervlak, 1.0));
+    let stijgTerm   = clamp(reken.condenseer.w * stijgOp, 0.0, 0.9);
+
+    //Dynamische opwaartse stroming: waar de wind convergeert (negatieve divergentie
+    //van de compressie-gecorrigeerde face-snelheid) wordt lucht omhooggeduwd, koelt
+    //af en condenseert. Dit vormt bewolking in echte circulatie-systemen i.p.v.
+    //louter onder de zon.
+    let convergentie = -divU;
+    let dynLift      = clamp(convergentie * dynamischLift, 0.0, 0.95);
+
+    //Verzadiging op de adiabatisch opgetilde hoogte: dezelfde gedeelde lapse
+    //(planeetStructen.wgsl) die op grote hoogte de temperatuur/uitstraling stuurt,
+    //koelt hier het opgetilde luchtpakket zodat het er minder damp kan dragen —
+    //één lapse voor beide (hoogtekoel-schuif is vervallen). sat_temp is
+    //exponentieel (~7%/K), dus bergtoppen drogen vanzelf uit.
+    var verzadiging = sat_temp(T - lapse * hoogteFrac) * (1.0 - stijgTerm - (1.0 - stijgTerm) * dynLift);
+    verzadiging = max(0.0001, verzadiging);
+
+    //---- condensatie: oververzadigde damp wordt wolkwater ----
+    var damp = dampAan;
+    var wolk = wolkAan;
+
+    //---- wolkdiffusie: nabije patchjes vloeien samen tot grotere wolkendekken ----
+    //Behoudend op elke graadverdeling: somWolk telt per buur wolkⱼ/nⱼ (elke buur
+    //spreidt zijn wolk gelijk over zíjn buren). SOMWOLK IS HIER opgebouwd uit de
+    //vakken0-wolk (lijn ~72, vóór condensatie); wolk hier is nog wolkAan =
+    //vakken0.wolk + netWolk. Advectie is fluxbehoudend (Σ netWolk = 0), dus
+    //Σ wolkAan = Σ vakken0.wolk = Σ somWolk en daarmee Σᵢ(somWolkᵢ − wolkᵢ) = 0:
+    //de totale wolk blijft exact constant.
+    //
+    //BELANGRIJK: DEZE REGEL MOET VÓÓR CONDENSATIE STAAN. De eerdere versie paste
+    //diffusie toe op de wolk NÁ condensatie/wolkverdamping. Toen was
+    //Σᵢ(somWolkᵢ − wolkᵢ) = −(Σ condensatie − Σ wolkverdamping) ≠ 0: diffusie
+    //vernietigde (of creëerde) op elke ronde wolkDiffusie × netto-condensatie aan
+    //wolkwater — een enorm massalek (gemeten: 87% verlies in 10000 stappen).
+    wolk += reken.wolkPar[3] * (somWolk - wolk);
+
+    if(luchtAan > 0.0 && damp > verzadiging + zeerKlein) {
+        let overschot = (damp - verzadiging) * reken.wolkPar[0];
+        wolk += overschot;
+        damp -= overschot;
+    }
+
+    //---- wolkverdamping: in droge lucht geeft wolkwater vocht terug aan de lucht
+    if(luchtAan > 0.0 && damp < verzadiging - zeerKlein && wolk > zeerKlein) {
+        let tekort  = verzadiging - damp;
+        let afdamp  = min(min(wolk * reken.wolkPar[2], tekort * 0.1), wolk);
+        damp += afdamp;
+        wolk -= afdamp;
+    }
+
+    //---- regen uitsluitend uit wolken (boven de draagkracht valt het uit) ----
+    //Twee bronnen: uitregening boven de draagkracht, en op bergtoppen boven het
+    //wolkendek een rate-gelimiteerde neerslag (dekDump). Alles wordt tenslotte op
+    //maxRegenPerRonde geklemd: wolken mogen dik zijn, maar er valt per cel nooit
+    //meer dan een beperkte dagbui per ronde (geen tsunami en geen sneeuwbal-dump).
+    var regen = max(0.0, wolk - wolkDraagKracht) * reken.wolkPar[1]
+              * (reken.condenseer.z / 0.3) * luchtAan;
+
+    //---- wolkendek onder de grond: een cel mag nooit vocht bevatten dat hoger
+    //reikt dan het wolkendek. Ligt het lokale dek onder de grond (bergtop steekt
+    //boven het dek uit), dan kan die lucht haar vocht niet vasthouden: al het damp
+    //en wolkwater slaat onmiddellijk neer als regen/lopend water.
+    //
+    //Het dek is een soepele, stabiele hoogte (vooral uit temperatuur/pressuur,
+    //niet uit de huidige damp: anders versterkt het wegdrainen zichzelf en zakt
+    //het dek naar de grond tot er geen vocht meer over is). Het zweeft in de
+    //atmosfeerlaag tussen sealevel (1.0) en het plafond.
+    let maxGrond = max(reken.fasen.y, 1.0);
+    let grondMult = max(reken.fasen.z, 0.0001);
+    let rMax      = (1.0 + maxGrond * reken.grondSchaal) / grondMult;
+    let rPlafond  = 1.0 + 0.9 * (rMax - 1.0);
+    //dekFract uit temperatuur (warm = hoger dek): het dek zweeft hoog in de
+    //atmosfeerlaag zodat alleen hoge bergtoppen erbovenuit steken; daarmee blijft
+    //er voor de meeste cellen ruimte om vocht vast te houden en wolken te vormen.
+    let dekFract  = clamp(0.75 + 0.15 * clamp((T - 255.0) / 30.0, -1.0, 1.0), 0.6, 0.9);
+    let rWolk     = 1.0 + dekFract * (rPlafond - 1.0);
+    let grondR    = (1.0 + grondHoogte(vakken0[ID]) * reken.grondSchaal) / grondMult;
+    if(luchtAan > 0.0 && grondR >= rWolk && wolk > zeerKlein) {
+        //Rate-limit: dump niet ál het wolkwater in één ronde (was een tsunami die de
+        //waterhoogte in één slag liet stuiteren), maar een fractie per ronde.
+        regen += wolk * dekDump;
+    }
+
+    //---- piekbegrenzer: nooit meer dan maxRegenPerRonde per cel per ronde ----
+    //Wolken mogen dik blijven (ze regenen ook zonder cap geleidelijk uit), en een
+    //dikke stapel loost nooit in één slag: per cel blijft de dagbui beperkt.
+    regen = min(regen, maxRegenPerRonde);
+    regen = min(regen, max(0.0, wolk));
+    wolk  -= regen;
+
+    //---- oppervlakte-verdamping boven water (temperatuur-afhankelijk) ----
+    //Verdamping hangt NIET van het licht af: alleen het opwarmen (lucht/stream)
+    //en de plantengroei (waterDruk) gebruiken zonlicht. Damp-productie volgt de
+    //temperatuur: boven 0 °C dampt warmer water sneller; bevroren water niet.
+    //Zonder verzadigings-plafond kan damp de verzadiging overschrijden, waarna de
+    //condensatie er wolkwater van maakt i.p.v. dat het vocht in de lucht blijft hangen.
+    let vriest = select(0.0, 1.0, T < vriespuntK);
+
+    //Sneeuw boven ijs/kou: onder het vriespunt wordt neerslag meteen ijs ("sneeuw")
+    //i.p.v. vloeibaar water dat traag moet bevriezen en anders wegsublimeert. Zo werken
+    //wolken/buien boven ijskappen gewoon en vult neerslag de ijskap direct aan. ijs zit
+    //in het waterbudget, dus dit is een pure reservoir-overdracht (behoudend).
+    let sneeuw     = select(0.0, regen, vriest > 0.0);
+    var regenWater = regen - sneeuw;
+
+    //Waterplafond: een wolk mag nooit zoveel water dumpen dat het wateroppervlak
+    //boven het wolkendek uitkomt. Wat niet past blijft als wolkwater hangen
+    //(behoudend). Het dek ligt op straal rWolk; terugrekenen naar hoogte:
+    //hoogte = (straal * grondMult - 1) / grondSchaal. Een bergtop die boven het
+    //dek uitsteekt houdt hoogstens een dunne laag (maxWaterBergtop), zodat de
+    //"wolkendek onder de grond"-dump daar geen waterpieken maakt.
+    let dekHoogte      = (rWolk * grondMult - 1.0) / reken.grondSchaal;
+    let maxWaterDiepte = select(maxWaterBergtop, max(0.0, dekHoogte - grondHoogte(vakken0[ID])), grondR < rWolk);
+    let waterRuimte    = max(0.0, maxWaterDiepte - vakken1[ID].waterHoogte);
+    let nietPast       = max(0.0, regenWater - waterRuimte);
+    regenWater         = min(regenWater, waterRuimte);
+    wolk               += nietPast;
+
+    var ijsNieuw   = vakken1[ID].ijs + sneeuw;
+
+var waterNieuw = vakken1[ID].waterHoogte + regenWater;
+    //IJsdeksel: ligt er ijs op de cel, dan is het water eronder afgesloten van
+    //de lucht en verdampt het niet (pas als al het ijs is weggedooid, dampt het).
+    let ijsDeksel = select(0.0, 1.0, ijsNieuw <= zeerKlein);
+    //Dampsterkte volgt de temperatuur: 0 onder de 0 °C, oplopend naar vol boven 0 °C.
+    let dampTemp = smoothstep(vriespuntK, vriespuntK + 12.0, T);
+    let stoom = luchtAan * (1.0 - vriest) * ijsDeksel * min(min(reken.verdamping * dampTemp, waterNieuw), maxVerdampPerRonde);
+    waterNieuw -= stoom;
+    damp += stoom;
+
+    //Sublimatie: ook bevroren oppervlak (ijs/sneeuw) levert langzaam damp aan de
+    //lucht, anders verdrogen de polen permanent (geen andere vochtbron daar).
+    let ijsBeschikbaar = vakken1[ID].ijs;
+    let sublim = luchtAan * vriest * min(min(reken.verdamping * dampTemp, ijsBeschikbaar), maxSublimPerRonde);
+    ijsNieuw -= sublim;
+    damp += sublim;
+
+    //---- evapotranspiratie: vochtige bodem verdroogt als open water, maar veel zwakker ----
+    //zelfde structuur als de stoom-productie hierboven (vriest + ijsDeksel + dampTemp),
+    //alleen met de diagere evapotranspiratie-schaal i.p.v. de volle verdamping/ronde.
+    //Conservatief: damp krijgt nooit meer dan de bodem écht inlevert (min met de
+    //beschikbare bodemvocht).
+    let evapot = reken.waterPar[0] * reken.verdamping;
+    let verdroogt = luchtAan * (1.0 - vriest) * ijsDeksel * min(evapot * dampTemp, vakken1[ID].bodemVocht);
+    var bodemVochtNieuw = vakken1[ID].bodemVocht;
+    if(verdroogt > zeerKlein) {
+        let af = min(verdroogt, bodemVochtNieuw);
+        bodemVochtNieuw = bodemVochtNieuw - af;
+        damp += af;
+    }
+
+    //---- transpiratie via leven: waar er leven op de cel staat, neemt het bodemvocht
+    //op en geeft het als damp af — maar alleen boven 0 °C (bevroren planten ademen
+    //niet). Geschaald met de levensdichtheid; proportioneel, dus meer leven = meer.
+    let levensTemp = select(0.0, 1.0, T > vriespuntK);
+    let levenHier  = clamp(vakken1[ID].leven, 0.0, 1.0);
+    let transpiratie = reken.levenPar2[0] * levensTemp * levenHier * bodemVochtNieuw;
+    if(transpiratie > zeerKlein) {
+        let gone = min(transpiratie, bodemVochtNieuw);
+        bodemVochtNieuw -= gone;
+        damp += gone;
+    }
+
+    vakken1[ID].waterHoogte = goed(waterNieuw,  vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
+    vakken1[ID].bodemVocht  = goed(bodemVochtNieuw, vakken0[ID].bodemVocht, 0.0, maxWaterHoogte);
+    vakken1[ID].luchtVocht  = goed(damp, vakken0[ID].luchtVocht, 0.0, maxLuchtVocht);
+    vakken1[ID].wolken      = goed(wolk, vakken0[ID].wolken, 0.0, maxLuchtVocht);
+    vakken1[ID].ijs         = goed(ijsNieuw, vakken0[ID].ijs, 0.0, maxWaterHoogte);
+}

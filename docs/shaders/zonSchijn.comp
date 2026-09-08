@@ -1,0 +1,91 @@
+//WGSL reken-shader die per frame het binnenkomend zonlicht bijhoudt: een lopend
+//daggemiddelde (EMA) per cel van invalsFactor × schaduw. invalsFactor is de
+//invalshoek van de sim-zon t.o.v. het oppervlak (sin van de zonshoogte =
+//cos(hoek tussen oppervlaktenormaal en zonrichting)); de schaduw komt uit een
+//horizon-versper-ring op het grid zelf (géén schaduwkaart: de render-zon staat
+//los van de sim-zon, dus de kaart ervan klopt hier niet).
+//De zonrichting verschuift elke frame één dag-slot (C++-teller _zonSlotTeller),
+//zodat het gemiddelde na 360 frames een volledige dagomloop dekt (dagSlots).
+//
+//Draait ná de hele rekenketen + volgendeRonde, éénmaal per frame, en schrijft
+//alleen vakken0.zonlicht (in-place); de keten kopieert het veld door de pingpong.
+#include "planeetDefinities.wgsl"
+
+const maxZonStappen = 24u;      //hoeveel grid-stappen de straal maximaal vooruitkijkt (horizon-zicht)
+const zonSchijnZacht = 0.02;    //penumbra-marge (wereld-eenheden): over dit hoogteverschil loopt de schaduwrand zacht van vol licht naar vol schaduw
+
+//Horizon-versperring vanuit ID in de richting zon: wandelt over het grid naar de
+//zon-azimut en test of een stap-oppervlak boven de zonstraal uitkomt. 1 = niets
+//verspert, 0 = diepe schaduw. De straal start op het BOVENSTE zichtbare oppervlak
+//(grond + waterspiegel + drijvend ijs), net als de casters van de render-pass.
+fn zonSchaduwCellulair(ID : u32, zon : vec3f) -> f32 {
+    let nO    = vakMetas[ID].normaal.xyz;
+    let sinEl = clamp(dot(zon, nO), 0.0, 1.0);
+    let tang  = zon - nO * dot(zon, nO);
+    if(sinEl <= 0.0 || length(tang) < 1.0e-5) { return 1.0; }
+    let tL    = normalize(tang);
+    let gm    = max(reken.fasen[2], 0.0001);   //fasen[2] = grondMult
+    let H0    = grondHoogte(vakken0[ID]) + vakken0[ID].waterSchijn + vakken0[ID].ijs;
+    let R0    = (1.0 + H0 * reken.grondSchaal) / gm;
+
+    var schaduw = 1.0;
+    var d       = 0.0;
+    var cur     = ID;
+    var nC      = nO;
+    var RC      = R0;
+
+    for(var s = 0u; s < maxZonStappen; s++) {
+        //De buur die het dichtst in de richting van de zon-azimut ligt.
+        let tLokaal = lokaal2(cur, tL);
+        let nA      = vakMetas[cur].burenAantal;
+        var beste   = -2.0;
+        var nb      = cur;
+        for(var b = 0u; b < nA && b < maxBuren; b = b + 1u) {
+            let mee = dot(vakMetas[cur].buurRicht[b], tLokaal);
+            if(mee > beste) { beste = mee; nb = vakMetas[cur].buren[b]; }
+        }
+        if(nb == cur) { break; }
+
+        //Wereldposities en afstand langs de straal blijven optellen.
+        let nB = vakMetas[nb].normaal.xyz;
+        let HB = grondHoogte(vakken0[nb]) + vakken0[nb].waterSchijn + vakken0[nb].ijs;
+        let RB = (1.0 + HB * reken.grondSchaal) / gm;
+        let stap = length(nB * RB - nC * RC);
+        d += stap;
+
+        //Hoogte van de zonstraal op deze afstand (recht raakvlak-uitgaande straal
+        //vanaf het startoppervlak). Steekt het oppervlak erbovenuit: versperd,
+        //met een zachte rand over zonSchijnZacht.
+        let straalR = sqrt(R0 * R0 + d * d + 2.0 * R0 * d * sinEl);
+        let over    = RB - straalR;
+        if(over > 0.0) {
+            schaduw = min(schaduw, 1.0 - smoothstep(0.0, zonSchijnZacht, over));
+        }
+
+        nC = nB; RC = RB; cur = nb;
+    }
+    return schaduw;
+}
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
+
+    let zon = normalize(reken.zonRicht.xyz);
+    //Invalsfactor: sinus van de zonshoogte boven het oppervlak (de gevraagde
+    //sin(hoek zonlicht t.o.v. oppervlak)). Scherende straling valt over meer
+    //oppervlak en telt dus zachter mee; nachtzijde = 0 (de EMA vervalt dan).
+    let invalsFactor = max(0.0, dot(berekenNormaal(ID, false), zon));
+    var schaduw = 1.0;
+    if(invalsFactor > 0.0) {
+        schaduw = zonSchaduwCellulair(ID, zon);
+    }
+
+    let nieuw = invalsFactor * schaduw;
+    let oud   = vakken0[ID].zonlicht;
+    //Voortschrijdend gemiddelde (EMA, tijdconstante dagSlots): daglengte en
+    //schaduw-gedrag ontstaan vanzelf, zonder ringbuffer of dagteller-in-shader.
+    vakken0[ID].zonlicht = goed(oud + (nieuw - oud) / dagSlots, oud, 0.0, 1.0);
+}

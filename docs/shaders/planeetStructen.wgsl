@@ -1,0 +1,225 @@
+//Gedeelde structs en constanten voor de planeet-simulatie en -weergave (Mars)
+//De structs moeten qua gmlayout exact matchen met de C++-structs in planeet.h
+
+const gsZand   = 0u;
+const gsGrond  = 1u; //ook wel humus of rijke grond
+const gsRots   = 2u;
+const gsKlei   = 3u;
+const gsIjs    = 4u;
+const gsLoess  = 5u;
+
+const tijdVerschil    = 0.1;
+const zwaartekracht   = 0.8;
+const pijpDoorsnee    = 0.5;
+const pijpLengte      = 1.0;
+const droesemheid     = 0.5;
+const vertrager       = 0.05;  //vertraging van het eroderen: schaalt de draagcapaciteit omlaag (rustige erosie)
+const maxDichtheid    = 1.0;   //max. zwevend sediment t.o.v. de waterhoogte
+const zeerKlein       = 0.0001;
+const minGrondHoogte  = 10.0;
+const maxGrondHoogte  = 200.0;
+const toonSediment    = 0.003; //boven deze waarde wordt grondSoort zand
+const minWaterSed     = 0.01;  //onder deze waterdiepte erodeert een cel niet meer (lager = ook ondiepe rivier/overland-stroming schuurt het terrein uit)
+
+//Materiaal-afhankelijke erosiesnelheden, de zand-rusthelling en de waterkringloop
+//zijn nu runtimetunables (reken.erosiePar/waterPar e.d.), defaults in C++.
+const zandZakhoek = 1.0 / 20.0;
+//IJs-rusthelling (zie waterDruk.comp): de rusthoek (ijsRepose) én het tempo
+//(ijsTempo) zijn runtimetunables in reken.erosiePar2.zw; defaults in C++.
+
+//Extreem hoge kleppen: puur bescherming tegen Niet-eindige waarden en
+//f32-overflow, ver boven elk reëel fysisch niveau. De pijpen kunnen door de
+//K-factor (water/dt, dt=0.1) tot ~10x de waterhoogte oplopen.
+const maxWaterHoogte = 1.0e12;
+const maxPijp        = 1.0e13;
+const maxSnelheid    = 1.0e13;
+const maxDroesem     = 1.0e12;
+const maxLuchtVocht  = 1.0e12;
+
+//Waterkringloop (zie waterLucht.comp en waterDruk.comp): bodemvocht is de
+//grondwatervoorraad, luchtvocht is de atmosferische vochtigheid. De bijbehorende
+//snelheden zijn runtimetunables (reken.waterPar): evapotranspiratie, infiltratie,
+//bodemDiffusie en veldCapaciteit. levensDamp (transpiratie door leven) zit in
+//reken.levenPar2.
+const maxWaterBergtop   = 0.1;  //max. waterlaag op een piek boven het wolkendek (waterplafond)
+
+//IJsvorming (zie waterDruk.comp): onder 273 K bevriest water tot ijs, daarboven
+//dooit het terug. Hoe kouder, hoe sneller. IJs telt als grond voor de stroming.
+const vriespuntK    = 273.0;  //0 °C in Kelvin
+const ijsTempo      = 0.0005; //fractie water/ijs dat per ronde per Kelvin onder/boven het vriespunt bevriest/dooit
+const miniJs        = 0.01;   //onder deze ijsdikte heet een cel ijsloos (render-drempel)
+
+//Leven & temperatuur (zie waterDruk.comp): leven groeit alleen boven 0 °C en sterft
+//bij vorst. De groeiband, verwelkdrempel, droogte- en koude-sterftes zijn
+//runtimetunables (reken.levenPar); de vriespunten en levenMax blijven vast.
+//levensDamp (transpiratie) en waterDoodTempo (sterfte onder water) zijn
+//runtimetunables in reken.levenPar2 (defaults in C++).
+const levenBevriesK   = 273.0;   //0 °C: boven dit punt mag leven pas groeien
+const levenKoudBegin  = 253.15;  //-20 °C: de dood begint hier langzaam
+const levenKoudSnel   = 213.15;  //-60 °C: hier doodt het heel snel
+const levenMax        = 1.0;     //verzadigingsgrens: leven benadert dit asymptotisch (volop vegetatie)
+
+const maxBuren = 6u;
+
+//Atmosferische dynamica (zie luchtStroming.comp): barotrope-achtige circulatie.
+//De eigenlijke sterkte van de effecten komt uit reken.atmosfeer (zonkracht,
+//rotatie-omega, wrijving, diffusie); onderstaande zijn de fysische constanten.
+const luchtBaseTemp   = 250.0;  //start/referentietemperatuur (K) van de lucht
+const opnameTempo     = 0.30;   //hoe snel zonne-energie de lucht opwarmt
+//Gedeelde lapse rate (K per genormaliseerde hoogtelaag): één getal voor zowel de
+//hoogte-afhankelijke uitstraling (luchtStroming; dunne lucht boven = meer warmte
+//kwijt) als de adiabatisch opgetilde verzadiging (waterLucht; omhoog = koeler =
+//minder dampdragend). hoger = ijzigere, drogere bergtoppen.
+const lapse           = 60.0;   //K per genormaliseerde hoogtelaag
+//stralingKracht (uitstraling naar de ruimte) is nu een runtimetunable in
+//reken.schaduw.z (default 0.05 in C++; GUI-slider "uitstraling").
+//hoogteUitstraling versterkt die uitstraling met de hoogte (atmosfeergebrek):
+//op grote hoogte is er minder luchtkolom boven de cel en ontweekt er meer warmte.
+const hoogteUitstraling = 1.5; //extra relatieve uitstraling per genormaliseerde hoogtelaag
+const tempDiffusie    = 0.025; //temperatuur gladstrijken (stabiel: monotone limiter vangt clusters op)
+const ruimteK         = 180.0;  //effectieve hemeltemperatuur (K) zonder broeikas
+const broeikasK       = 80.0;   //CO2-groeikaseffect: verhoogt de effectieve hemel-T (ruimteK+broeikasK = donkere-evenwicht; ruim onder het vriespunt zodat een poolwinter écht bevriest)
+const drukKracht     = 0.06;    //drukgradiëntkracht-coëfficiënt (wind versnelling, met ware gradient)
+const drukRelax      = 0.5;   //hoe snel de druk naar het thermische evenwicht zakt
+const drukDiffusie   = 0.15; //zachte gladstrijking van de druk: neem de grid-schaal P-ruis weg, maar laat de grote dag/nacht- en poolgradaciënt staan (diffusie is schaalselectief)
+const drukTempKoppel = 0.10;    //ideaalgas-koppeling: P reageert (anti-proportioneel) op de absolute T rond drukTempRef — de dag/nacht-golf en de evenaar→pool-gradaciënt worden zo échte drukgradiënten i.p.v. dat alleen lokale T-afwijking telt (0.14 gaf een meridionale hitte-export die de evenaar niet meer liet smelten: sneeuwbal-instabiliteit)
+const drukTempRef    = 271.0;   //referentie-T = planeetklimaatgemiddelde (gemeten rond 265-270 K); overdrijven drijft P tegen de klemmen
+const drukReferent   = 2.5;    //vast planeetniveau waar de druk zacht aan verankerd wordt (zonder reductie over de hele planeet): eerst de thermische koppeling anders de basisschaal kan laten wegdrijven naar de klemmen
+const drukAnker      = 0.012;   //langzame terugtrek naar drukReferent (klimaattschaal, de dag/nacht- en poolstructuur rijdt er ongehinderd bovenop)
+const rotatieWind    = 3.0;  //vaste zonale (oostwaartse) basiswind evenaar-sterk, polen 0 (vertegenwoordigt planeetrotatie)
+const minLuchtdruk   = 0.2;    //klemmen op de druk zodat P>0 blijft
+const maxLuchtdruk   = 5.0;
+
+//Advectie-snelheidskoppeling: hoe ver een luchtpakket per ronde met de wind
+//opschuift (in cel-eenheden). Gedeeld door luchtStroming (T/P) én waterLucht
+//(vocht/wolken), zodat alle atmosferische grootheden als één pakket even hard
+//meereizen. afstand = |wind| * tijdVerschil * advectieSnelheid, geclipt op 12.
+const advectieSnelheid = 4.0;
+
+//Binnenkomend zonlicht (zie zonSchijn.comp): een lopend daggemiddelde (EMA) per
+//cel van invalsFactor × schaduw. dagSlots is de tijdconstante (frames) én de
+//dagomloop: de C++-teller _zonSlotTeller (0..dagSlots) geeft de rotatiehoek van
+//de sim-zon. zonlichtSchaal schaalt het 0..1-gemiddelde naar de oude opwarm-
+//magnitudes (luchtStroming). De sim-zon zelf is volledig los van de render-zon
+//(extra.zonPos): het oog heeft zijn eigen licht, het klimaat zijn eigen zon.
+const dagSlots        = 360.0;   //dagomloop/tijdconstante van het zonlicht-EMA (frames)
+const zonlichtSchaal  = 0.5;     //zonlicht → opwarmingsbijdrage (gekalibreerd op de oude dag/nacht-term; headless A/B)
+
+//Albedo's van het oppervlak/weer (moduleren hoe veel zonnestraling wordt geabsorbeerd).
+const albedoIJs     = 0.52;   //(0.60 was een sneeuwbal-val: met de coherente meridionale hitte-export bleef het ijs staan en koelde de planeet uit; iets lager houdt het ijs in de warme tak)
+const albedoWolken  = 0.55;
+const albedoWater   = 0.08;
+const albedoGrond   = 0.30;
+const albedoBegroei = 0.16;   //leven: tussen water (0.08) en grond (0.30) in, duidelijk anders dan rots
+const wolkIsolatie  = 0.45;   //hoe sterk het wolkendek de uitstraling tegenhoudt (0.55 gaf een positieve terugkoppeling: dikke wolken isoleerden hete cellen, die werden heter, hielden meer damp vast en stapelden nog meer wolk — extreem-hete ophopingspunten)
+
+//Thermische traagheid (warmtecapaciteit) per oppervlaktetype: boven water/ijs/natte
+//bodem reageert de luchttemperatuur trager op zon en nachtelijke uitstraling dan
+//boven kale grond (beide diabate termen delen door C, dus het evenwichteinde blijft
+//gelijk — alleen de dag/nacht-amplitude wordt gedempt, zoals echte bufering).
+const zeebuffer     = 2.5;   //max. extra traagheid t.o.v. kale grond boven (diep)water
+const waterDrempel  = 0.5;   //waterdeksel waar de buffering begint (≈ albedo-drempel)
+const waterBereik   = 2.0;   //waterdiepte waarover zeebuffer naar vol loopt
+const ijsBuffer     = 1.0;   //extra traagheid van ijsdekken (latente-warmte-achtig, mild)
+const ijsBereik     = 1.0;   //ijsdikte waarover ijsbuffer verzadigt
+const bodemBuffer   = 0.6;   //natte bodem (bodemVocht richting veldCapaciteit) buffert wat
+
+//Twee-fasen vocht (zie waterLucht.comp): damp <-> wolk <-> regen.
+//De tempo's (condens, regen, wolkverdamping, diffusie) zijn runtimetunables
+//(reken.wolkPar); de draagkracht en klemmen blijven vast.
+const minWolk        = 0.01;   //onder deze waarde heet een cel wolkloos
+const wolkDraagKracht = 0.40;  //max. wolkwater per eenheid; daarboven regent het uit (hoger = wolken dragen meer water vóór ze regenen)
+const dekDump        = 0.08;   //fractie wolk die per ronde op een bergtop boven het wolkendek neerslaat (rate-limit: geen tsunami-dump in één ronde)
+const maxRegenPerRonde      = 0.025;  //het absolute neerslagplafond per cel per ronde (piekbegrenzer: regen + sneeuw samen maximaal 0.025)
+const maxVerdampPerRonde    = 0.1;  //max. verdamping water → damp per cel per ronde
+const maxSublimPerRonde     = 0.1;  //max. sublimatie ijs → damp per cel per ronde
+
+//Terrein wordt bijgehouden als twee onafhankelijke lagen: rotsHoogte (de vaste
+//ondergrond) en zandHoogte (de losse deklaag; invariant >= 0). De terreinhoogte
+//(het oppervlak waarover water stroomt en die wordt gerenderd) is daarvan de
+//afgeleide som — zie grondHoogte() hieronder.
+struct vak {
+    grondSoort  : i32,
+    zandHoogte  : f32,
+    rotsHoogte  : f32,
+    waterHoogte : f32,
+    waterSchijn : f32,
+    ijsSchijn   : f32,
+    bodemVocht  : f32,
+    ijs         : f32,
+    leven       : f32,
+    droesem     : f32,
+    luchtVocht  : f32,
+    temperatuur : f32,
+    luchtdruk   : f32,
+    wolken      : f32,
+    zonlicht    : f32, //lopend daggemiddelde van invalsFactor×schaduw (EMA; 0 = geen licht, 1 = constante volle zon)
+    pijpen      : array<f32, maxBuren>,
+    vochtPijpenA : array<f32, maxBuren>, //flux van damp (luchtVocht) per buur, behoudend
+    vochtPijpenB : array<f32, maxBuren>, //flux van wolken per buur, behoudend
+    snelheid    : vec2f,
+    wind        : vec2f,
+    plek        : vec2f,
+};
+
+//De terreinhoogte is afgeleid: ondergrond + zandlaag. De helper werkt zowel op
+//vakken0 als vakken1.
+fn grondHoogte(v : vak) -> f32 {
+    return v.rotsHoogte + v.zandHoogte;
+}
+
+//Bovenste oppervlak van het ijs voor de ijs-rusthelling: ijs drijft OP het water,
+//dus grond + de échte waterhoogte + ijs (zelfde idee als de render,
+//planeetDefinitiesRender.wgsl, maar op rauwe waterHoogte i.p.v. waterSchijn).
+fn ijsTop(v : vak) -> f32 {
+    return grondHoogte(v) + v.waterHoogte + v.ijs;
+}
+
+struct vakMeta {
+    normaal     : vec4f,
+    oost        : vec4f,        //lokale raakvlak-basis (oost) in wereldcoördinaten
+    noord       : vec4f,        //lokale raakvlak-basis (noord) in wereldcoördinaten
+    gradWeights : vec3f,        //(a,b,c) van de 2×2 correctiematrix M = avgDist · C⁻¹
+    buurRicht   : array<vec2f, maxBuren>,
+    buren       : array<u32, maxBuren>,
+    burenAantal : u32,
+    gradSchaal  : f32,        //2 / gemiddelde buurafstand: schaalt LS-gradient/divergentie naar de ware waarde
+};
+
+//Parameters die de reken-shaders krijgen (bind-groep 0, binding 3)
+struct rekenParameters {
+    grondSchaal : f32,
+    verdamping  : f32,      //basale verdamping: waterHoogte -> luchtVocht (zon-afhankelijk)
+    erosie      : f32, //0 = terrein verandert niet (erosie uit), 1 = normaal
+    levenAan    : f32, //0 = geen leven (plantengroei uit)
+    atmosfeer   : vec4f, //(zonkracht, rotatieOmega, wrijving, diffusie)
+    zonRicht    : vec4f, //sim-zonrichting van deze frame (declinatie uit jaarTeller+askanteling, rotatie uit slotTeller)
+    condenseer  : vec4f, //(basisVerzadiging, ongebruikt, neerslagFactor, orografieFactor)
+    fasen       : vec4f, //(verwarmtijdconstante, maxGrondHoogte, grondMult, ongebruikt)
+    schaduw     : vec4f, //(schaduwAan, schaduwKaartGrootte, stralingKracht, ongebruikt)
+
+    //Runtimetunables (GUI-sliders; C++-defaults)
+    erosiePar   : vec4f, //(zandErosie, rotsErosie, bezinkheid, zandRepose)
+    erosiePar2  : vec4f, //(hellingKracht, oplosheid, ijsRepose, ijsTempo)
+    waterPar    : vec4f, //(evapotranspiratie, infiltratie, bodemDiffusie, veldCapaciteit)
+    levenPar    : vec4f, //(levenGroeiBand, levenDroogTempo, levenVerwelk, levenKoudTempo)
+    groeiPar    : vec4f, //(zandGroei, zandBuur, rotsGroei, rotsBuur) — leven + burengroei
+    wolkPar     : vec4f, //(condensTempo, regenTempo, wolkVerdamp, wolkDiffusie)
+    levenPar2   : vec4f, //(levensDamp, waterDoodTempo, ongebruikt, ongebruikt)
+};
+
+//Parameters voor de weergave-shaders (bind-groep 0, binding 2)
+struct extraParameters {
+    grondMult   : f32,
+    grondSchaal : f32,
+    schaduwGrootte : f32, //resolutie van de schaduwkaart (pixels per zijde)
+    wolkAlpha   : f32, //doorzichtigheid van het wolkendek (0 = onzichtbaar, 1 = dekkend; GUI-slider)
+    kijkPlek    : vec3f,
+    waterReflectie : f32, //sterkte van de waterspiegel+randreflectie (GUI-slider; ex-_padC)
+    zonPos      : vec3f,
+    atmosfeerSterkte : f32, //sterkte van de atmosfeergloed (GUI-slider; ex-_padD)
+    maxGrondHoogte : f32, //hoogste terreinpunt (bepaald bij het laden); basis voor het wolkendek
+    overlayKeuze    : f32, //weergave-overlay (cijfertoetsen): 0 = normaal, 1 = temperatuur, 2 = wind+druk, 3 = bodemvocht, 4 = luchtvocht/wolken/druk, 5 = ijs/water/bodemvocht, 6 = wolken, 7 = zonlicht, 8 = leven, 9 = terreinhoogte, 10 = waterrichting+droesem (alleen via de GUI), 11 = schaduw-debug (toets -)
+    atmosfeerDikte  : f32, //dikte van de atmosfeerschil in genormaliseerde lagen (GUI-slider; ex-_padE)
+    schaduwAan      : f32, //1 = schaduwkaart aan (toets N)
+};

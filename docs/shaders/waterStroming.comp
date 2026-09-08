@@ -1,0 +1,28 @@
+//WGSL reken-shader die de waterstroming (fluxen door de pijpen) berekent
+#include "planeetDefinities.wgsl"
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
+
+    var fluxen = 0.0;
+    let burenAantal = vakMetas[ID].burenAantal;
+
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        let flux = max(0.0, vakken0[ID].pijpen[buur] + (tijdVerschil * pijpDoorsnee * ((zwaartekracht * hoogteverschil(ID, buurID(ID, buur))) / pijpLengte)));
+        vakken1[ID].pijpen[buur] = flux;
+        fluxen += flux;
+    }
+
+    //K beperkt de totale UITGAANDE flux tot de eigen watervoorraad, zodat een cel
+    //nooit meer kwijt raakt dan hij bezit. Daardoor wordt waterHoogteVloei in
+    //waterDruk nooit negatief (de max(0,·) is dan alleen een vangnet) en wordt er
+    //geen water uit het niets gecreëerd: wat wegstroomt komt exact bij de buren aan.
+    let K = max(0.0, min(1.0, (pijpLengte * vakken0[ID].waterHoogte) / max(fluxen, zeerKlein)));
+
+    for(var buur2 = 0u; buur2 < burenAantal && buur2 < maxBuren; buur2++) {
+        vakken1[ID].pijpen[buur2] = goed(K * vakken1[ID].pijpen[buur2], vakken0[ID].pijpen[buur2], 0.0, maxPijp);
+    }
+}

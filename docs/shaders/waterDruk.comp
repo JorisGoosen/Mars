@@ -1,0 +1,416 @@
+//WGSL reken-shader die de waterdruk, het bodemvocht, de droesem en het leven bijwerkt.
+//We hebben net in waterStroming.comp naar vakken1 geschreven, dus de nieuwe
+//stromingswaardes staan daar. Maar we willen alsnog de nieuwe waterHoogte etc
+//naar vakken1 schrijven, dus opletten.
+#include "planeetDefinities.wgsl"
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+    let ID = gid.x;
+    let aantal = arrayLength(&vakken0);
+    if(ID >= aantal) { return; }
+
+    let burenAantal = vakMetas[ID].burenAantal;
+    var stroming = 0.0;
+    var buurBodemVocht = 0.0;
+    let mijnBodemVocht = vakken0[ID].bodemVocht;
+    var buurLeven = 0.0;
+    var droesem = 0.0;
+    var snelheid = vec2f(0.0);
+    var maxHelling = 0.0;
+    var netZand = 0.0;
+    let mijnZand  = vakken0[ID].zandHoogte;
+    let mijnGrond = grondHoogte(vakken0[ID]);
+    var netIjs    = 0.0;
+    let mijnIjs   = vakken0[ID].ijs;
+    let mijnIjsTop = ijsTop(vakken0[ID]);
+
+    //Zand-rusthelling: als meerdere lagere buren tegelijk om zand vragen kan de som
+    //van de porties de zandlaag overschrijden. De donor schaalt daarom al zijn
+    //uitgaande porties met dezelfde factor; elke ontvangende buur past diezelfde
+    //factor toe (hij kan hem exact narekenen uit dezelfde vakken0-waarden), zodat
+    //de uitwisseling per paar bit-exact behoudend blijft en er nooit zand uit het
+    //niets ontstaat.
+    var uitTotaal = 0.0;
+    for(var b = 0u; b < burenAantal && b < maxBuren; b++) {
+        let hoogteBuurb = grondHoogte(vakken0[vakMetas[ID].buren[b]]);
+        let verschilb   = mijnGrond - hoogteBuurb;
+        if(verschilb > reken.erosiePar[3]) {
+            uitTotaal += min(zandZakhoek * (verschilb - reken.erosiePar[3]), mijnZand);
+        }
+    }
+    let uitSchaal = select(min(1.0, mijnZand / max(uitTotaal, zeerKlein)), 1.0, uitTotaal <= zeerKlein);
+
+    //IJs-rusthelling: zelfde donor-schaling als het zand, maar op het ijs-oppervlak
+    //(ijsTop: ijs drijft OP het water, dus grond + waterHoogte + ijs) en met de
+    //ijsRepose-drempel (reken.erosiePar2[2]). IJs is stroperiger dan zand:
+    //ijsTempo kruipt een factor 10 trager dan zandZakhoek.
+    var ijsUitTotaal = 0.0;
+    for(var ib = 0u; ib < burenAantal && ib < maxBuren; ib++) {
+        let ijsVerschilb = mijnIjsTop - ijsTop(vakken0[vakMetas[ID].buren[ib]]);
+        if(ijsVerschilb > reken.erosiePar2[2]) {
+            ijsUitTotaal += min(reken.erosiePar2[3] * (ijsVerschilb - reken.erosiePar2[2]), mijnIjs);
+        }
+    }
+    let ijsUitSchaal = select(min(1.0, mijnIjs / max(ijsUitTotaal, zeerKlein)), 1.0, ijsUitTotaal <= zeerKlein);
+
+    //Droesem claim-limit: een donor mag nooit meer slib uitsturen dan hij bezit.
+    //Per pijp vertrekt clamp(flux/L, 0, 1) x donor-droesem; bij meerdere uitgaande
+    //pijpen (of diep water, waterHoogte > 1) kan die som de voorraad overschrijden
+    //(water uit waterStroming heeft zo'n K-limit, vocht heeft fluxK — droesem niet).
+    //schaal = 1/max(1, somFracties) maakt het behoudend; elke ontvangende buur
+    //rekent dezelfde schaal na uit dezelfde vakken0/vakken1-waarden.
+    let mijnDroesem = vakken0[ID].droesem;
+    var mijnFrac = 0.0;
+    for(var fb = 0u; fb < burenAantal && fb < maxBuren; fb++) {
+        mijnFrac += clamp(vakken1[ID].pijpen[fb] / pijpLengte, 0.0, 1.0);
+    }
+    let mijnSchaal = 1.0 / max(1.0, mijnFrac);
+
+    //Ga de buren telkens opzoeken zodat we normaliën kunnen berekenen en zo veel meer
+    for(var buur = 0u; buur < burenAantal && buur < maxBuren; buur++) {
+        let buurIDv = vakMetas[ID].buren[buur];
+        let buurBuren = vakMetas[buurIDv].burenAantal;
+
+        //helling: het grootste grondhoogteverschil met een buur, genormaliseerd over de pijplengte
+        maxHelling = max(maxHelling, abs(grondHoogte(vakken0[buurIDv]) - mijnGrond) / pijpLengte);
+
+        //Zand-rusthelling (angle of repose, hierheen gehaald uit grondGelijkmaker.comp zodat
+        //de erosie niet door een latere pass wordt overschreven): symmetrische, behoudende
+        //zand-uitwisseling met deze buur — alleen de zandlaag zakt. De uitSchaal van de
+        //donor (vooraf gerekend) zorgt dat een donor nooit meer uitdeelt dan hij heeft.
+        let buurGrond = grondHoogte(vakken0[buurIDv]);
+        let buurZand  = vakken0[buurIDv].zandHoogte;
+        let verschil   = mijnGrond - buurGrond;
+        if(verschil > reken.erosiePar[3]) {
+            let oorskot = verschil - reken.erosiePar[3];
+            netZand -= min(zandZakhoek * oorskot, mijnZand) * uitSchaal;
+        }
+        else if(verschil < -reken.erosiePar[3]) {
+            let oorskot = -verschil - reken.erosiePar[3];
+            let buurAanbod = min(zandZakhoek * oorskot, buurZand);
+            //Pas de schaal van de donor toe: zijn totale uitgaande vraag kan zijn
+            //zandlaag overtreffen, en hij verdeelt dat tekort evenredig. Beide kanten
+            //rekenen dezelfde som uit dezelfde vakken0-data, dus behoudend.
+            var donorTotaal = 0.0;
+            for(var bb = 0u; bb < buurBuren && bb < maxBuren; bb++) {
+                let donorLaag  = vakMetas[buurIDv].buren[bb];
+                let donorVers  = buurGrond - grondHoogte(vakken0[donorLaag]);
+                if(donorVers > reken.erosiePar[3]) {
+                    donorTotaal += min(zandZakhoek * (donorVers - reken.erosiePar[3]), buurZand);
+                }
+            }
+            let donorSchaal = select(min(1.0, buurZand / max(donorTotaal, zeerKlein)), 1.0, donorTotaal <= zeerKlein);
+            netZand += buurAanbod * donorSchaal;
+        }
+
+        //IJs-rusthelling: symmetrische, behoudende uitwisseling op het ijs-oppervlak
+        //(ijs drijft OP het water: grond + waterHoogte + ijs — de échte waterhoogte,
+        //niet de gladgestreken waterSchijn). De donor kan nooit meer uitdelen dan zijn
+        //ijs; de ontvanger rekent de donor-schaal na uit dezelfde vakken0-data.
+        let buurIjsTop = ijsTop(vakken0[buurIDv]);
+        let buurIjs    = vakken0[buurIDv].ijs;
+        let ijsVerschil = mijnIjsTop - buurIjsTop;
+        if(ijsVerschil > reken.erosiePar2[2]) {
+            let ijsOorskot = ijsVerschil - reken.erosiePar2[2];
+            netIjs -= min(reken.erosiePar2[3] * ijsOorskot, mijnIjs) * ijsUitSchaal;
+        }
+        else if(ijsVerschil < -reken.erosiePar2[2]) {
+            let ijsOorskot = -ijsVerschil - reken.erosiePar2[2];
+            let ijsAanbod = min(reken.erosiePar2[3] * ijsOorskot, buurIjs);
+            var ijsDonorTotaal = 0.0;
+            for(var ibb = 0u; ibb < buurBuren && ibb < maxBuren; ibb++) {
+                let ijsDonorLaag = vakMetas[buurIDv].buren[ibb];
+                let ijsDonorVers = buurIjsTop - ijsTop(vakken0[ijsDonorLaag]);
+                if(ijsDonorVers > reken.erosiePar2[2]) {
+                    ijsDonorTotaal += min(reken.erosiePar2[3] * (ijsDonorVers - reken.erosiePar2[2]), buurIjs);
+                }
+            }
+            let ijsDonorSchaal = select(min(1.0, buurIjs / max(ijsDonorTotaal, zeerKlein)), 1.0, ijsDonorTotaal <= zeerKlein);
+            netIjs += ijsAanbod * ijsDonorSchaal;
+        }
+
+        for(var buurBuur = 0u; buurBuur < buurBuren; buurBuur++) {
+            if(vakMetas[buurIDv].buren[buurBuur] == ID) {
+                let stroomBinnen = vakken1[buurIDv].pijpen[buurBuur] - vakken1[ID].pijpen[buur];
+
+                stroming += stroomBinnen;
+                //Heel lichte bodemvocht-diffusie: symmetrisch per buurpaar (behoudend),
+                //gewogen met het harmonisch gemiddelde en geschaald met bodemDiffusie
+                //(klein, zodat het stabiel blijft en bodemvocht vooral via infiltratie/
+                //verdamping verplaatst).
+                let weegFactor = reken.waterPar[2] * 2.0 / (f32(burenAantal) + f32(buurBuren));
+                buurBodemVocht += (vakken0[buurIDv].bodemVocht - mijnBodemVocht) * weegFactor;
+                buurLeven += vakken1[buurIDv].leven;
+                snelheid += vakMetas[ID].buurRicht[buur] * stroomBinnen;
+
+                //Als stroomBinnen positief is komt het binnen
+                let andId = select(ID, buurIDv, stroomBinnen >= 0.0);
+
+                //Claim-limit van de donor (alleen nodig als de buur de donor is;
+                //eigen schaal staat al in mijnSchaal). Beide kanten rekenen dit
+                //na uit dezelfde pijpen, dus de overdracht is per paar behoudend.
+                var buurSchaal = mijnSchaal;
+                if(stroomBinnen >= 0.0) {
+                    var buurFrac = 0.0;
+                    for(var fb2 = 0u; fb2 < buurBuren && fb2 < maxBuren; fb2++) {
+                        buurFrac += clamp(vakken1[buurIDv].pijpen[fb2] / pijpLengte, 0.0, 1.0);
+                    }
+                    buurSchaal = 1.0 / max(1.0, buurFrac);
+                }
+
+                //Zwevend sediment rijdt MEe met het water: zolang er door deze buis
+                //stroomt en de bron iéts droesem heeft, verhuist het mee (ook als de
+                //bron al bijna droog is). Zo loopt een leegstromende cel zijn
+                //overtollige slib vanzelf door naar de volgende natte cel en hoopt
+                //zich nergens een suspensie op die bij een latere watervloed in één
+                //keer als piek wordt weggespoeld.
+                if(abs(stroomBinnen) > zeerKlein && vakken0[andId].droesem > zeerKlein) {
+                    droesem += sign(stroomBinnen) * clamp(abs(stroomBinnen / pijpLengte), 0.0, 1.0) * vakken0[andId].droesem * buurSchaal;
+                }
+
+                break;
+            }
+        }
+    }
+
+    //Extra vangnet: doordat de donor zijn uitgaande porties schaalt (zie hierboven)
+    //kan dit nooit meer uitgaan dan de zandlaag die hij bezit; deze klem vangt alleen
+    //nog marginale afrondingsfoutjes op en kan hooguit heel iets vernietigen,
+    //nooit iets creëren.
+    netZand = max(netZand, -mijnZand);
+    netIjs  = max(netIjs,  -mijnIjs);
+
+    //Dan tijd om het een en ander weg te schrijven
+    snelheid /= f32(burenAantal);
+    vakken1[ID].snelheid     = goedV2(snelheid, 0.0, -maxSnelheid, maxSnelheid);
+    vakken1[ID].plek         = goedV2(vakken0[ID].plek + snelheid, 0.0, -1.0e30, 1.0e30);
+
+    //Verdamping gebeurt boven in de lucht (waterLucht.comp); hier vloeit het water alleen.
+    var waterHoogteVloei = max(0.0, vakken0[ID].waterHoogte + (stroming / pijpLengte));
+
+    //Bodemvocht: diffusie door de grond + infiltratie van staand water tot veldcapaciteit
+    var bodemVochtNieuw = max(0.0, mijnBodemVocht + buurBodemVocht);
+    let infil = min(reken.waterPar[1] * waterHoogteVloei, max(0.0, reken.waterPar[3] - bodemVochtNieuw));
+    bodemVochtNieuw += infil;
+    waterHoogteVloei -= infil;
+
+    vakken1[ID].waterHoogte = goed(waterHoogteVloei, vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
+    vakken1[ID].bodemVocht  = goed(bodemVochtNieuw, vakken0[ID].bodemVocht, 0.0, maxWaterHoogte);
+
+    //---- ijs: onder het vriespunt wordt water ijs, daarboven dooit het terug ----
+    //IJs telt als grond voor de stroming (zie kolom() in planeetDefinities), dus
+    //water stroomt eroverheen. Eerder bevroren water zit in `ijs`, niet in
+    //waterHoogte, dus minder water kan weglopen/verdampt worden zolang het koud is.
+    let T_cel = vakken0[ID].temperatuur;
+    var waterNaVries = vakken1[ID].waterHoogte;
+    var ijsNieuw     = vakken0[ID].ijs;
+    if(T_cel < vriespuntK && waterNaVries > zeerKlein) {
+        let groei = min(ijsTempo * (vriespuntK - T_cel) * waterNaVries, waterNaVries);
+        ijsNieuw   += groei;
+        waterNaVries -= groei;
+    }
+    else if(T_cel > vriespuntK && ijsNieuw > zeerKlein) {
+        let dooi = min(ijsTempo * (T_cel - vriespuntK) * ijsNieuw, ijsNieuw);
+        ijsNieuw   -= dooi;
+        waterNaVries += dooi;
+    }
+
+    vakken1[ID].waterHoogte = goed(waterNaVries, vakken0[ID].waterHoogte, 0.0, maxWaterHoogte);
+    vakken1[ID].ijs         = goed(ijsNieuw + netIjs,  vakken0[ID].ijs,  0.0, maxWaterHoogte);
+
+    //Bevroren fractie van de waterkolom: dezelfde fractie van het zwevende slib
+    //(droesem) slaat neer in het ijs. ijs=10 en water=10 -> de helft zakt.
+    let waterTotaal = waterNaVries + ijsNieuw;
+    let vriesFractie = select(0.0, ijsNieuw / max(waterTotaal, zeerKlein), waterTotaal > zeerKlein);
+
+    if(!(droesem >= -1.0e30 && droesem <= 1.0e30)) {
+        droesem = 0.0;
+    }
+
+    let helling = 1.0 + reken.erosiePar2[0] * clamp(maxHelling, 0.0, 1.0);
+    var droesemCapaciteit = droesemheid * clamp(length(snelheid) * vertrager, 0.0, 1.0) * helling;
+
+    if(!(droesemCapaciteit >= -1.0e30 && droesemCapaciteit <= 1.0e30)) {
+        droesemCapaciteit = 0.0;
+    }
+
+    let droesemAangespoeld = droesem + vakken0[ID].droesem;
+
+    //Zwevend sediment hoort bij het water: de concentratie is begrensd en de kolom
+    //die stroomt telt het mee (zie hoogteverschil). Zo kan droesem met het water
+    //meebewegen en bij depositie nooit boven de lokale waterspiegel uitkomen.
+    let waterHoogteNieuw = vakken1[ID].waterHoogte;
+    let droesemMax       = max(0.0, waterHoogteNieuw) * maxDichtheid;
+
+    //Concentratie-cap: meer zwevend sediment dan het water kan dragen moet bezinken
+    let concentratie = max(0.0, droesemAangespoeld - droesemMax) * reken.erosie;
+
+    //Capaciteitsbalans: positief = te vol (bezinkt), negatief = water wil oplossen
+    var balans = droesemAangespoeld - droesemCapaciteit;
+
+    //--no-erosion: reken.erosie = 0 houdt het terrein volledig stil
+    balans *= reken.erosie;
+
+    vakken1[ID].grondSoort = vakken0[ID].grondSoort;
+    vakken1[ID].rotsHoogte = vakken0[ID].rotsHoogte;
+
+    var afzet   = 0.0;
+    var weg     = 0.0;
+    var vanZand = 0.0;
+    var rotsWeg = 0.0;
+
+    if(waterHoogteNieuw <= zeerKlein) {
+        //Droge cel: al het zwevende zakt. Overschot blijft in suspensie en rijdt met de
+        //laatste uitstroom verder naar de volgende natte cel (zie het slibtransport in
+        //de buur-loop). Nooit negatieve afzet.
+        afzet = max(0.0, droesemAangespoeld) * reken.erosie;
+    }
+    else if(balans < -zeerKlein && waterHoogteNieuw >= minWaterSed) { //== oplossen
+        let behoefte = -balans * reken.erosiePar2[1];
+
+        //Eerst het zand: zand dekt de volledige erosievraag zolang de voorraad
+        //strekt. Rots komt pas aan bod als de vraag groter is dan wat het zand kan
+        //leveren, en erodeert dan bovendien traag (rotsErosie).
+        let zandDekt = min(behoefte, mijnZand);
+        vanZand = zandDekt * reken.erosiePar[0];
+        weg += vanZand;
+
+        //Wat het zand niet kon dekken -> de rots eronder
+        let over = behoefte - zandDekt;
+        if(over > zeerKlein) {
+            let totRots = max(0.0, vakken0[ID].rotsHoogte - minGrondHoogte);
+            let vanRots = min(over, totRots) * reken.erosiePar[1];
+            weg += vanRots;
+            rotsWeg = vanRots;
+        }
+    }
+    else { //== bezinken (of evenwicht): capaciteits- én concentratie-overschot zakt
+        let bezinkBijdrage = max(0.0, balans) * reken.erosiePar[2];
+        afzet = max(bezinkBijdrage, concentratie);
+    }
+
+    //Bevroren slib: de bevroren fractie van de waterkolom neemt evenredig veel
+    //zwevend sediment mee de grond in (ijs=10, water=10 -> de helft zakt).
+    if(vriesFractie > 0.0) {
+        let afzetVries = droesemAangespoeld * vriesFractie;
+        afzet += afzetVries;
+    }
+
+    //Cap op erosie/depositie per frame: voorkomt plotselinge pieken (feedback loop).
+    //Daarnaast kan afzet nooit groter zijn dan wat er zweeft: bezinking én de
+    //bevroren fractie tellen apart op, dus in een natte, bevroren cel kon de som
+    //de droesemvoorraad overschrijden (het teveel werd dan wél als zand afgezet —
+    //minieme massa-creatie). Klemmen vóór de frame-cap.
+    const maxErosiePerFrame = 0.5;
+    afzet = min(min(afzet, max(0.0, droesemAangespoeld)), maxErosiePerFrame);
+    weg = min(weg, maxErosiePerFrame);
+
+    //Opgelost materiaal komt in het water, neergezakt materiaal gaat naar de bodem.
+    //Hard vangnet: in suspensie kan nooit meer slib hangen dan het water dragen kan
+    //(droesemMax). Zo kan een volle kom de pijpkolom niet opblazen met onbeperkt
+    //zwevend slib; het overschot verlaat de cel met de stroom i.p.v. dat het als een
+    //piek ophoopt.
+    let droesemCap = droesemMax;
+    vakken1[ID].droesem     = goed(min(droesemAangespoeld - afzet + weg, droesemCap), vakken0[ID].droesem, 0.0, maxDroesem);
+    //Erosie/depositie én de zand-rusthelling (netZand) worden hier samen op het terrein
+    //toegepast: één schrijver per ronde, zodat niets wordt overschreven. De twee lagen
+    //worden apart bijgehouden: afzet en het zandverlies gaan van/naar de zandlaag, en
+    //alleen rotsWeg raakt de ondergrond; de terreinhoogte is afgeleid (rots + zand).
+    //Het totaal blijft binnen dezelfde [minGrondHoogte, maxGrondHoogte] als voorheen:
+    //rots heeft zijn eigen klem en de zandlaag kan niet onder 0 of boven het plafond uitkomen.
+    vakken1[ID].rotsHoogte  = goed(vakken0[ID].rotsHoogte - rotsWeg, vakken0[ID].rotsHoogte, minGrondHoogte, maxGrondHoogte);
+    let zandNieuw = max(0.0, vakken0[ID].zandHoogte + netZand + afzet - vanZand);
+    vakken1[ID].zandHoogte  = goed(min(zandNieuw, maxGrondHoogte - vakken1[ID].rotsHoogte), 0.0, 0.0, maxGrondHoogte);
+
+    //het oppervlak is zand zodra er een deklaagje boven de rots ligt, anders rots
+    if(vakken1[ID].zandHoogte > zeerKlein) {
+        vakken1[ID].grondSoort = i32(gsZand);
+    }
+    else {
+        vakken1[ID].grondSoort = i32(gsRots);
+    }
+
+    var leven = vakken0[ID].leven;
+
+    //hoop doet leven
+    buurLeven /= f32(burenAantal);
+
+    let isZand = vakken1[ID].grondSoort == i32(gsZand) || vakken1[ID].grondSoort == i32(gsLoess);
+
+//let rotsGroei = 1.000025;
+//let rotsBuur  = 0.003333;
+//let zandGroei = 1.0005;
+//let zandBuur  = 0.05;
+    let groei     = select(reken.groeiPar[2], reken.groeiPar[0], isZand);
+    let buurG     = select(reken.groeiPar[3],  reken.groeiPar[1],  isZand);
+
+    //Temperatuur-afhankelijkheid van het leven:
+    // - groeiTemp: 0 bij/onder 0 °C, oplopend naar 1 net boven het vriespunt, zodat
+    //   leven alleen groeit boven 0 °C.
+    // - doodKoud: kwadratische koude-dood van 0 (boven -20 °C) tot 1 (bij -60 °C en
+    //   kouder), uniform per cel.
+    let T_kelvin = vakken0[ID].temperatuur;
+    let groeiTemp = smoothstep(levenBevriesK, levenBevriesK + reken.levenPar[0], T_kelvin);
+    let koudFract = clamp((levenKoudBegin - T_kelvin) / max(levenKoudBegin - levenKoudSnel, zeerKlein), 0.0, 1.0);
+
+    //Vochtmaat: leven gedijt tot de veldcapaciteit, daarboven helpt extra vocht niet.
+    let vochtmaat = clamp(vakken1[ID].bodemVocht / reken.waterPar[3], 0.0, 1.0);
+
+    //Lichtmaat: fotosynthese — leven groeit alleen in het zonlicht, en dan
+    //proportioneel aan hoeveel licht er valt (schaduw dempt de groei).
+    let lichtmaat = clamp(vakken0[ID].zonlicht, 0.0, 1.0);
+    let groeiSchaal = groeiTemp * vochtmaat * lichtmaat;
+
+    //Bestaande vocht-afhankelijke groei, nu ook geschaald met temperatuur en vocht:
+    //onder 0 °C (groeiTemp=0), zonder grondvocht (vochtmaat=0) of zonder licht
+    //(lichtmaat=0) groeit er niets.
+    let groeiFactor = (1.0 + (groei - 1.0) * groeiSchaal) * vochtmaat;
+    //Logistische verzadiging: de groeitoename wordt geschaald met de restruimte
+    //(levenMax - leven), zodat leven asymptotisch naar levenMax toe loopt i.p.v.
+    //onbegrensd door te groeien.
+    let headroom   = max(0.0, levenMax - leven);
+    let groeiToename = leven * max(groeiFactor - 1.0, 0.0) + (buurLeven * buurG) * groeiSchaal;
+    var nieuw      = leven + groeiToename * headroom;
+
+    //Onder water sterft leven sneller, en hoe dieper hoe sneller (geen licht).
+    //Alleen als er echt (diep)water staat: droog land mag geen 0.85-slag krijgen.
+    //waterDoodTempo (reken.levenPar2[1]) schaalt de sterkte; 0 = geen sterfte onder water.
+    if(vakken1[ID].waterHoogte > 1.0) {
+        let waterDood = clamp((vakken1[ID].waterHoogte - 1.0) / 6.0, 0.0, 1.0) * 0.9 * reken.levenPar2[1];
+        //Tot 3m diep: leven sterft 10x langzamer onder water
+        if(vakken1[ID].waterHoogte < 3.0) {
+            let ondiepWater = (vakken1[ID].waterHoogte - 1.0) / 2.0; //0..1 tussen 1 en 3
+            let doodFactor = mix(0.0, 0.09, waterDood) / 10.0;
+            nieuw *= 1.0 - doodFactor;
+        } else {
+            nieuw *= mix(0.85, 0.3, waterDood);
+        }
+    }
+    //Ondiep water (net onder het oppervlak tot aan diepwater-grens): lichte demping
+    if(vakken1[ID].waterHoogte > 0.05 && vakken1[ID].waterHoogte <= 1.0) {
+        nieuw *= mix(1.0, 0.95, groeiTemp);
+    }
+
+    //Droogte doodt pas onder de verwelkdrempel (levenVerwelk): al is de grond nog wat vochtig,
+    //dan overleeft het leven dat (het groeit alleen niet door — groeiSchaal volgt vochtmaat).
+    //Onder de drempel sterft het taai en geleidelijk (levenDroogTempo), nooit abrupt.
+    if(vakken1[ID].waterHoogte <= 0.05) {
+        let verdor = clamp((reken.levenPar[2] - vochtmaat) / reken.levenPar[2], 0.0, 1.0);
+        nieuw *= 1.0 - verdor * reken.levenPar[1];
+    }
+
+    leven = clamp(nieuw, 0.0, levenMax);
+
+    //Koude-dood (uniform): vanaf -20 °C begint leven te sterven, kwadratisch opbouwend
+    //naar heel snel bij -60 °C en daaronder. Bij volledige koude-dood wordt leven 0.
+    let doodSterkte = koudFract * koudFract * reken.levenPar[3];
+    leven = clamp(leven * (1.0 - doodSterkte), 0.0, levenMax);
+
+    //--no-life: geen plantengroei, dus leven blijft op 0 (geen groene begroeiing)
+    if(reken.levenAan <= 0.5) {
+        leven = 0.0;
+    }
+
+    vakken1[ID].leven = leven;
+}

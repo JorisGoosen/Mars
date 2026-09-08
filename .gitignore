@@ -1,7 +1,11 @@
 *.o
-mars
+/mars
 .vscode
-build/
+/build/
+/web/build/
+
+#github-pages-releasefolder (web-build-output, bewust wél in git)
+#docs/ wordt door web/bouw.sh gevuld vanuit web/build/dist/
 
 #lokaal gegenereerde veldkaart-diagnostiek
 /temp*.png

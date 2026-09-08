@@ -55,6 +55,16 @@ if [ -f "$DIST_DIR/mars.js" ] && [ -f "$DIST_DIR/mars.wasm" ]; then
     echo "  npx serve $DIST_DIR"
     echo ""
     echo "Open in browser: http://localhost:8080"
+
+    # Synchroniseer naar de GitHub Pages-releasefolder (docs/)
+    DOCS_DIR="$MARS_ROOT/docs"
+    echo ""
+    echo "Synchroniseren naar $DOCS_DIR ..."
+    mkdir -p "$DOCS_DIR"
+    rm -rf "${DOCS_DIR:?}"/* "$DOCS_DIR"/.nojekyll
+    cp -R "$DIST_DIR"/. "$DOCS_DIR"/
+    touch "$DOCS_DIR/.nojekyll"
+    echo "Releasefolder bijgewerkt: docs/ (committen en pushen voor GitHub Pages)"
 else
     echo ""
     echo "FOUT: Build mislukt (geen mars.js/mars.wasm gevonden in $DIST_DIR)"

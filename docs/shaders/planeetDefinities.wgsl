@@ -1,0 +1,153 @@
+//Hulpdefinities voor de reken-shaders (bind-groep 0: vijf opslag-buffers)
+#include "planeetStructen.wgsl"
+
+@group(0) @binding(0) var<storage, read_write> vakken0 : array<vak>;
+@group(0) @binding(1) var<storage, read_write> vakken1 : array<vak>;
+@group(0) @binding(2) var<storage, read_write> vakMetas : array<vakMeta>;
+@group(0) @binding(3) var<storage, read_write> reken    : rekenParameters;
+
+fn buurID(id : u32, buur : u32) -> u32 {
+    return vakMetas[id].buren[buur];
+}
+
+//Vervangt Niet-eindige (NaN/±inf) waarden door een zinnige vervanger en klemt
+//daarna op [laag, hoog]. De extremen-hoge kleppen zijn een laatste vangnet;
+//een uitbijter wordt dus teruggezet op zijn vorige waarde i.p.v. dat een
+//NaN/inf de hele planeet besmet.
+fn goed(x : f32, vervanger : f32, laag : f32, hoog : f32) -> f32 {
+    if(!(x >= -1.0e30 && x <= 1.0e30)) {
+        return vervanger;
+    }
+    return clamp(x, laag, hoog);
+}
+
+fn goedV2(v : vec2f, vervanger : f32, laag : f32, hoog : f32) -> vec2f {
+    return vec2f(goed(v.x, vervanger, laag, hoog), goed(v.y, vervanger, laag, hoog));
+}
+
+fn applyGradWeights(id : u32, raw : vec2f) -> vec2f {
+    let w = vakMetas[id].gradWeights;
+    return vec2f(w[0] * raw.x + w[1] * raw.y, w[1] * raw.x + w[2] * raw.y);
+}
+
+//Wind als 3D-vector in het wereldframe: elke cel heeft een eigen lokaal
+//raakvlak-basisje (oost, noord) en die basisjes draaien tussen buren onderling.
+//Componenten uit verschillende basisjes optellen leest de basis-rotatie als
+//valse wind/divergentie (grid-patroon langs de icosahedron-hoofdvlakken).
+//In 3D zijn alle vectoren direct vergelijkbaar; projecteer pas terug op het
+//lokale basisje zodra er een resultaat per cel nodig is.
+fn wind3(id : u32) -> vec3f {
+    let m = vakMetas[id];
+    return vakken0[id].wind.x * m.oost.xyz + vakken0[id].wind.y * m.noord.xyz;
+}
+
+fn lokaal2(id : u32, v3 : vec3f) -> vec2f {
+    return vec2f(dot(v3, vakMetas[id].oost.xyz), dot(v3, vakMetas[id].noord.xyz));
+}
+
+fn hoogteverschil(id : u32, buurId : u32) -> f32 {
+    //De kolom die stroomt telt het zwevende sediment mee: droesem beweegt zo met
+    //het water mee en kan bij depositie nooit boven de (water+droesem)-kolom uitkomen.
+    //Alleen het draagkracht-gedeelte (maxDichtheid x water) duwt echter de stroming;
+    //sediment boven de concentratielimiet blijft zweven maar versnelt het water niet.
+    return kolom(id) - kolom(buurId);
+}
+
+fn kolom(id : u32) -> f32 {
+    let waterHoogte = max(0.0, vakken0[id].waterHoogte);
+    //IJs telt als grond: het ligt "onder" het water, dus verhoogt de bodem waarover
+    //het water stroomt (watert stroomt over ijs zoals over terrein).
+    return grondHoogte(vakken0[id]) + vakken0[id].ijs + (waterHoogte + min(waterHoogte * maxDichtheid, vakken0[id].droesem));
+}
+
+//Transportconstante: welke fractie van een cel per ronde met 1 eenheid face-snelheid
+//meereist. Dezelfde constante wordt gebruikt voor temperatuur, druk, damp en wolken,
+//zodat ze als één (gemengde) luchtcel meebewegen.
+fn dtAdvPerL() -> f32 {
+    return (tijdVerschil * advectieSnelheid) / pijpLengte;
+}
+
+//Symmetrische face-snelheid over de rand id→buur (>0 = stroming van id naar buur).
+//Gebruikt het gemiddelde van beide celwinden voor een gecentreerde (tweede-orde)
+//benadering. De flux-pijpstructuur (vochtPijpenA/B) garandeert behoud doordat elke
+//flux precies één keer als positief en één keer als negatief wordt meegerekend.
+//Gebruikt de oude wind (vakken0) zodat alle grootheden in dezelfde ronde reizen.
+fn windU(id : u32, buur : u32) -> f32 {
+    let e  = vakMetas[id].buurRicht[buur];
+    let nb = vakMetas[id].buren[buur];
+    let e3 = normalize(vakMetas[id].oost.xyz * e.x + vakMetas[id].noord.xyz * e.y);
+    return dot(e3, 0.5 * (wind3(id) + wind3(nb)));
+}
+
+//Gemiddelde face-snelheid rond een cel. Voor een uniform windveld is dit op een
+//perfecte zeshoek exact 0, maar op dit onregelmatige grid leest het de lokale
+//richting-anisotropie (Σ e3 ≠ 0) als valse convergentie/divergentie — en omdat de
+//fluxen met de ABSOLUTE waarde (T0, P0, damp0) schalen, domineert die valse
+//compressie de echte (gradiënt-)advectie ruimschoots en ontstaat het patroon
+//langs de icosahedron-hoofdvlakken.
+fn windLambda(id : u32) -> f32 {
+    let nA = vakMetas[id].burenAantal;
+    var s = 0.0;
+    for(var i = 0u; i < nA && i < maxBuren; i = i + 1u) {
+        s = s + windU(id, i);
+    }
+    return s / f32(nA);
+}
+
+//Compressie-gecorrigeerde face-snelheid: trek het gemiddelde van beide aangrenzende
+//cellen af. Voor uniform wind wordt ũ ≈ 0 (geen valse compressie meer), en omdat de
+//correctie symmetrisch in (id, nb) is blijft ũ antisymmetrisch per rand => de
+//fluxvormige vochtadvectie blijft exact behoudend.
+fn windUC(id : u32, buur : u32) -> f32 {
+    let nb = vakMetas[id].buren[buur];
+    return windU(id, buur) - 0.5 * (windLambda(id) + windLambda(nb));
+}
+
+//Monotoonheids-/claim-limit per scalar: een cel stuurt nooit meer uit dan hij zelf
+//bezit, zodat uitgaande flux de voorraad nooit overschrijdt (geen onder-uitschot).
+fn fluxK(waarde : f32, fluxen : f32) -> f32 {
+    return min(1.0, max(waarde, 0.0) / max(fluxen, zeerKlein));
+}
+
+fn hoogteBuur(id : u32, water : bool) -> f32 {
+    return grondHoogte(vakken0[id]) + select(0.0, vakken0[id].waterSchijn, water);
+}
+
+fn vakHoogte(id : u32, water : bool) -> f32 {
+    return max(0.001, 1.0 + (hoogteBuur(id, water) * reken.grondSchaal));
+}
+
+fn vakHoogteNormaal(id : u32, water : bool) -> vec3f {
+    return vakMetas[id].normaal.xyz * vakHoogte(id, water);
+}
+
+fn berekenNormaal(id : u32, water : bool) -> vec3f {
+    let burenAantal = vakMetas[id].burenAantal;
+    let hier = vakHoogteNormaal(id, water);
+    var kruis = vec3f(0.0);
+    var buurPos = array<vec3f, maxBuren>(vec3f(0.0), vec3f(0.0), vec3f(0.0), vec3f(0.0), vec3f(0.0), vec3f(0.0));
+
+    for(var p = 0u; p < burenAantal && p < maxBuren; p++) {
+        buurPos[p] = vakHoogteNormaal(vakMetas[id].buren[p], water);
+    }
+    for(var i = 0u; i < burenAantal && i < maxBuren; i++) {
+        let tussen = cross(buurPos[i] - hier, buurPos[(i + 1u) % burenAantal] - hier);
+        kruis += tussen * select(-1.0, 1.0, dot(tussen, hier) >= 0.0);
+    }
+    return normalize(kruis);
+}
+
+//Oppervlak-hoogte voor de bol-selectie: rots is de basis, zand/water/ijs tellen
+//optioneel mee (bitvlag penseel.oppervlak, zie shaders/penseelStructen.wgsl).
+fn oppervlakHoogte(id : u32, oppervlak : u32) -> f32 {
+    var h = vakken0[id].rotsHoogte;
+    if((oppervlak & 1u) != 0u) { h = h + vakken0[id].zandHoogte; }
+    if((oppervlak & 2u) != 0u) { h = h + vakken0[id].waterSchijn; }
+    if((oppervlak & 4u) != 0u) { h = h + vakken0[id].ijs; }
+    return h;
+}
+
+//Wereldpositie van het oppervlak (voor de bol-afstand). reken.fasen[2] = grondMult.
+fn oppervlakWereld(id : u32, oppervlak : u32) -> vec3f {
+    return vakMetas[id].normaal.xyz * (max(0.001, 1.0 + oppervlakHoogte(id, oppervlak) * reken.grondSchaal) / reken.fasen[2]);
+}

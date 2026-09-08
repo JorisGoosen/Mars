@@ -1,0 +1,83 @@
+//WGSL vertex-shader voor de water-pass van de planeet.
+#include "planeetDefinitiesRender.wgsl"
+
+struct matricesDaar {
+    projectie  : mat4x4f,
+    modelZicht : mat4x4f,
+    transInvMV : mat4x4f,
+};
+@group(0) @binding(1) var<uniform> matrices : matricesDaar;
+
+struct vertexIn {
+    @location(0) posV : vec3f,
+    @location(1) tex   : vec2f,
+};
+
+struct naarFrag {
+    @builtin(position) glPos          : vec4f,
+    @location(0) normaal        : vec3f,
+    @location(1) hoeks          : vec3f,
+    @location(2) texDraaien     : vec3f,
+    @location(3) kleur          : vec4f,
+    @location(4) waterHoogte    : f32,
+    @location(5) grondHoogte    : f32,
+    @location(6) snelheid       : vec2f,
+    @location(7) leven          : f32,
+    @location(8) plek           : vec2f,
+    @location(9) pos            : vec4f,
+    @location(10) temperatuur   : f32,
+    @location(11) ijs           : f32,
+    @location(12) wind          : vec2f,
+    @location(13) luchtdruk     : f32,
+    @location(14) modelPos      : vec3f,
+    @location(15) diepWater     : f32,
+};
+
+const waterSchaler = 2.0;
+
+@vertex
+fn main(in : vertexIn, @builtin(vertex_index) vertexIndex : u32) -> naarFrag {
+    var uit : naarFrag;
+    let ID = vertexIndex;
+
+    uit.texDraaien = vec3f(in.tex.y, fract(in.tex.x), fract(in.tex.x + 0.5) - 0.5);
+    uit.grondHoogte = grondHoogte(vakken0[ID]);
+
+let lokaalWater = select(vakken0[ID].waterHoogte / waterSchaler, 1.0, vakken0[ID].waterHoogte > waterSchaler);
+    let droesemVerhouding = select(vakken0[ID].droesem / max(droesemheid * vakken0[ID].waterHoogte, zeerKlein), 0.0, vakken0[ID].waterHoogte <= zeerKlein);
+    //Resulterende stroming = lengte van de flux-afgeleide snelheid (in waterDruk.comp
+    //al gemiddeld over de buren); daar schalen we het wit-schuim mee.
+    let stroomKracht = clamp(length(vakken0[ID].snelheid) * 0.5, 0.0, 1.0);
+    //droesemVerhouding (0..1) in kleur.r, stroomKracht in kleur.g:
+    uit.kleur = vec4f(clamp(droesemVerhouding, 0.0, 1.0), stroomKracht, 0.0, 0.3 + (lokaalWater * 0.7));
+
+    uit.waterHoogte = vakken0[ID].waterSchijn;
+    uit.snelheid = vakken0[ID].snelheid;
+    uit.leven = vakken0[ID].leven;
+    uit.plek = vakken0[ID].plek - floor(vakken0[ID].plek);
+    uit.temperatuur = vakken0[ID].temperatuur;
+    uit.ijs = vakken0[ID].ijs;
+    uit.wind      = vakken0[ID].wind;
+    uit.luchtdruk = vakken0[ID].luchtdruk;
+
+    //het water ligt boven op de grond: schijnbare waterhoogte telt mee
+    let diepWater = vakken0[ID].waterSchijn > 1.0 && vakken0[ID].ijs <= 0.01;
+    let hier = in.posV * (vakHoogte(ID, select(hLand, hWater, diepWater)) / extra.grondMult);
+
+    //Voor de schaduw-lookup wordt de SPIEGELpositie van de casters bemonsterd
+    //(bovenste oppervlak: grond + waterspiegel + drijvend ijs, met dezelfde
+    //epsilon-push) — exact dezelfde positie die de schaduwkaart heeft geschreven,
+    //zodat kaart en lezer niet uit de pas lopen.
+    //Belichtingsnormaal: een dunne waterfilm of een ijsdek volgt voor de belichting
+    //het terrein — de waterSchijn-gradaciënten van zo'n vel geven anders lelijke
+    //facet-vlakken die op geprojecteerde schaduwen lijken. Alleen echt diep water
+    //krijgt zijn eigen (vlakke) oppervlakte-normaal.
+    uit.modelPos = schaduwSpiegelPos(in.posV, ID);
+    uit.normaal = normalize((matrices.modelZicht * vec4f(berekenNormaal(ID, select(hLand, hWater, diepWater)), 0.0)).xyz);
+    uit.hoeks = cross(normalize((matrices.modelZicht * vec4f(vakHoogteNormaal(buurID(ID, 0u), select(hLand, hWater, diepWater)), 0.0)).xyz), uit.normaal);
+    uit.diepWater = select(0.0, 1.0, diepWater);
+    uit.pos = matrices.modelZicht * vec4f(hier, 1.0);
+    uit.glPos = matrices.projectie * uit.pos;
+
+    return uit;
+}
