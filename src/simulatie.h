@@ -42,17 +42,17 @@ struct SimulatieConfig {
 	uint32_t            zaadje            = 0;   // 0 = willekeurig; >0 = reproduceerbaar (--zaadje)
 
 	// ── Beginwaarden per cel (de "lege Mars" start op 0; temperatuur in Kelvin) ──
-	float               startWater        = 0.0f; //waterHoogte per cel
+	float               startWater        = 1.0f; //waterHoogte per cel
 	float               startBodemVocht   = 0.0f;
 	float               startWolken       = 0.0f;
-	float               startLeven        = 0.0f;
-	float               startIjs          = 0.0f;
+	float               startLeven        = 0.0000001f;
+	float               startIjs          = 0.5f;
 	float               startDamp         = 0.0f; //luchtVocht
-	float               startZandDeksel   = 0.0f; //dikte van de begin-zandlaag
-	float               startTemperatuur  = 273.0f; //vlakke begintemperatuur (K; = 0 °C)
+	float               startZandDeksel   = 1.0f; //dikte van de begin-zandlaag
+	float               startTemperatuur  = 293.0f; //vlakke begintemperatuur (K; = 20 °C)
 
 	bool                hoofdloos         = false;
-	int                 subdiv            = 5;
+	int                 subdiv            = 6;
 	int                 schaduwGrootte    = 4096;
 	bool                schaduwAan        = true;
 	std::string         csvBestand;
@@ -270,7 +270,7 @@ private:
 	float _ijsTempo      = 1.0f / 200.0f; //tempo van de ijs-rusthelling: fractie van de drempeloverschrijding die per ronde verschuift (10x trager dan zand)
 	float _hellingKracht = 2.0f;
 	float _oplosheid     = 0.90f;
-	float _evapotranspiratie = 0.001f;
+	float _evapotranspiratie = 0.0015f;
 	float _infiltratie   = 0.3f;
 	float _bodemDiffusie = 0.5f;
 	float _veldCapaciteit = 1.0f;
@@ -285,7 +285,7 @@ private:
 	float _levensDamp    = 0.004f; //transpiratie: bodemvocht → damp door leven (per ronde)
 	float _waterDoodTempo = 4.0f;  //sterkte van leven-sterfte onder water (0 = uit)
 	float _condensTempo  = 0.01f;
-	float _regenTempo    = 0.30f;
+	float _regenTempo    = 0.10f;
 	float _wolkVerdamp   = 0.006f;
 	float _wolkDiffusie  = 1.0f;
 	float     _obliquity    = 0.4f;
@@ -295,7 +295,7 @@ private:
 	float     _wolkAlpha    = 0.333333f; //doorzichtigheid van het wolkendek (0..1)
 	float     _waterReflectie = 1.0f; //sterkte waterspiegel + randreflectie (0..2)
 	float     _atmosfeerSterkte = 1.0f; //sterkte van de atmosfeergloed (0 = uit, 1 = normaal)
-	float     _atmosfeerDikte   = 0.5f; //dikte van de atmosfeerschil als fractie van de planeetstraal (0.05..1.5)
+	float     _atmosfeerDikte   = 0.25f; //dikte van de atmosfeerschil als fractie van de planeetstraal (0.05..1.5)
 
 	bool _roteerMaar      = false;
 	bool _waterStroomt    = true;
