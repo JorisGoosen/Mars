@@ -2,6 +2,8 @@
 
 Cross-platform WebGPU planet simulation with fluid dynamics and erosion.
 
+Live at: https://jorisgoosen.github.io/Mars/ 
+
 ## Build Requirements
 - C++20 compiler
 - CMake 3.20+
