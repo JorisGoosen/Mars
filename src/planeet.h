@@ -19,21 +19,21 @@ struct vak
 	int			grondSoort	;
 	float 		zandHoogte	, //losse zand/deklaag boven op de rots (altijd >= 0); terreinhoogte = rotsHoogte + zandHoogte
 				rotsHoogte	,
-    waterHoogte	,
-    waterSchijn	,
-    ijsSchijn	,
-    bodemVocht	,
+				waterHoogte	,
+				waterSchijn	,
+				ijsSchijn	,
+				bodemVocht	,
 				ijs			,
 				leven		,
 				droesem		,
-    luchtVocht	,
-    temperatuur	,
-    luchtdruk	,
-    wolken		,
-    zonlicht	, //lopend daggemiddelde van invalsFactor×schaduw (EMA, zie zonSchijn.comp; 0 = geen licht, 1 = volle zon)
-    pijpen[6],
-    vochtPijpenA[6], //flux van damp per buur (behoudend)
-    vochtPijpenB[6]; //flux van wolken per buur (behoudend)
+				luchtVocht	,
+				temperatuur	,
+				luchtdruk	,
+				wolken		,
+				zonlicht	, //lopend daggemiddelde van invalsFactor×schaduw (EMA, zie zonSchijn.comp; 0 = geen licht, 1 = volle zon)
+				pijpen[6],
+				vochtPijpenA[6], //flux van damp per buur (behoudend)
+				vochtPijpenB[6]; //flux van wolken per buur (behoudend)
   float	_pad		;
   glm::vec2	snelheid	;
 	glm::vec2	wind		; //atmosferische wind in het lokale raakvlak (west, noord)
